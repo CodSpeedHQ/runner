@@ -35,7 +35,7 @@ pub struct AppArgs {
     #[arg(long, default_value = "false", hide = true)]
     pub skip_upload: bool,
 
-    /// Only for debugging purposes, skips the upload of the results
+    /// Only for debugging purposes, skips the setup of the runner
     #[arg(long, default_value = "false", hide = true)]
     pub skip_setup: bool,
 
