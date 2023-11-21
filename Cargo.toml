@@ -2,6 +2,8 @@
 name = "codspeed-runner"
 version = "2.0.0"
 edition = "2021"
+repository = "https://github.com/CodSpeedHQ/runner"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,3 +20,16 @@ reqwest = { version = "0.11.22", features = ["json", "blocking"] }
 serde = { version = "1.0.192", features = ["derive"] }
 serde_json = "1.0.108"
 url = "2.4.1"
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+strip = true
+
+[workspace.metadata.dist]
+dist = true
+cargo-dist-version = "0.4.3"
+ci = ["github"]
+installers = ["shell"]
+targets = ["x86_64-unknown-linux-gnu"]
