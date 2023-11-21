@@ -22,7 +22,7 @@ fn get_python_objects() -> Vec<String> {
 }
 
 fn get_node_objects() -> Vec<String> {
-    let output = Command::new("python")
+    let output = Command::new("node")
         .arg("-e")
         .arg("console.log(process.execPath);")
         .output();
