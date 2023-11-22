@@ -18,18 +18,18 @@ pub struct UploadMetadata {
     pub runner: Runner,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GhData {
-    pub run_id: u32,
+    pub run_id: u64,
     pub job: String,
     pub sender: Option<Sender>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Sender {
-    pub id: u32,
+    pub id: u64,
     pub login: String,
 }
 
@@ -37,12 +37,14 @@ pub struct Sender {
 #[serde(rename_all = "camelCase")]
 pub struct Runner {
     pub name: String,
+    // TODO add back when integrating another provider
+    // pub platform: String,
     pub version: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct PostResponse {
+pub struct UploadData {
     pub status: String,
     pub upload_url: String,
     pub run_id: String,

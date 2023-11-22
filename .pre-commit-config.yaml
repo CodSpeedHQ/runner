@@ -5,7 +5,9 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: '\.out$'
       - id: end-of-file-fixer
+        exclude: '\.out$'
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files

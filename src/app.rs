@@ -13,7 +13,8 @@ fn show_banner() {
 "#,
         VERSION
     );
-    info!("{}", banner);
+    println!("{}", banner);
+    debug!("codspeed-runner v{}", VERSION);
 }
 
 #[derive(Parser, Debug)]
@@ -43,14 +44,14 @@ pub struct AppArgs {
     pub command: Vec<String>,
 }
 
-pub fn run() -> Result<()> {
+pub async fn run() -> Result<()> {
     let args = AppArgs::parse();
     let config = Config::try_from(args)?;
     show_banner();
     debug!("config: {:#?}", config);
     let run_data = runner::run(&config)?;
     if !config.skip_upload {
-        uploader::upload(&config, &run_data)?;
+        uploader::upload(&config, &run_data).await?;
     }
     Ok(())
 }

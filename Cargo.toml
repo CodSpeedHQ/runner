@@ -16,10 +16,22 @@ lazy_static = "1.4.0"
 log = "0.4.20"
 rand = "0.8.5"
 regex = "1.10.2"
-reqwest = { version = "0.11.22", features = ["json", "blocking"] }
+reqwest = { version = "0.11.22", features = ["json", "stream", "blocking"] }
+reqwest-middleware = "0.2.4"
+reqwest-retry = "0.3.0"
 serde = { version = "1.0.192", features = ["derive"] }
 serde_json = "1.0.108"
 url = "2.4.1"
+sha256 = "1.4.0"
+tokio = { version = "1", features = ["macros", "rt"] }
+tokio-tar = "0.3.1"
+md5 = "0.7.0"
+base64 = "0.21.0"
+async-compression = { version = "0.4.5", features = ["tokio", "gzip"] }
+
+[dev-dependencies]
+temp-env = { version = "0.3.6", features = ["async_closure"] }
+insta = { version = "1.29.0", features = ["json", "redactions"] }
 
 # The profile that 'cargo dist' will build with
 [profile.dist]
