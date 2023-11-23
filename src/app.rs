@@ -13,7 +13,7 @@ fn show_banner() {
 "#,
         VERSION
     );
-    println!("{}", banner);
+    info!("{}", banner);
 }
 
 #[derive(Parser, Debug)]
