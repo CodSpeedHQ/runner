@@ -5,6 +5,7 @@ use regex::Regex;
 use serde_json::Value;
 
 use crate::{
+    ci_provider::provider::CIProvider,
     config::Config,
     helpers::get_env_variable,
     prelude::*,
@@ -12,7 +13,7 @@ use crate::{
     VERSION,
 };
 
-use super::CIProvider;
+use super::logger::GithubActionLogger;
 
 #[derive(Debug)]
 pub struct GitHubActionsProvider {
@@ -100,6 +101,11 @@ impl TryFrom<&Config> for GitHubActionsProvider {
 }
 
 impl CIProvider for GitHubActionsProvider {
+    fn setup_logger(&self) -> Result<()> {
+        log::set_logger(&GithubActionLogger)?;
+        Ok(())
+    }
+
     fn get_provider_name(&self) -> &'static str {
         "GitHub Actions"
     }
