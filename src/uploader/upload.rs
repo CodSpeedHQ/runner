@@ -1,14 +1,9 @@
+use crate::{config::Config, prelude::*, request_client::REQUEST_CLIENT, runner::RunData};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
-use lazy_static::lazy_static;
+use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio_tar::Builder;
-
-use crate::{config::Config, prelude::*, runner::RunData};
-use reqwest::ClientBuilder;
-use reqwest_middleware::{ClientBuilder as ClientWithMiddlewareBuilder, ClientWithMiddleware};
-use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
-use serde_json::json;
 
 use super::{
     ci_provider::CIProvider,
@@ -41,26 +36,11 @@ async fn get_profile_archive_buffer(run_data: &RunData) -> Result<(Vec<u8>, Stri
     Ok((archive_buffer, archive_hash))
 }
 
-const UPLOAD_RETRY_COUNT: u32 = 3;
-
-lazy_static! {
-    static ref UPLOAD_REQUEST_CLIENT: ClientWithMiddleware = ClientWithMiddlewareBuilder::new(
-        ClientBuilder::new()
-            .user_agent("codspeed-runner")
-            .build()
-            .unwrap()
-    )
-    .with(RetryTransientMiddleware::new_with_policy(
-        ExponentialBackoff::builder().build_with_max_retries(UPLOAD_RETRY_COUNT)
-    ))
-    .build();
-}
-
 async fn retrieve_upload_data(
     config: &Config,
     upload_metadata: &UploadMetadata,
 ) -> Result<UploadData> {
-    let mut upload_request = UPLOAD_REQUEST_CLIENT
+    let mut upload_request = REQUEST_CLIENT
         .post(config.upload_url.clone())
         .json(&upload_metadata);
     if !upload_metadata.tokenless {
@@ -77,7 +57,7 @@ async fn upload_archive_buffer(
     archive_buffer: Vec<u8>,
     archive_hash: &String,
 ) -> Result<()> {
-    UPLOAD_REQUEST_CLIENT
+    REQUEST_CLIENT
         .put(upload_data.upload_url.clone())
         .header("Content-Type", "application/gzip")
         .header("Content-Length", archive_buffer.len())

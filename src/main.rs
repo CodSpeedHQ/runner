@@ -3,6 +3,7 @@ use env_logger::Env;
 mod app;
 mod config;
 mod prelude;
+mod request_client;
 mod runner;
 mod uploader;
 

@@ -1,10 +1,12 @@
-use crate::prelude::*;
+use crate::{prelude::*, request_client::REQUEST_CLIENT};
 use std::path::Path;
 
 use url::Url;
 
 pub async fn download_file(url: &Url, path: &Path) -> Result<()> {
-    let response = reqwest::get(url.clone())
+    let response = REQUEST_CLIENT
+        .get(url.clone())
+        .send()
         .await
         .map_err(|e| anyhow!("Failed to download file: {}", e))?;
     if !response.status().is_success() {
