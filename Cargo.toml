@@ -5,7 +5,6 @@ edition = "2021"
 repository = "https://github.com/CodSpeedHQ/runner"
 publish = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.75"
@@ -33,7 +32,7 @@ async-compression = { version = "0.4.5", features = ["tokio", "gzip"] }
 temp-env = { version = "0.3.6", features = ["async_closure"] }
 insta = { version = "1.29.0", features = ["json", "redactions"] }
 
-# The profile that 'cargo dist' will build with
+
 [profile.dist]
 inherits = "release"
 lto = "thin"
@@ -44,4 +43,5 @@ dist = true
 cargo-dist-version = "0.4.3"
 ci = ["github"]
 installers = ["shell"]
-targets = ["x86_64-unknown-linux-gnu"]
+targets = ["x86_64-unknown-linux-musl"]
+pr-run-mode = "upload"
