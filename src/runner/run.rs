@@ -12,10 +12,10 @@ pub struct RunData {
     pub profile_folder: PathBuf,
 }
 
-pub fn run(config: &Config) -> Result<RunData> {
+pub async fn run(config: &Config) -> Result<RunData> {
     if !config.skip_setup {
         let system_info = check_system()?;
-        setup(&system_info)?;
+        setup(&system_info).await?;
     }
     //TODO: add valgrind version check
     let profile_folder = create_profile_folder()?;

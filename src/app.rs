@@ -49,7 +49,7 @@ pub async fn run() -> Result<()> {
     let config = Config::try_from(args)?;
     show_banner();
     debug!("config: {:#?}", config);
-    let run_data = runner::run(&config)?;
+    let run_data = runner::run(&config).await?;
     if !config.skip_upload {
         uploader::upload(&config, &run_data).await?;
     }
