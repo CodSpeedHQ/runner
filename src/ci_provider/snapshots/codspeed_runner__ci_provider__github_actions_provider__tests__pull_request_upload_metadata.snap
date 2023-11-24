@@ -1,5 +1,5 @@
 ---
-source: src/uploader/github_actions_provider.rs
+source: src/ci_provider/github_actions_provider.rs
 expression: upload_metadata
 ---
 {

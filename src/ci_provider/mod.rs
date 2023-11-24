@@ -1,6 +1,9 @@
-use crate::{config::Config, prelude::*};
+use crate::{
+    ci_provider::github_actions_provider::GitHubActionsProvider, config::Config, prelude::*,
+    uploader::UploadMetadata,
+};
 
-use super::interfaces::UploadMetadata;
+mod github_actions_provider;
 
 /// `CIProvider` is a trait that defines the necessary methods for a continuous integration provider.
 pub trait CIProvider {
@@ -48,4 +51,13 @@ pub trait CIProvider {
     /// let metadata = provider.get_upload_metadata(&config, "abc123").unwrap();
     /// ```
     fn get_upload_metadata(&self, config: &Config, archive_hash: &str) -> Result<UploadMetadata>;
+}
+
+pub fn get_provider(config: &Config) -> Result<impl CIProvider> {
+    if GitHubActionsProvider::detect() {
+        let provider = GitHubActionsProvider::try_from(config)?;
+        return Ok(provider);
+    }
+
+    bail!("No CI provider detected")
 }

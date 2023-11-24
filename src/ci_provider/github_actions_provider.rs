@@ -4,12 +4,15 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
 
-use super::{
-    ci_provider::CIProvider,
+use crate::{
+    config::Config,
     helpers::get_env_variable,
-    interfaces::{GhData, Runner, Sender, UploadMetadata},
+    prelude::*,
+    uploader::{GhData, Runner, Sender, UploadMetadata},
+    VERSION,
 };
-use crate::{config::Config, prelude::*, VERSION};
+
+use super::CIProvider;
 
 #[derive(Debug)]
 pub struct GitHubActionsProvider {

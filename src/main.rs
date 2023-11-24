@@ -1,7 +1,9 @@
 use env_logger::Env;
 
 mod app;
+mod ci_provider;
 mod config;
+mod helpers;
 mod prelude;
 mod request_client;
 mod runner;

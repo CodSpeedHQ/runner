@@ -1,24 +1,14 @@
-use crate::{config::Config, prelude::*, request_client::REQUEST_CLIENT, runner::RunData};
+use crate::{
+    ci_provider::CIProvider, config::Config, prelude::*, request_client::REQUEST_CLIENT,
+    runner::RunData,
+};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio_tar::Builder;
 
-use super::{
-    ci_provider::CIProvider,
-    github_actions_provider::GitHubActionsProvider,
-    interfaces::{UploadData, UploadMetadata},
-};
-
-fn get_provider(config: &Config) -> Result<impl CIProvider> {
-    if GitHubActionsProvider::detect() {
-        let provider = GitHubActionsProvider::try_from(config)?;
-        return Ok(provider);
-    }
-
-    bail!("No CI provider detected")
-}
+use super::interfaces::{UploadData, UploadMetadata};
 
 /// Create a tar.gz archive buffer of the profile folder and return its md5 hash encoded in base64
 async fn get_profile_archive_buffer(run_data: &RunData) -> Result<(Vec<u8>, String)> {
@@ -69,10 +59,9 @@ async fn upload_archive_buffer(
     Ok(())
 }
 
-pub async fn upload(config: &Config, run_data: &RunData) -> Result<()> {
+pub async fn upload(config: &Config, provider: &impl CIProvider, run_data: &RunData) -> Result<()> {
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
-    let provider = get_provider(config)?;
     debug!("CI provider detected: {:#?}", provider.get_provider_name());
 
     let upload_metadata = provider.get_upload_metadata(config, &archive_hash)?;
@@ -150,7 +139,8 @@ mod tests {
                 ("VERSION", Some("0.1.0")),
             ],
             async {
-                upload(&config, &run_data).await.unwrap();
+                let provider = crate::ci_provider::get_provider(&config).unwrap();
+                upload(&config, &provider, &run_data).await.unwrap();
             },
         )
         .await;
