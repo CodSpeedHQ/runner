@@ -76,7 +76,7 @@ pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
         .args(
             get_objects_path_to_ignore()
                 .iter()
-                .map(|x| format!("--obj-skip=={}", x)),
+                .map(|x| format!("--obj-skip={}", x)),
         )
         .arg(format!("--callgrind-out-file={}", profile_path.to_str().unwrap()).as_str())
         .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
