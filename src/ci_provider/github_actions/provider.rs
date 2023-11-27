@@ -103,6 +103,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
 impl CIProvider for GitHubActionsProvider {
     fn setup_logger(&self) -> Result<()> {
         log::set_logger(&GithubActionLogger)?;
+        log::set_max_level(log::LevelFilter::Trace);
         Ok(())
     }
 
