@@ -1,5 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RunEvent {
+    Push,
+    PullRequest,
+    WorkflowDispatch,
+    Schedule,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMetadata {
@@ -12,7 +21,7 @@ pub struct UploadMetadata {
     pub owner: String,
     pub repository: String,
     pub commit_hash: String,
-    pub event: String,
+    pub event: RunEvent,
     pub profile_md5: String,
     pub gh_data: GhData,
     pub runner: Runner,

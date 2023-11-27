@@ -9,7 +9,7 @@ use crate::{
     config::Config,
     helpers::get_env_variable,
     prelude::*,
-    uploader::{GhData, Runner, Sender, UploadMetadata},
+    uploader::{GhData, RunEvent, Runner, Sender, UploadMetadata},
     VERSION,
 };
 
@@ -24,7 +24,7 @@ pub struct GitHubActionsProvider {
     pub base_ref: Option<String>,
     pub commit_hash: String,
     pub gh_data: GhData,
-    pub event: String,
+    pub event: RunEvent,
 }
 
 impl GitHubActionsProvider {
@@ -76,13 +76,18 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             (None, get_env_variable("GITHUB_SHA")?)
         };
 
+        let github_event_name = get_env_variable("GITHUB_EVENT_NAME")?;
+        let event = serde_json::from_str(&format!("\"{}\"", github_event_name)).context(
+            format!("Event {} is not supported by CodSpeed", github_event_name),
+        )?;
+
         Ok(Self {
             owner,
             repository,
             ref_,
             commit_hash,
             head_ref,
-            event: get_env_variable("GITHUB_EVENT_NAME")?,
+            event,
             gh_data: GhData {
                 job: get_env_variable("GITHUB_JOB")?,
                 run_id: get_env_variable("GITHUB_RUN_ID")?
@@ -203,7 +208,7 @@ mod tests {
                 assert_eq!(github_actions_provider.base_ref, Some("main".into()));
                 assert_eq!(github_actions_provider.head_ref, None);
                 assert_eq!(github_actions_provider.commit_hash, "1234567890abcdef");
-                assert_eq!(github_actions_provider.event, "push");
+                assert_eq!(github_actions_provider.event, RunEvent::Push);
                 assert_eq!(github_actions_provider.gh_data.job, "job");
                 assert_eq!(github_actions_provider.gh_data.run_id, 1234567890);
                 assert_eq!(
