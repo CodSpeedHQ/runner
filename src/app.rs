@@ -1,9 +1,4 @@
-use crate::{
-    ci_provider::{self, CIProvider},
-    config::Config,
-    prelude::*,
-    runner, uploader, VERSION,
-};
+use crate::{ci_provider, config::Config, prelude::*, runner, uploader, VERSION};
 use clap::Parser;
 
 fn show_banner() {
@@ -61,7 +56,7 @@ pub async fn run() -> Result<()> {
     let run_data = runner::run(&config).await?;
     if !config.skip_upload {
         start_group!("Upload the results");
-        uploader::upload(&config, &provider, &run_data).await?;
+        uploader::upload(&config, provider, &run_data).await?;
         end_group!();
     }
     Ok(())

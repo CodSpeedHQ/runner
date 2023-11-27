@@ -2,6 +2,11 @@ use crate::config::Config;
 use crate::prelude::*;
 use crate::uploader::UploadMetadata;
 
+pub trait CIProviderDetector {
+    /// Detects if the current environment is running inside the CI provider.
+    fn detect() -> bool;
+}
+
 /// `CIProvider` is a trait that defines the necessary methods for a continuous integration provider.
 pub trait CIProvider {
     /// Registers the logger for the CI provider.
@@ -26,15 +31,6 @@ pub trait CIProvider {
     /// assert_eq!(provider.get_provider_slug(), "my-ci-provider");
     /// ```
     fn get_provider_slug(&self) -> &'static str;
-
-    /// Detects if the current environment is running inside the CI provider.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// assert_eq!(MyCIProvider::detect(), true);
-    /// ```
-    fn detect() -> bool;
 
     /// Returns the metadata necessary for uploading results to the CI provider.
     ///

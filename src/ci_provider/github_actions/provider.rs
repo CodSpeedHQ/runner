@@ -5,7 +5,7 @@ use regex::Regex;
 use serde_json::Value;
 
 use crate::{
-    ci_provider::provider::CIProvider,
+    ci_provider::provider::{CIProvider, CIProviderDetector},
     config::Config,
     helpers::get_env_variable,
     prelude::*,
@@ -100,6 +100,13 @@ impl TryFrom<&Config> for GitHubActionsProvider {
     }
 }
 
+impl CIProviderDetector for GitHubActionsProvider {
+    fn detect() -> bool {
+        // check if the GITHUB_ACTIONS environment variable is set and the value is truthy
+        env::var("GITHUB_ACTIONS") == Ok("true".into())
+    }
+}
+
 impl CIProvider for GitHubActionsProvider {
     fn setup_logger(&self) -> Result<()> {
         log::set_logger(&GithubActionLogger)?;
@@ -113,11 +120,6 @@ impl CIProvider for GitHubActionsProvider {
 
     fn get_provider_slug(&self) -> &'static str {
         "github-actions"
-    }
-
-    fn detect() -> bool {
-        // check if the GITHUB_ACTIONS environment variable is set and the value is truthy
-        env::var("GITHUB_ACTIONS") == Ok("true".into())
     }
 
     fn get_upload_metadata(&self, config: &Config, archive_hash: &str) -> Result<UploadMetadata> {

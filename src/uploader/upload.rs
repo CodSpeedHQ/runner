@@ -59,7 +59,11 @@ async fn upload_archive_buffer(
     Ok(())
 }
 
-pub async fn upload(config: &Config, provider: &impl CIProvider, run_data: &RunData) -> Result<()> {
+pub async fn upload(
+    config: &Config,
+    provider: Box<dyn CIProvider>,
+    run_data: &RunData,
+) -> Result<()> {
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
     debug!("CI provider detected: {:#?}", provider.get_provider_name());
@@ -140,7 +144,7 @@ mod tests {
             ],
             async {
                 let provider = crate::ci_provider::get_provider(&config).unwrap();
-                upload(&config, &provider, &run_data).await.unwrap();
+                upload(&config, provider, &run_data).await.unwrap();
             },
         )
         .await;
