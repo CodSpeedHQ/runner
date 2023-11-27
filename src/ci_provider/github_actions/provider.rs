@@ -61,7 +61,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
 
             let head_ref = if is_head_repo_fork {
                 format!(
-                    "{}/{}",
+                    "{}:{}",
                     head_repo["owner"]["login"].as_str().unwrap(),
                     pull_request["head"]["ref"].as_str().unwrap()
                 )
@@ -236,7 +236,7 @@ mod tests {
                     "GITHUB_EVENT_PATH",
                     Some(
                         format!(
-                            "{}/src/uploader/samples/pr-event.json",
+                            "{}/src/ci_provider/github_actions/samples/pr-event.json",
                             env!("CARGO_MANIFEST_DIR")
                         )
                         .as_str(),
@@ -267,6 +267,67 @@ mod tests {
                     .get_upload_metadata(&config, "archive_hash")
                     .unwrap();
 
+                assert_json_snapshot!(upload_metadata, {
+                    ".runner.version" => insta::dynamic_redaction(|value,_path| {
+                        assert_eq!(value.as_str().unwrap(), VERSION.to_string());
+                        "[version]"
+                    }),
+                });
+            },
+        );
+    }
+
+    #[test]
+    fn test_fork_pull_request_upload_metadata() {
+        with_vars(
+            [
+                ("GITHUB_ACTIONS", Some("true")),
+                ("GITHUB_ACTOR_ID", Some("19605940")),
+                ("GITHUB_ACTOR", Some("adriencaccia")),
+                ("GITHUB_BASE_REF", Some("main")),
+                ("GITHUB_EVENT_NAME", Some("pull_request")),
+                (
+                    "GITHUB_EVENT_PATH",
+                    Some(
+                        format!(
+                            "{}/src/ci_provider/github_actions/samples/fork-pr-event.json",
+                            env!("CARGO_MANIFEST_DIR")
+                        )
+                        .as_str(),
+                    ),
+                ),
+                ("GITHUB_HEAD_REF", Some("feat/codspeed-runner")),
+                ("GITHUB_JOB", Some("log-env")),
+                ("GITHUB_REF", Some("refs/pull/22/merge")),
+                ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
+                ("GITHUB_RUN_ID", Some("6957110437")),
+                (
+                    "GITHUB_SHA",
+                    Some("5bd77cb0da72bef094893ed45fb793ff16ecfbe3"),
+                ),
+                ("VERSION", Some("0.1.0")),
+            ],
+            || {
+                let config = Config {
+                    command: "upload".into(),
+                    skip_setup: false,
+                    skip_upload: false,
+                    token: Some("token".into()),
+                    upload_url: Url::parse("https://example.com").unwrap(),
+                    working_directory: Some(".".into()),
+                };
+                let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
+                let upload_metadata = github_actions_provider
+                    .get_upload_metadata(&config, "archive_hash")
+                    .unwrap();
+
+                assert_eq!(upload_metadata.owner, "my-org");
+                assert_eq!(upload_metadata.repository, "adrien-python-test");
+                assert_eq!(upload_metadata.base_ref, Some("main".into()));
+                assert_eq!(
+                    upload_metadata.head_ref,
+                    Some("fork-owner:feat/codspeed-runner".into())
+                );
                 assert_json_snapshot!(upload_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
