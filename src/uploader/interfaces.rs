@@ -36,7 +36,7 @@ pub struct GhData {
     pub sender: Option<Sender>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Sender {
     pub id: u64,
