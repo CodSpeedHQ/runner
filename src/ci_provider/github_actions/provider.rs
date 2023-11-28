@@ -139,10 +139,9 @@ impl CIProvider for GitHubActionsProvider {
             ref_: self.ref_.clone(),
 
             // TODO: refactor in a default implementation of the trait, as it will be the same for all providers
+            platform: self.get_provider_slug().into(),
             runner: Runner {
                 name: "codspeed-runner".into(),
-                // TODO add back when integrating another provider
-                // platform: self.get_provider_slug().into(),
                 version: VERSION.to_string(),
             },
             tokenless: config.token.is_none(),

@@ -24,5 +24,6 @@ expression: upload_metadata
   "runner": {
     "name": "codspeed-runner",
     "version": "[version]"
-  }
+  },
+  "platform": "github-actions"
 }

@@ -25,6 +25,7 @@ pub struct UploadMetadata {
     pub profile_md5: String,
     pub gh_data: Option<GhData>,
     pub runner: Runner,
+    pub platform: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -46,8 +47,6 @@ pub struct Sender {
 #[serde(rename_all = "camelCase")]
 pub struct Runner {
     pub name: String,
-    // TODO add back when integrating another provider
-    // pub platform: String,
     pub version: String,
 }
 
