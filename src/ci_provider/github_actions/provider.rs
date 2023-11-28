@@ -133,7 +133,7 @@ impl CIProvider for GitHubActionsProvider {
             head_ref: self.head_ref.clone(),
             commit_hash: self.commit_hash.clone(),
             event: self.event.clone(),
-            gh_data: self.gh_data.clone(),
+            gh_data: Some(self.gh_data.clone()),
             owner: self.owner.clone(),
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),

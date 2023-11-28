@@ -23,7 +23,7 @@ pub struct UploadMetadata {
     pub commit_hash: String,
     pub event: RunEvent,
     pub profile_md5: String,
-    pub gh_data: GhData,
+    pub gh_data: Option<GhData>,
     pub runner: Runner,
 }
 
