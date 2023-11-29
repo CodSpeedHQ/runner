@@ -1,4 +1,7 @@
-use std::{env, process::Command};
+use std::{
+    env,
+    process::{Command, Stdio},
+};
 
 use url::Url;
 
@@ -7,23 +10,38 @@ use crate::prelude::*;
 
 const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
 
+/// Run a command with sudo if available
+fn run_with_sudo(command_args: &[&str]) -> Result<()> {
+    let use_sudo = Command::new("sudo")
+        // `sudo true` will fail if sudo does not exist or the current user does not have sudo privileges
+        .arg("true")
+        .stdout(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success());
+    let mut command_args: Vec<&str> = command_args.into();
+    if use_sudo {
+        command_args.insert(0, "sudo");
+    }
+
+    let status = Command::new(command_args[0])
+        .args(&command_args[1..])
+        .status()
+        .map_err(|_| anyhow!("Failed to execute command: {}", command_args.join(" ")))?;
+
+    if !status.success() {
+        bail!("Failed to execute command: {}", command_args.join(" "));
+    }
+
+    Ok(())
+}
+
 pub async fn setup(system_info: &SystemInfo) -> Result<()> {
     let valgrind_deb_url = format!("https://github.com/CodSpeedHQ/valgrind-codspeed/releases/download/{}/valgrind_{}_ubuntu-{}_amd64.deb", VALGRIND_CODSPEED_VERSION, VALGRIND_CODSPEED_VERSION, system_info.os_version);
     let deb_path = env::temp_dir().join("valgrind-codspeed.deb");
     download_file(&Url::parse(valgrind_deb_url.as_str()).unwrap(), &deb_path).await?;
-    let update_status = Command::new("sudo")
-        .args(["apt-get", "update"])
-        .status()
-        .map_err(|_| anyhow!("Failed to update apt"))?;
-    if !update_status.success() {
-        bail!("Failed to update apt");
-    }
-    let install_status = Command::new("sudo")
-        .args(["apt-get", "install", "-y", deb_path.to_str().unwrap()])
-        .status()
-        .map_err(|_| anyhow!("Failed to install valgrind-codspeed"))?;
-    if !install_status.success() {
-        bail!("Failed to install valgrind-codspeed");
-    }
+
+    run_with_sudo(&["apt-get", "update"])?;
+    run_with_sudo(&["apt-get", "install", "-y", deb_path.to_str().unwrap()])?;
+
     Ok(())
 }
