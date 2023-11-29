@@ -12,14 +12,14 @@ pub async fn setup(system_info: &SystemInfo) -> Result<()> {
     let deb_path = env::temp_dir().join("valgrind-codspeed.deb");
     download_file(&Url::parse(valgrind_deb_url.as_str()).unwrap(), &deb_path).await?;
     let update_status = Command::new("sudo")
-        .args(["apt", "update"])
+        .args(["apt-get", "update"])
         .status()
         .map_err(|_| anyhow!("Failed to update apt"))?;
     if !update_status.success() {
         bail!("Failed to update apt");
     }
     let install_status = Command::new("sudo")
-        .args(["apt", "install", "-y", deb_path.to_str().unwrap()])
+        .args(["apt-get", "install", "-y", deb_path.to_str().unwrap()])
         .status()
         .map_err(|_| anyhow!("Failed to install valgrind-codspeed"))?;
     if !install_status.success() {
