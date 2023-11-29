@@ -18,7 +18,7 @@ impl Log for GithubActionLogger {
 
         if let Some(group_event) = get_group_event(record) {
             match group_event {
-                GroupEvent::Start(name) => {
+                GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
                     println!("::group::{}", name);
                 }
                 GroupEvent::End => {

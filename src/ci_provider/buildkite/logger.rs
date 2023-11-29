@@ -21,6 +21,9 @@ impl Log for BuildkiteLogger {
                 GroupEvent::Start(name) => {
                     println!("--- {}", name);
                 }
+                GroupEvent::StartOpened(name) => {
+                    println!("+++ {}", name);
+                }
                 GroupEvent::End => {}
             }
             return;
