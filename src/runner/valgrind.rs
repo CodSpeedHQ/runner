@@ -87,9 +87,9 @@ pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
     debug!("cmd: {:?}", cmd);
     let status = cmd
         .status()
-        .map_err(|_| anyhow!("failed to execute the benchmark process"))?;
+        .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
     if !status.success() {
-        return Err(anyhow!("failed to execute the benchmark process"));
+        bail!("failed to execute the benchmark process");
     }
 
     Ok(())
