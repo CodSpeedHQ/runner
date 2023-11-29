@@ -25,5 +25,6 @@ expression: upload_metadata
     "name": "codspeed-runner",
     "version": "[version]"
   },
-  "platform": "github-actions"
+  "platform": "github-actions",
+  "repositoryRootPath": "/home/runner/work/adrien-python-test/adrien-python-test/"
 }

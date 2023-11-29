@@ -26,6 +26,7 @@ pub struct UploadMetadata {
     pub gh_data: Option<GhData>,
     pub runner: Runner,
     pub platform: String,
+    pub repository_root_path: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

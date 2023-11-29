@@ -18,5 +18,6 @@ expression: upload_metadata
     "name": "codspeed-runner",
     "version": "[version]"
   },
-  "platform": "buildkite"
+  "platform": "buildkite",
+  "repositoryRootPath": "/buildkite/builds/7b10eca7600b-1/my-org/buildkite-test/"
 }

@@ -25,6 +25,7 @@ pub struct GitHubActionsProvider {
     pub commit_hash: String,
     pub gh_data: GhData,
     pub event: RunEvent,
+    pub repository_root_path: String,
 }
 
 impl GitHubActionsProvider {
@@ -83,7 +84,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
 
         Ok(Self {
             owner,
-            repository,
+            repository: repository.clone(),
             ref_,
             commit_hash,
             head_ref,
@@ -101,6 +102,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
                 }),
             },
             base_ref: get_env_variable("GITHUB_BASE_REF").ok(),
+            repository_root_path: format!("/home/runner/work/{}/{}/", repository, repository),
         })
     }
 }
@@ -137,6 +139,7 @@ impl CIProvider for GitHubActionsProvider {
             owner: self.owner.clone(),
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),
+            repository_root_path: self.repository_root_path.clone(),
 
             // TODO: refactor in a default implementation of the trait, as it will be the same for all providers
             platform: self.get_provider_slug().into(),

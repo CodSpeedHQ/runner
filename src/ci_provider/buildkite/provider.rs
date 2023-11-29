@@ -23,6 +23,7 @@ pub struct BuildkiteProvider {
     pub base_ref: Option<String>,
     pub commit_hash: String,
     pub event: RunEvent,
+    pub repository_root_path: String,
 }
 
 lazy_static! {
@@ -91,8 +92,8 @@ impl TryFrom<&Config> for BuildkiteProvider {
         let (owner, repository) = get_owner_and_repository()?;
 
         Ok(Self {
-            owner,
-            repository,
+            owner: owner.clone(),
+            repository: repository.clone(),
             ref_: get_ref()?,
             base_ref: if is_pr {
                 Some(get_env_variable("BUILDKITE_PULL_REQUEST_BASE_BRANCH")?)
@@ -106,6 +107,12 @@ impl TryFrom<&Config> for BuildkiteProvider {
             },
             commit_hash: get_env_variable("BUILDKITE_COMMIT")?,
             event: get_run_event()?,
+            repository_root_path: format!(
+                "/buildkite/builds/{}/{}/{}/",
+                get_env_variable("BUILDKITE_AGENT_NAME")?,
+                get_env_variable("BUILDKITE_ORGANIZATION_SLUG")?,
+                get_env_variable("BUILDKITE_PIPELINE_SLUG")?,
+            ),
         })
     }
 }
@@ -140,6 +147,7 @@ impl CIProvider for BuildkiteProvider {
             owner: self.owner.clone(),
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),
+            repository_root_path: self.repository_root_path.clone(),
 
             gh_data: None,
             tokenless: false,
@@ -199,10 +207,12 @@ mod tests {
     fn test_try_from_push_main() {
         with_vars(
             [
+                ("BUILDKITE_AGENT_NAME", Some("7b10eca7600b-1")),
                 ("BUILDKITE_BRANCH", Some("main")),
                 ("BUILDKITE_BUILD_NUMBER", Some("1")),
                 ("BUILDKITE_COMMIT", Some("abc123")),
-                ("BUILDKITE_PIPELINE_NAME", Some("buildkite-test")),
+                ("BUILDKITE_ORGANIZATION_SLUG", Some("my-org")),
+                ("BUILDKITE_PIPELINE_SLUG", Some("buildkite-test")),
                 ("BUILDKITE_PULL_REQUEST_BASE_BRANCH", Some("")),
                 ("BUILDKITE_PULL_REQUEST", Some("")),
                 (
@@ -229,6 +239,10 @@ mod tests {
                 assert_eq!(provider.head_ref, None);
                 assert_eq!(provider.commit_hash, "abc123");
                 assert_eq!(provider.event, RunEvent::Push);
+                assert_eq!(
+                    provider.repository_root_path,
+                    "/buildkite/builds/7b10eca7600b-1/my-org/buildkite-test/"
+                );
             },
         );
     }
@@ -237,10 +251,12 @@ mod tests {
     fn test_try_from_pull_request() {
         with_vars(
             [
+                ("BUILDKITE_AGENT_NAME", Some("7b10eca7600b-1")),
                 ("BUILDKITE_BRANCH", Some("feat/codspeed-runner")),
                 ("BUILDKITE_BUILD_NUMBER", Some("1")),
                 ("BUILDKITE_COMMIT", Some("abc123")),
-                ("BUILDKITE_PIPELINE_NAME", Some("buildkite-test")),
+                ("BUILDKITE_ORGANIZATION_SLUG", Some("my-org")),
+                ("BUILDKITE_PIPELINE_SLUG", Some("buildkite-test")),
                 ("BUILDKITE_PULL_REQUEST_BASE_BRANCH", Some("main")),
                 ("BUILDKITE_PULL_REQUEST", Some("22")),
                 (
@@ -267,6 +283,10 @@ mod tests {
                 assert_eq!(provider.head_ref, Some("feat/codspeed-runner".into()));
                 assert_eq!(provider.commit_hash, "abc123");
                 assert_eq!(provider.event, RunEvent::PullRequest);
+                assert_eq!(
+                    provider.repository_root_path,
+                    "/buildkite/builds/7b10eca7600b-1/my-org/buildkite-test/"
+                );
             },
         );
     }
@@ -275,10 +295,12 @@ mod tests {
     fn test_pull_request_upload_metadata() {
         with_vars(
             [
+                ("BUILDKITE_AGENT_NAME", Some("7b10eca7600b-1")),
                 ("BUILDKITE_BRANCH", Some("feat/codspeed-runner")),
                 ("BUILDKITE_BUILD_NUMBER", Some("1")),
                 ("BUILDKITE_COMMIT", Some("abc123")),
-                ("BUILDKITE_PIPELINE_NAME", Some("buildkite-test")),
+                ("BUILDKITE_ORGANIZATION_SLUG", Some("my-org")),
+                ("BUILDKITE_PIPELINE_SLUG", Some("buildkite-test")),
                 ("BUILDKITE_PULL_REQUEST_BASE_BRANCH", Some("main")),
                 ("BUILDKITE_PULL_REQUEST", Some("22")),
                 (
