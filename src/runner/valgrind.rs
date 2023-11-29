@@ -14,7 +14,7 @@ lazy_static! {
             ("PYTHONMALLOC", "malloc".into()),
             ("PYTHONHASHSEED", "0".into()),
             ("ARCH", ARCH.into()),
-            ("CODSPEED_ENV", "github".into()),
+            ("CODSPEED_ENV", "runner".into()),
         ])
     };
     static ref VALGRIND_BASE_ARGS: Vec<String> = {
