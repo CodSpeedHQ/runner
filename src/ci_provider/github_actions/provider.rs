@@ -117,7 +117,9 @@ impl CIProviderDetector for GitHubActionsProvider {
 impl CIProvider for GitHubActionsProvider {
     fn setup_logger(&self) -> Result<()> {
         log::set_logger(&GithubActionLogger)?;
-        log::set_max_level(log::LevelFilter::Trace);
+        if env::var("ACTIONS_STEP_DEBUG") == Ok("true".into()) {
+            log::set_max_level(log::LevelFilter::Trace);
+        }
         Ok(())
     }
 

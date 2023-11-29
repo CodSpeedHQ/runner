@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::{ci_provider, config::Config, prelude::*, runner, uploader, VERSION};
 use clap::Parser;
 
@@ -48,6 +50,12 @@ pub async fn run() -> Result<()> {
     let args = AppArgs::parse();
     let config = Config::try_from(args)?;
     let provider = ci_provider::get_provider(&config)?;
+
+    let log_level = env::var("CODSPEED_LOG")
+        .ok()
+        .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
+        .unwrap_or(log::LevelFilter::Info);
+    log::set_max_level(log_level);
     provider.setup_logger()?;
 
     show_banner();

@@ -126,7 +126,6 @@ impl CIProviderDetector for BuildkiteProvider {
 impl CIProvider for BuildkiteProvider {
     fn setup_logger(&self) -> Result<()> {
         log::set_logger(&BuildkiteLogger)?;
-        log::set_max_level(log::LevelFilter::Trace);
         Ok(())
     }
 
