@@ -58,3 +58,11 @@ Options:
   -h, --help
           Print help
 ```
+
+### Logging level
+
+Use the `CODSPEED_LOG` environment variable to set the logging level:
+
+```bash
+CODSPEED_LOG=debug codspeed-runner ...
+```
