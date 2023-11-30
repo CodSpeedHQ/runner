@@ -15,8 +15,8 @@ function echo_debug {
 # to avoid setting the variable for the children processes, unset it before running the node command
 unset __CODSPEED_NODE_CORE_INTROSPECTION_PATH__
 
-# Retrieve the original path by removing the folder containing CodSpeedHQ/action from the path.
-ORIGINAL_PATH=$(echo "$PATH" | tr ":" "\n" | grep -v "CodSpeedHQ/action" | tr "\n" ":")
+# Retrieve the original path by removing the folder containing codspeed_introspected_node from the path.
+ORIGINAL_PATH=$(echo "$PATH" | tr ":" "\n" | grep -v "codspeed_introspected_node" | tr "\n" ":")
 # Check if node is in the original path.
 if ! env PATH="$ORIGINAL_PATH" which node &>/dev/null; then
     echo "Error: node not found in PATH. There might be a problem with the node installation."
