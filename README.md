@@ -1,7 +1,7 @@
 <div align="center">
 <h1><code>codspeed-runner</code></h1>
 
-CLI to gather performance data and upload performance reports to [CodSpeed](https://codspeed.io)
+CLI to gather performance data from CI environments and upload performance reports to [CodSpeed](https://codspeed.io)
 
 [![CI](https://github.com/CodSpeedHQ/runner/actions/workflows/ci.yml/badge.svg)](https://github.com/CodSpeedHQ/runner/actions/workflows/ci.yml)
 [![Discord](https://img.shields.io/badge/chat%20on-discord-7289da.svg)](https://discord.com/invite/MxpaCfKSqF)
@@ -12,14 +12,14 @@ The `codspeed-runner` CLI is designed to be used in CI environments.
 
 The following providers are supported:
 
-- [GitHub Actions](https://docs.codspeed.io/ci/github-actions)
+- [GitHub Actions](https://docs.codspeed.io/ci/github-actions): Usage with [`@CodSpeedHQ/action`](https://github.com/CodSpeedHQ/action) is recommended.
 - [Buildkite](https://docs.codspeed.io/ci/buildkite)
 
 #### Other providers
 
-If you want to use the CLI with another provider, you can open an issue and/or chat with us on [Discord](https://discord.com/invite/MxpaCfKSqF) 🚀
+If you want to use the CLI with another provider, you can open an issue or chat with us on [Discord](https://discord.com/invite/MxpaCfKSqF) 🚀
 
-You can check out the implementation of the GitHub Actions and Buildkite integrations for reference: https://github.com/CodSpeedHQ/runner/tree/main/src/ci_provider.
+You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/runner/tree/main/src/ci_provider) for reference.
 
 ## Installation
 
