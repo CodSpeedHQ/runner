@@ -72,7 +72,7 @@ pub async fn upload(
     debug!("Upload metadata: {:#?}", upload_metadata);
     if upload_metadata.tokenless {
         let hash = sha256::digest(json!(upload_metadata).to_string());
-        info!("CodSpeed Run Hash: {}", hash);
+        info!("CodSpeed Run Hash: \"{}\"", hash);
     }
 
     info!("Preparing upload...");
