@@ -4,7 +4,6 @@ use crate::{
 };
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
-use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio_tar::Builder;
 
@@ -71,7 +70,7 @@ pub async fn upload(
     let upload_metadata = provider.get_upload_metadata(config, &archive_hash)?;
     debug!("Upload metadata: {:#?}", upload_metadata);
     if upload_metadata.tokenless {
-        let hash = sha256::digest(json!(upload_metadata).to_string());
+        let hash = upload_metadata.get_hash();
         info!("CodSpeed Run Hash: \"{}\"", hash);
     }
 

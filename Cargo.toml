@@ -23,7 +23,7 @@ reqwest = { version = "0.11.22", features = [
 reqwest-middleware = "0.2.4"
 reqwest-retry = "0.3.0"
 serde = { version = "1.0.192", features = ["derive"] }
-serde_json = "1.0.108"
+serde_json = { version = "1.0.108", features = ["preserve_order"] }
 url = "2.4.1"
 sha256 = "1.4.0"
 tokio = { version = "1", features = ["macros", "rt"] }
