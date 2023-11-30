@@ -117,9 +117,9 @@ impl CIProviderDetector for GitHubActionsProvider {
 impl CIProvider for GitHubActionsProvider {
     fn setup_logger(&self) -> Result<()> {
         log::set_logger(&GithubActionLogger)?;
-        if env::var("ACTIONS_STEP_DEBUG") == Ok("true".into()) {
-            log::set_max_level(log::LevelFilter::Trace);
-        }
+        // since TRACE and DEBUG use ::debug::, we always enable them and let GitHub handle the filtering
+        // thanks to https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/enabling-debug-logging#enabling-step-debug-logging
+        log::set_max_level(log::LevelFilter::Trace);
         Ok(())
     }
 
