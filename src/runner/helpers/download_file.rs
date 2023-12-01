@@ -4,6 +4,7 @@ use std::path::Path;
 use url::Url;
 
 pub async fn download_file(url: &Url, path: &Path) -> Result<()> {
+    debug!("Downloading file: {}", url);
     let response = REQUEST_CLIENT
         .get(url.clone())
         .send()

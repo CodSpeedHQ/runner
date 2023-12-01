@@ -23,12 +23,16 @@ fn run_with_sudo(command_args: &[&str]) -> Result<()> {
         command_args.insert(0, "sudo");
     }
 
-    let status = Command::new(command_args[0])
+    debug!("Running command: {}", command_args.join(" "));
+    let output = Command::new(command_args[0])
         .args(&command_args[1..])
-        .status()
+        .stdout(Stdio::piped())
+        .output()
         .map_err(|_| anyhow!("Failed to execute command: {}", command_args.join(" ")))?;
 
-    if !status.success() {
+    if !output.status.success() {
+        info!("stdout: {:?}", output.stdout);
+        error!("stderr: {:?}", output.stderr);
         bail!("Failed to execute command: {}", command_args.join(" "));
     }
 
@@ -43,5 +47,6 @@ pub async fn setup(system_info: &SystemInfo) -> Result<()> {
     run_with_sudo(&["apt-get", "update"])?;
     run_with_sudo(&["apt-get", "install", "-y", deb_path.to_str().unwrap()])?;
 
+    info!("Environment ready");
     Ok(())
 }
