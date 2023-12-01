@@ -28,23 +28,17 @@ impl Log for GithubActionLogger {
             return;
         }
 
-        match level {
-            Level::Error => {
-                println!("::error::{}", message);
-            }
-            Level::Warn => {
-                println!("::warning::{}", message);
-            }
-            Level::Info => {
-                println!("{}", message);
-            }
-            Level::Debug => {
-                println!("::debug::{}", message);
-            }
-            Level::Trace => {
-                println!("::debug::[TRACE]{}", message);
-            }
-        }
+        let prefix = match level {
+            Level::Error => "::error::",
+            Level::Warn => "::warning::",
+            Level::Info => "",
+            Level::Debug => "::debug::",
+            Level::Trace => "::debug::[TRACE]",
+        };
+        let message_string = message.to_string();
+        let lines = message_string.lines();
+        // ensure that all the lines of the message have the prefix, otherwise GitHub Actions will not recognize the command for the whole string
+        lines.for_each(|line| println!("{}{}", prefix, line));
     }
 
     fn flush(&self) {}
