@@ -46,6 +46,13 @@ lazy_static! {
     };
 }
 
+fn get_bench_command(config: &Config) -> String {
+    let bench_command = &config.command;
+    bench_command
+        // Fixes a compatibility issue with cargo 1.66+ running directly under valgrind <3.20
+        .replace("cargo codspeed", "cargo-codspeed")
+}
+
 pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
     debug!("profile dir: {}", profile_folder.display());
 
@@ -82,7 +89,7 @@ pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
         .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
 
     // Set the command to execute
-    cmd.args(["sh", "-c", config.command.as_str()]);
+    cmd.args(["sh", "-c", get_bench_command(config).as_str()]);
 
     debug!("cmd: {:?}", cmd);
     let status = cmd
@@ -93,4 +100,39 @@ pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_bench_command_cargo() {
+        let config = Config {
+            command: "cargo codspeed bench".into(),
+            ..Config::test()
+        };
+        assert_eq!(get_bench_command(&config), "cargo-codspeed bench");
+    }
+
+    #[test]
+    fn test_get_bench_command_multiline() {
+        let config = Config {
+            command: r#"
+cargo codspeed bench --features "foo bar"
+pnpm vitest bench "my-app"
+pytest tests/ --codspeed
+"#
+            .into(),
+            ..Config::test()
+        };
+        assert_eq!(
+            get_bench_command(&config),
+            r#"
+cargo-codspeed bench --features "foo bar"
+pnpm vitest bench "my-app"
+pytest tests/ --codspeed
+"#
+        );
+    }
 }
