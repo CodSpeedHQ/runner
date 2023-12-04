@@ -168,7 +168,6 @@ impl CIProvider for BuildkiteProvider {
 mod tests {
     use insta::assert_json_snapshot;
     use temp_env::{with_var, with_vars};
-    use url::Url;
 
     use super::*;
 
@@ -222,12 +221,8 @@ mod tests {
             ],
             || {
                 let config = Config {
-                    command: "upload".into(),
-                    skip_setup: false,
-                    skip_upload: false,
                     token: Some("token".into()),
-                    upload_url: Url::parse("https://example.com").unwrap(),
-                    working_directory: Some(".".into()),
+                    ..Config::test()
                 };
                 let provider = BuildkiteProvider::try_from(&config).unwrap();
 
@@ -266,12 +261,8 @@ mod tests {
             ],
             || {
                 let config = Config {
-                    command: "upload".into(),
-                    skip_setup: false,
-                    skip_upload: false,
                     token: Some("token".into()),
-                    upload_url: Url::parse("https://example.com").unwrap(),
-                    working_directory: Some(".".into()),
+                    ..Config::test()
                 };
                 let provider = BuildkiteProvider::try_from(&config).unwrap();
 
@@ -310,12 +301,8 @@ mod tests {
             ],
             || {
                 let config = Config {
-                    command: "upload".into(),
-                    skip_setup: false,
-                    skip_upload: false,
                     token: Some("token".into()),
-                    upload_url: Url::parse("https://example.com").unwrap(),
-                    working_directory: Some(".".into()),
+                    ..Config::test()
                 };
                 let provider = BuildkiteProvider::try_from(&config).unwrap();
                 let upload_metadata = provider.get_upload_metadata(&config, "abc123").unwrap();

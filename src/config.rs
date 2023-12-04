@@ -16,6 +16,21 @@ pub struct Config {
     pub skip_setup: bool,
 }
 
+#[cfg(test)]
+impl Config {
+    /// Constructs a new `Config` with default values for testing purposes
+    pub fn test() -> Self {
+        Self {
+            upload_url: Url::parse(DEFAULT_UPLOAD_URL).unwrap(),
+            token: None,
+            working_directory: None,
+            command: "".into(),
+            skip_upload: false,
+            skip_setup: false,
+        }
+    }
+}
+
 const DEFAULT_UPLOAD_URL: &str = "https://api.codspeed.io/upload";
 
 impl TryFrom<AppArgs> for Config {

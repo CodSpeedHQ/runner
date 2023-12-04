@@ -102,10 +102,8 @@ mod tests {
         let config = Config {
             command: "pytest tests/ --codspeed".into(),
             upload_url: Url::parse("change me").unwrap(),
-            skip_setup: false,
-            skip_upload: false,
             token: Some("change me".into()),
-            working_directory: None,
+            ..Config::test()
         };
         let run_data = RunData {
             profile_folder: PathBuf::from(format!(

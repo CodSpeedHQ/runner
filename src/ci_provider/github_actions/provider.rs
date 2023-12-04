@@ -162,7 +162,6 @@ impl CIProvider for GitHubActionsProvider {
 mod tests {
     use insta::assert_json_snapshot;
     use temp_env::{with_var, with_vars};
-    use url::Url;
 
     use super::*;
 
@@ -198,12 +197,8 @@ mod tests {
             ],
             || {
                 let config = Config {
-                    command: "upload".into(),
-                    skip_setup: false,
-                    skip_upload: false,
                     token: Some("token".into()),
-                    upload_url: Url::parse("https://example.com").unwrap(),
-                    working_directory: Some(".".into()),
+                    ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
                 assert_eq!(github_actions_provider.owner, "owner");
@@ -264,12 +259,8 @@ mod tests {
             ],
             || {
                 let config = Config {
-                    command: "upload".into(),
-                    skip_setup: false,
-                    skip_upload: false,
                     token: Some("token".into()),
-                    upload_url: Url::parse("https://example.com").unwrap(),
-                    working_directory: Some(".".into()),
+                    ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
                 let upload_metadata = github_actions_provider
@@ -318,12 +309,8 @@ mod tests {
             ],
             || {
                 let config = Config {
-                    command: "upload".into(),
-                    skip_setup: false,
-                    skip_upload: false,
                     token: Some("token".into()),
-                    upload_url: Url::parse("https://example.com").unwrap(),
-                    working_directory: Some(".".into()),
+                    ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
                 let upload_metadata = github_actions_provider
