@@ -5,12 +5,13 @@ use regex::Regex;
 use serde_json::Value;
 
 use crate::{
-    ci_provider::provider::{CIProvider, CIProviderDetector},
+    ci_provider::{
+        interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
+        provider::{CIProvider, CIProviderDetector},
+    },
     config::Config,
     helpers::get_env_variable,
     prelude::*,
-    uploader::{GhData, RunEvent, Runner, Sender, UploadMetadata},
-    VERSION,
 };
 
 use super::logger::GithubActionLogger;
@@ -131,8 +132,8 @@ impl CIProvider for GitHubActionsProvider {
         "github-actions"
     }
 
-    fn get_upload_metadata(&self, config: &Config, archive_hash: &str) -> Result<UploadMetadata> {
-        let upload_metadata = UploadMetadata {
+    fn get_provider_metadata(&self) -> Result<ProviderMetadata> {
+        Ok(ProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             commit_hash: self.commit_hash.clone(),
@@ -142,19 +143,7 @@ impl CIProvider for GitHubActionsProvider {
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
-
-            // TODO: refactor in a default implementation of the trait, as it will be the same for all providers
-            platform: self.get_provider_slug().into(),
-            runner: Runner {
-                name: "codspeed-runner".into(),
-                version: VERSION.to_string(),
-            },
-            tokenless: config.token.is_none(),
-            version: Some(1),
-            profile_md5: archive_hash.to_string(),
-        };
-
-        Ok(upload_metadata)
+        })
     }
 }
 
@@ -162,6 +151,8 @@ impl CIProvider for GitHubActionsProvider {
 mod tests {
     use insta::assert_json_snapshot;
     use temp_env::{with_var, with_vars};
+
+    use crate::VERSION;
 
     use super::*;
 
@@ -228,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pull_request_upload_metadata() {
+    fn test_pull_request_provider_metadata() {
         with_vars(
             [
                 ("GITHUB_ACTIONS", Some("true")),
@@ -263,11 +254,9 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
-                let upload_metadata = github_actions_provider
-                    .get_upload_metadata(&config, "archive_hash")
-                    .unwrap();
+                let provider_metadata = github_actions_provider.get_provider_metadata().unwrap();
 
-                assert_json_snapshot!(upload_metadata, {
+                assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"
@@ -278,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fork_pull_request_upload_metadata() {
+    fn test_fork_pull_request_provider_metadata() {
         with_vars(
             [
                 ("GITHUB_ACTIONS", Some("true")),
@@ -313,18 +302,16 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
-                let upload_metadata = github_actions_provider
-                    .get_upload_metadata(&config, "archive_hash")
-                    .unwrap();
+                let provider_metadata = github_actions_provider.get_provider_metadata().unwrap();
 
-                assert_eq!(upload_metadata.owner, "my-org");
-                assert_eq!(upload_metadata.repository, "adrien-python-test");
-                assert_eq!(upload_metadata.base_ref, Some("main".into()));
+                assert_eq!(provider_metadata.owner, "my-org");
+                assert_eq!(provider_metadata.repository, "adrien-python-test");
+                assert_eq!(provider_metadata.base_ref, Some("main".into()));
                 assert_eq!(
-                    upload_metadata.head_ref,
+                    provider_metadata.head_ref,
                     Some("fork-owner:feat/codspeed-runner".into())
                 );
-                assert_json_snapshot!(upload_metadata, {
+                assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"

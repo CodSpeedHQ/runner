@@ -3,8 +3,6 @@ source: src/ci_provider/buildkite/provider.rs
 expression: upload_metadata
 ---
 {
-  "version": 1,
-  "tokenless": false,
   "ref": "refs/pull/22/merge",
   "headRef": "feat/codspeed-runner",
   "baseRef": "main",
@@ -12,12 +10,6 @@ expression: upload_metadata
   "repository": "adrien-python-test",
   "commitHash": "abc123",
   "event": "pull_request",
-  "profileMd5": "abc123",
   "ghData": null,
-  "runner": {
-    "name": "codspeed-runner",
-    "version": "[version]"
-  },
-  "platform": "buildkite",
   "repositoryRootPath": "/buildkite/builds/7b10eca7600b-1/my-org/buildkite-test/"
 }
