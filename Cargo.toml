@@ -44,7 +44,7 @@ strip = true
 
 [workspace.metadata.dist]
 dist = true
-cargo-dist-version = "0.4.3"
+cargo-dist-version = "0.6.2"
 ci = ["github"]
 installers = ["shell"]
 targets = ["x86_64-unknown-linux-musl"]
