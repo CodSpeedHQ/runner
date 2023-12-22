@@ -36,9 +36,22 @@ async fn retrieve_upload_data(
         upload_request = upload_request.header("Authorization", config.token.clone().unwrap());
     }
 
-    let response = upload_request.send().await?.json::<UploadData>().await?;
+    let response = upload_request.send().await;
 
-    Ok(response)
+    match response {
+        Ok(response) => {
+            if response.status().is_client_error() {
+                return Err(anyhow!(
+                    "Failed to retrieve upload data: {} {}",
+                    response.status(),
+                    response.text().await?
+                ));
+            }
+
+            Ok(response.json().await?)
+        }
+        Err(err) => Err(err.into()),
+    }
 }
 
 async fn upload_archive_buffer(
