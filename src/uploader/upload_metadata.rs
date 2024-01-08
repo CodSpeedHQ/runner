@@ -11,20 +11,24 @@ impl UploadMetadata {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_json_snapshot;
+
     use crate::{
         ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
+        instruments::InstrumentNames,
         uploader::{Runner, UploadMetadata},
     };
 
     #[test]
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
-            version: Some(1),
+            version: Some(2),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
             runner: Runner {
                 name: "codspeed-runner".into(),
-                version: "2.0.1-beta.6".into(),
+                version: "2.1.0".into(),
+                instruments: vec![InstrumentNames::MongoDB],
             },
             platform: "github-actions".into(),
             provider_metadata: ProviderMetadata {
@@ -50,7 +54,8 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "b8e3e1085b62cd8eb5f96492f6477ca405c83c7ca13ea1dcc252b60d47b2bbc5"
-        )
+            "ae0421143ff1cd8ddad4566c0ccecce3f30c25b0be86736d91555ff323ec16ba"
+        );
+        assert_json_snapshot!(upload_metadata);
     }
 }

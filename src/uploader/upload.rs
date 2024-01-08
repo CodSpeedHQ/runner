@@ -1,6 +1,6 @@
 use crate::{
-    ci_provider::CIProvider, config::Config, prelude::*, request_client::REQUEST_CLIENT,
-    runner::RunData,
+    ci_provider::CIProvider, config::Config, instruments::Instruments, prelude::*,
+    request_client::REQUEST_CLIENT, runner::RunData,
 };
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
@@ -75,12 +75,13 @@ pub async fn upload(
     config: &Config,
     provider: Box<dyn CIProvider>,
     run_data: &RunData,
+    instruments: &Instruments,
 ) -> Result<()> {
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
     debug!("CI provider detected: {:#?}", provider.get_provider_name());
 
-    let upload_metadata = provider.get_upload_metadata(config, &archive_hash)?;
+    let upload_metadata = provider.get_upload_metadata(config, &archive_hash, instruments)?;
     debug!("Upload metadata: {:#?}", upload_metadata);
     if upload_metadata.tokenless {
         let hash = upload_metadata.get_hash();
@@ -154,7 +155,10 @@ mod tests {
             ],
             async {
                 let provider = crate::ci_provider::get_provider(&config).unwrap();
-                upload(&config, provider, &run_data).await.unwrap();
+                let instruments = Instruments::test();
+                upload(&config, provider, &run_data, &instruments)
+                    .await
+                    .unwrap();
             },
         )
         .await;

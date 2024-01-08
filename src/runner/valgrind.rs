@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::runner::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::runner::helpers::introspected_node::setup_introspected_node;
@@ -53,7 +54,11 @@ fn get_bench_command(config: &Config) -> String {
         .replace("cargo codspeed", "cargo-codspeed")
 }
 
-pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
+pub fn measure(
+    config: &Config,
+    profile_folder: &Path,
+    mongo_tracer: &Option<MongoTracer>,
+) -> Result<()> {
     debug!("profile dir: {}", profile_folder.display());
 
     // Create the command
@@ -91,6 +96,11 @@ pub fn measure(config: &Config, profile_folder: &Path) -> Result<()> {
     // Set the command to execute
     cmd.args(["sh", "-c", get_bench_command(config).as_str()]);
 
+    // TODO: refactor and move this to the `Instrumentation` trait
+    if let Some(mongo_tracer) = mongo_tracer {
+        mongo_tracer.apply_run_command_transformations(&mut cmd)?;
+    }
+
     debug!("cmd: {:?}", cmd);
     let status = cmd
         .status()
@@ -118,6 +128,7 @@ mod tests {
     #[test]
     fn test_get_bench_command_multiline() {
         let config = Config {
+            // TODO: use indoc! macro
             command: r#"
 cargo codspeed bench --features "foo bar"
 pnpm vitest bench "my-app"

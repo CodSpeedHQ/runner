@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::instruments::Instruments;
 use crate::prelude::*;
 use crate::uploader::{Runner, UploadMetadata};
 
@@ -43,25 +44,33 @@ pub trait CIProvider {
     ///
     /// * `config` - A reference to the configuration.
     /// * `archive_hash` - The hash of the archive to be uploaded.
+    /// * `instruments` - A reference to the active instruments.
     ///
     /// # Example
     ///
     /// ```
     /// let provider = MyCIProvider::new();
     /// let config = Config::new();
+    /// let instruments = Instruments::new();
     /// let metadata = provider.get_upload_metadata(&config, "abc123").unwrap();
     /// ```
-    fn get_upload_metadata(&self, config: &Config, archive_hash: &str) -> Result<UploadMetadata> {
+    fn get_upload_metadata(
+        &self,
+        config: &Config,
+        archive_hash: &str,
+        instruments: &Instruments,
+    ) -> Result<UploadMetadata> {
         let provider_metadata = self.get_provider_metadata()?;
 
         Ok(UploadMetadata {
-            version: Some(1),
+            version: Some(2),
             tokenless: config.token.is_none(),
             provider_metadata,
             profile_md5: archive_hash.into(),
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),
+                instruments: instruments.get_active_instrument_names(),
             },
             platform: self.get_provider_slug().into(),
         })

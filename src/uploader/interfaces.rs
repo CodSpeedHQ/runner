@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ci_provider::interfaces::ProviderMetadata;
+use crate::{ci_provider::interfaces::ProviderMetadata, instruments::InstrumentNames};
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -19,6 +19,7 @@ pub struct UploadMetadata {
 pub struct Runner {
     pub name: String,
     pub version: String,
+    pub instruments: Vec<InstrumentNames>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

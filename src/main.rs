@@ -2,6 +2,7 @@ mod app;
 mod ci_provider;
 mod config;
 mod helpers;
+mod instruments;
 mod prelude;
 mod request_client;
 mod runner;
