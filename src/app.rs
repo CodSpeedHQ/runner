@@ -1,6 +1,8 @@
 use std::env;
 
-use crate::{ci_provider, config::Config, prelude::*, runner, uploader, VERSION};
+use crate::{
+    ci_provider, config::Config, instruments::Instruments, prelude::*, runner, uploader, VERSION,
+};
 use clap::Parser;
 
 fn show_banner() {
@@ -34,6 +36,11 @@ pub struct AppArgs {
     #[arg(long)]
     pub working_directory: Option<String>,
 
+    /// The name of the environment variable that contains the MongoDB URI to patch,
+    /// if not provided it will be read from the CODSPEED_MONGO_INSTR_URI_ENV_NAME environment variable
+    #[arg(long)]
+    pub mongo_uri_env_name: Option<String>,
+
     /// Only for debugging purposes, skips the upload of the results
     #[arg(long, default_value = "false", hide = true)]
     pub skip_upload: bool,
@@ -50,6 +57,7 @@ pub async fn run() -> Result<()> {
     let args = AppArgs::parse();
     let config = Config::try_from(args)?;
     let provider = ci_provider::get_provider(&config)?;
+    let instruments = Instruments::from(&config);
 
     let log_level = env::var("CODSPEED_LOG")
         .ok()
@@ -61,10 +69,10 @@ pub async fn run() -> Result<()> {
     show_banner();
     debug!("config: {:#?}", config);
 
-    let run_data = runner::run(&config).await?;
+    let run_data = runner::run(&config, &instruments).await?;
     if !config.skip_upload {
         start_group!("Upload the results");
-        uploader::upload(&config, provider, &run_data).await?;
+        uploader::upload(&config, provider, &run_data, &instruments).await?;
         end_group!();
     }
     Ok(())

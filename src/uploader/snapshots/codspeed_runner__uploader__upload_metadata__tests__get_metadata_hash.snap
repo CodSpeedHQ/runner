@@ -1,0 +1,33 @@
+---
+source: src/uploader/upload_metadata.rs
+expression: upload_metadata
+---
+{
+  "version": 2,
+  "tokenless": true,
+  "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",
+  "runner": {
+    "name": "codspeed-runner",
+    "version": "2.1.0",
+    "instruments": [
+      "MongoDB"
+    ]
+  },
+  "platform": "github-actions",
+  "ref": "refs/pull/29/merge",
+  "headRef": "chore/native-action-runner",
+  "baseRef": "main",
+  "owner": "CodSpeedHQ",
+  "repository": "codspeed-node",
+  "commitHash": "ea4005444338762d85163c8e8787387e2ba97fb6",
+  "event": "pull_request",
+  "ghData": {
+    "runId": 7044765741,
+    "job": "codspeed",
+    "sender": {
+      "id": 19605940,
+      "login": "adriencaccia"
+    }
+  },
+  "repositoryRootPath": "/home/runner/work/codspeed-node/codspeed-node/"
+}

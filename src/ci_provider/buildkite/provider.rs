@@ -4,12 +4,13 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::{
-    ci_provider::provider::{CIProvider, CIProviderDetector},
+    ci_provider::{
+        interfaces::{ProviderMetadata, RunEvent},
+        provider::{CIProvider, CIProviderDetector},
+    },
     config::Config,
     helpers::get_env_variable,
     prelude::*,
-    uploader::{RunEvent, Runner, UploadMetadata},
-    VERSION,
 };
 
 use super::logger::BuildkiteLogger;
@@ -137,8 +138,8 @@ impl CIProvider for BuildkiteProvider {
         "buildkite"
     }
 
-    fn get_upload_metadata(&self, _config: &Config, archive_hash: &str) -> Result<UploadMetadata> {
-        let upload_metadata = UploadMetadata {
+    fn get_provider_metadata(&self) -> Result<ProviderMetadata> {
+        Ok(ProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             commit_hash: self.commit_hash.clone(),
@@ -147,20 +148,8 @@ impl CIProvider for BuildkiteProvider {
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
-
             gh_data: None,
-            tokenless: false,
-            // TODO: refactor in a default implementation of the trait, as it will be the same for all providers
-            platform: self.get_provider_slug().into(),
-            runner: Runner {
-                name: "codspeed-runner".into(),
-                version: VERSION.to_string(),
-            },
-            version: Some(1),
-            profile_md5: archive_hash.to_string(),
-        };
-
-        Ok(upload_metadata)
+        })
     }
 }
 
@@ -168,6 +157,8 @@ impl CIProvider for BuildkiteProvider {
 mod tests {
     use insta::assert_json_snapshot;
     use temp_env::{with_var, with_vars};
+
+    use crate::VERSION;
 
     use super::*;
 
@@ -282,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pull_request_upload_metadata() {
+    fn test_pull_request_provider_metadata() {
         with_vars(
             [
                 ("BUILDKITE_AGENT_NAME", Some("7b10eca7600b-1")),
@@ -305,9 +296,9 @@ mod tests {
                     ..Config::test()
                 };
                 let provider = BuildkiteProvider::try_from(&config).unwrap();
-                let upload_metadata = provider.get_upload_metadata(&config, "abc123").unwrap();
+                let provider_metadata = provider.get_provider_metadata().unwrap();
 
-                assert_json_snapshot!(upload_metadata, {
+                assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"

@@ -1,3 +1,4 @@
+pub mod interfaces;
 pub mod logger;
 mod provider;
 
