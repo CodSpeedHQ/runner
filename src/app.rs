@@ -36,8 +36,15 @@ pub struct AppArgs {
     #[arg(long)]
     pub working_directory: Option<String>,
 
-    /// The name of the environment variable that contains the MongoDB URI to patch,
-    /// if not provided it will be read from the CODSPEED_MONGO_INSTR_URI_ENV_NAME environment variable
+    /// Enables the MongoDB instrumentation
+    #[arg(long, default_value = "false")]
+    pub mongo_db: bool,
+
+    /// The name of the environment variable that contains the MongoDB URI to patch.
+    /// If not provided it will be read from the CODSPEED_MONGO_INSTR_URI_ENV_NAME environment variable.
+    /// If the environment variable is not set, user will have to provide it dynamically through a CodSpeed integration.
+    ///
+    /// Only used if `--mongo-db` is enabled.
     #[arg(long)]
     pub mongo_uri_env_name: Option<String>,
 

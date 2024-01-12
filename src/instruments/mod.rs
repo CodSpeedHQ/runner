@@ -1,3 +1,4 @@
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
@@ -6,7 +7,7 @@ pub mod mongo_tracer;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MongoDBConfig {
-    pub uri_env_name: String,
+    pub uri_env_name: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -37,12 +38,16 @@ impl Instruments {
 
 impl From<&Config> for Instruments {
     fn from(config: &Config) -> Self {
-        let mongodb = config
-            .mongo_uri_env_name
-            .as_ref()
-            .map(|uri_env_name| MongoDBConfig {
+        let mongodb = match (config.mongodb, &config.mongo_uri_env_name) {
+            (true, uri_env_name) => Some(MongoDBConfig {
                 uri_env_name: uri_env_name.clone(),
-            });
+            }),
+            (_, Some(_)) => {
+                warn!("The MongoDB instrument is disabled but a MongoDB URI environment variable name was provided, ignoring it");
+                None
+            }
+            _ => None,
+        };
 
         Self { mongodb }
     }
@@ -54,7 +59,7 @@ impl Instruments {
     pub fn test() -> Self {
         Self {
             mongodb: Some(MongoDBConfig {
-                uri_env_name: "MONGODB_URI".into(),
+                uri_env_name: Some("MONGODB_URI".into()),
             }),
         }
     }
@@ -62,8 +67,6 @@ impl Instruments {
 
 #[cfg(test)]
 mod tests {
-    use temp_env::with_var;
-
     use super::*;
 
     #[test]
@@ -73,25 +76,31 @@ mod tests {
     }
 
     #[test]
-    fn test_from_env_mongodb() {
-        with_var(
-            "CODSPEED_MONGO_INSTR_URI_ENV_NAME",
-            Some("MONGODB_URI"),
-            || {
-                let config = Config {
-                    mongo_uri_env_name: Some("MONGODB_URI".into()),
-                    ..Config::test()
-                };
-                let instruments = Instruments::from(&config);
-                assert_eq!(
-                    instruments.mongodb,
-                    Some(MongoDBConfig {
-                        uri_env_name: "MONGODB_URI".into()
-                    })
-                );
-
-                assert!(instruments.is_mongodb_enabled());
-            },
+    fn test_from_config() {
+        let config = Config {
+            mongodb: true,
+            mongo_uri_env_name: Some("MONGODB_URI".into()),
+            ..Config::test()
+        };
+        let instruments = Instruments::from(&config);
+        assert_eq!(
+            instruments.mongodb,
+            Some(MongoDBConfig {
+                uri_env_name: Some("MONGODB_URI".into())
+            })
         );
+        assert!(instruments.is_mongodb_enabled());
+    }
+
+    #[test]
+    fn test_from_config_mongodb_disabled() {
+        let config = Config {
+            mongodb: false,
+            mongo_uri_env_name: Some("MONGODB_URI".into()),
+            ..Config::test()
+        };
+        let instruments = Instruments::from(&config);
+        assert_eq!(instruments.mongodb, None);
+        assert!(!instruments.is_mongodb_enabled());
     }
 }

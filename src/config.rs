@@ -11,6 +11,8 @@ pub struct Config {
     pub token: Option<String>,
     pub working_directory: Option<String>,
     pub command: String,
+
+    pub mongodb: bool,
     pub mongo_uri_env_name: Option<String>,
 
     pub skip_upload: bool,
@@ -26,6 +28,7 @@ impl Config {
             token: None,
             working_directory: None,
             command: "".into(),
+            mongodb: false,
             mongo_uri_env_name: None,
             skip_upload: false,
             skip_setup: false,
@@ -50,6 +53,7 @@ impl TryFrom<AppArgs> for Config {
             upload_url,
             token,
             working_directory: args.working_directory,
+            mongodb: args.mongo_db,
             mongo_uri_env_name,
             command: args.command.join(" "),
             skip_upload,
@@ -72,6 +76,7 @@ mod tests {
                 upload_url: None,
                 token: None,
                 working_directory: None,
+                mongo_db: false,
                 mongo_uri_env_name: None,
                 skip_upload: false,
                 skip_setup: false,
@@ -81,6 +86,7 @@ mod tests {
             assert_eq!(config.upload_url, Url::parse(DEFAULT_UPLOAD_URL).unwrap());
             assert_eq!(config.token, None);
             assert_eq!(config.working_directory, None);
+            assert!(!config.mongodb);
             assert_eq!(config.mongo_uri_env_name, None);
             assert!(!config.skip_upload);
             assert!(!config.skip_setup);
@@ -94,6 +100,7 @@ mod tests {
             upload_url: Some("https://example.com/upload".into()),
             token: Some("token".into()),
             working_directory: Some("/tmp".into()),
+            mongo_db: true,
             mongo_uri_env_name: Some("MONGODB_URI".into()),
             skip_upload: true,
             skip_setup: true,
@@ -107,6 +114,7 @@ mod tests {
         );
         assert_eq!(config.token, Some("token".into()));
         assert_eq!(config.working_directory, Some("/tmp".into()));
+        assert!(config.mongodb);
         assert_eq!(config.mongo_uri_env_name, Some("MONGODB_URI".into()));
         assert!(config.skip_upload);
         assert!(config.skip_setup);
@@ -129,6 +137,7 @@ mod tests {
                     upload_url: None,
                     token: None,
                     working_directory: None,
+                    mongo_db: true,
                     mongo_uri_env_name: None,
                     skip_upload: false,
                     skip_setup: false,
@@ -139,6 +148,7 @@ mod tests {
                 assert_eq!(config.upload_url, Url::parse(DEFAULT_UPLOAD_URL).unwrap());
                 assert_eq!(config.token, Some("token_from_env".into()));
                 assert_eq!(config.working_directory, None);
+                assert!(config.mongodb);
                 assert_eq!(
                     config.mongo_uri_env_name,
                     Some("MONGODB_URI_FROM_ENV".into())

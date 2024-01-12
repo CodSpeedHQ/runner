@@ -55,6 +55,7 @@ const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
 
 async fn install_mongodb_tracer() -> Result<()> {
     debug!("Installing mongodb-tracer");
+    // TODO: release the tracer and update this url
     let installer_url = format!("https://codspeed-public-assets.s3.eu-west-1.amazonaws.com/mongo-tracer/{MONGODB_TRACER_VERSION}/cs-mongo-tracer-installer.sh");
     let installer_path = env::temp_dir().join("cs-mongo-tracer-installer.sh");
     download_file(

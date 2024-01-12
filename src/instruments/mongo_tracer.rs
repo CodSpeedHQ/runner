@@ -15,13 +15,18 @@ use crate::{helpers::get_env_variable, prelude::*};
 use super::MongoDBConfig;
 
 #[derive(Debug)]
+pub struct UserInput {
+    mongo_uri: String,
+    uri_env_name: String,
+}
+
+#[derive(Debug)]
 pub struct MongoTracer {
     process: Option<Child>,
     server_address: String,
     profile_folder: PathBuf,
     proxy_mongo_uri: String,
-    user_mongo_uri: String,
-    uri_env_name: String,
+    user_input: Option<UserInput>,
 }
 
 fn dump_tracer_log(mut stream: impl Read) -> Result<()> {
@@ -41,11 +46,19 @@ fn dump_tracer_log(mut stream: impl Read) -> Result<()> {
 
 impl MongoTracer {
     pub fn try_from(profile_folder: &PathBuf, mongodb_config: &MongoDBConfig) -> Result<Self> {
-        debug!(
-            "Retrieving the value of {} to patch the MongoDB URL",
-            mongodb_config.uri_env_name
-        );
-        let user_mongo_uri = get_env_variable(mongodb_config.uri_env_name.as_str())?;
+        let user_input = match &mongodb_config.uri_env_name {
+            Some(uri_env_name) => {
+                debug!(
+                    "Retrieving the value of {} to patch the MongoDB URL",
+                    uri_env_name
+                );
+                Some(UserInput {
+                    mongo_uri: get_env_variable(uri_env_name.as_str())?,
+                    uri_env_name: uri_env_name.to_string(),
+                })
+            }
+            None => None,
+        };
 
         Ok(Self {
             process: None,
@@ -53,15 +66,17 @@ impl MongoTracer {
             profile_folder: profile_folder.into(),
             // TODO: later choose a random available port dynamically, and/or make it configurable
             proxy_mongo_uri: "mongodb://localhost:27018".into(),
-            user_mongo_uri,
-            uri_env_name: mongodb_config.uri_env_name.clone(),
+            user_input,
         })
     }
 
-    fn get_host_port_from_uris(&self) -> Result<(String, String, String)> {
+    fn get_host_port_from_uris(&self) -> Result<(String, String, Option<String>)> {
         let server_address_uri = Url::parse(&self.server_address)?;
         let proxy_uri = Url::parse(&self.proxy_mongo_uri)?;
-        let destination_uri = Url::parse(&self.user_mongo_uri)?;
+        let destination_uri = match &self.user_input {
+            Some(user_input) => Some(Url::parse(&user_input.mongo_uri)?),
+            None => None,
+        };
 
         let parsing_error_fn = || {
             anyhow!(
@@ -80,11 +95,14 @@ impl MongoTracer {
             proxy_uri.host_str().unwrap_or_default(),
             proxy_uri.port().unwrap_or_default()
         );
-        let destination_host_port = format!(
-            "{}:{}",
-            destination_uri.host_str().ok_or_else(parsing_error_fn)?,
-            destination_uri.port().ok_or_else(parsing_error_fn)?
-        );
+        let destination_host_port = match destination_uri {
+            Some(destination_uri) => Some(format!(
+                "{}:{}",
+                destination_uri.host_str().ok_or_else(parsing_error_fn)?,
+                destination_uri.port().ok_or_else(parsing_error_fn)?
+            )),
+            None => None,
+        };
 
         Ok((
             server_address_host_port,
@@ -99,22 +117,30 @@ impl MongoTracer {
             .get_host_port_from_uris()
             .context("Failed to parse the uris")?;
 
-        command.envs(vec![
+        let mut envs = vec![
             (
                 "CODSPEED_MONGO_INSTR_SERVER_ADDRESS",
                 server_address.as_str(),
             ),
             ("CODSPEED_MONGO_PROXY_HOST_PORT", proxy_host_port.as_str()),
-            (
+        ];
+        if let Some(destination_host_port) = destination_host_port.as_ref() {
+            envs.push((
                 "CODSPEED_MONGO_DEST_HOST_PORT",
                 destination_host_port.as_str(),
-            ),
-        ]);
+            ));
+        }
+        command.envs(envs);
+
         debug!("Start the MongoDB tracer: {:?}", command);
-        debug!(
-            "Proxy MongoDB from {} to {}",
-            proxy_host_port, destination_host_port
-        );
+        if let Some(destination_host_port) = destination_host_port {
+            debug!(
+                "Proxy MongoDB from {} to {}",
+                proxy_host_port, destination_host_port
+            );
+        } else {
+            info!("No MongoDB URI provided, user will have to provide it dynamically through the CodSpeed integration");
+        }
         let mut process = command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -162,30 +188,33 @@ impl MongoTracer {
     /// Applies the necessary transformations to the command to run the benchmark
     /// TODO: move this to a `Instrument` trait, refactor and implement it for valgring as well
     pub fn apply_run_command_transformations(&self, command: &mut Command) -> Result<()> {
-        let destination_uri = Url::parse(&self.user_mongo_uri)?;
-        let mut new_uri = Url::from_str(&self.proxy_mongo_uri)?;
-        new_uri.set_path(destination_uri.path());
-        let cleaned_query_pairs = destination_uri
-            .query_pairs()
-            .filter(|(k, _)| {
-                if k == "directConnection" {
-                    info!("Overriding directionConnection to true. This is necessary to make the MongoDB tracer work.");
-                    return false;
-                }
-                true
-            });
-        new_uri
-            .query_pairs_mut()
-            .extend_pairs(cleaned_query_pairs)
-            .append_pair("directConnection", "true");
+        let mut envs = vec![(
+            "CODSPEED_MONGO_INSTR_SERVER_ADDRESS",
+            self.server_address.as_str(),
+        )];
 
-        command.envs(vec![
-            (
-                "CODSPEED_MONGO_INSTR_SERVER_ADDRESS",
-                self.server_address.as_str(),
-            ),
-            (self.uri_env_name.as_str(), new_uri.as_str()),
-        ]);
+        let mut new_uri = Url::from_str(&self.proxy_mongo_uri)?;
+        if let Some(user_input) = &self.user_input {
+            let destination_uri = Url::parse(&user_input.mongo_uri)?;
+            new_uri.set_path(destination_uri.path());
+            let cleaned_query_pairs = destination_uri
+                .query_pairs()
+                .filter(|(k, _)| {
+                    if k == "directConnection" {
+                        info!("Overriding directionConnection to true. This is necessary to make the MongoDB tracer work.");
+                        return false;
+                    }
+                    true
+                });
+            new_uri
+                .query_pairs_mut()
+                .extend_pairs(cleaned_query_pairs)
+                .append_pair("directConnection", "true");
+
+            envs.push((user_input.uri_env_name.as_str(), new_uri.as_str()));
+        }
+
+        command.envs(envs);
 
         Ok(())
     }
@@ -204,8 +233,10 @@ mod tests {
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
             proxy_mongo_uri: "mongodb://localhost:27018".into(),
-            user_mongo_uri: "mongodb://localhost:27017".into(),
-            uri_env_name: "".into(),
+            user_input: Some(UserInput {
+                mongo_uri: "mongodb://localhost:27017".into(),
+                uri_env_name: "".into(),
+            }),
         };
 
         let (server_address, proxy_host_port, destination_host_port) = tracer
@@ -214,7 +245,26 @@ mod tests {
 
         assert_eq!(server_address, "0.0.0.0:55581");
         assert_eq!(proxy_host_port, "localhost:27018");
-        assert_eq!(destination_host_port, "localhost:27017");
+        assert_eq!(destination_host_port, Some("localhost:27017".into()));
+    }
+
+    #[test]
+    fn test_get_host_port_from_uris_no_input() {
+        let tracer = MongoTracer {
+            process: None,
+            server_address: "http://0.0.0.0:55581".into(),
+            profile_folder: "".into(),
+            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            user_input: None,
+        };
+
+        let (server_address, proxy_host_port, destination_host_port) = tracer
+            .get_host_port_from_uris()
+            .expect("Failed to parse the uris");
+
+        assert_eq!(server_address, "0.0.0.0:55581");
+        assert_eq!(proxy_host_port, "localhost:27018");
+        assert_eq!(destination_host_port, None);
     }
 
     #[test]
@@ -224,8 +274,10 @@ mod tests {
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
             proxy_mongo_uri: "mongodb://localhost:27018".into(),
-            user_mongo_uri: "localhost:27017".into(),
-            uri_env_name: "".into(),
+            user_input: Some(UserInput {
+                mongo_uri: "localhost:27018".into(),
+                uri_env_name: "".into(),
+            }),
         };
 
         let result = tracer.get_host_port_from_uris();
@@ -247,8 +299,10 @@ mod tests {
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
             proxy_mongo_uri: "mongodb://localhost:27018".into(),
-            user_mongo_uri: "mongodb://localhost:27017/my-database".into(),
-            uri_env_name: "MONGO_URL".into(),
+            user_input: Some(UserInput {
+                mongo_uri: "mongodb://localhost:27017/my-database".into(),
+                uri_env_name: "MONGO_URL".into(),
+            }),
         };
 
         tracer
@@ -282,8 +336,10 @@ mod tests {
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
             proxy_mongo_uri: "mongodb://localhost:27018".into(),
-            user_mongo_uri: "mongodb://localhost:27017".into(),
-            uri_env_name: "MONGO_URL".into(),
+            user_input: Some(UserInput {
+                mongo_uri: "mongodb://localhost:27017".into(),
+                uri_env_name: "MONGO_URL".into(),
+            }),
         };
 
         tracer
@@ -317,8 +373,10 @@ mod tests {
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
             proxy_mongo_uri: "mongodb://localhost:27018".into(),
-            user_mongo_uri: "mongodb://localhost:27017?w=majority&directConnection=false".into(),
-            uri_env_name: "MONGO_URL".into(),
+            user_input: Some(UserInput {
+                mongo_uri: "mongodb://localhost:27017?w=majority&directConnection=false".into(),
+                uri_env_name: "MONGO_URL".into(),
+            }),
         };
 
         tracer
@@ -339,6 +397,32 @@ mod tests {
                     ))
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn test_apply_run_command_transformations_no_user_input() {
+        let mut command = Command::new("cargo");
+        command.args(vec!["codspeed", "bench"]);
+
+        let tracer = MongoTracer {
+            process: None,
+            server_address: "http://0.0.0.0:55581".into(),
+            profile_folder: "".into(),
+            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            user_input: None,
+        };
+
+        tracer
+            .apply_run_command_transformations(&mut command)
+            .expect("Failed to apply the transformations");
+
+        assert_eq!(
+            command.get_envs().collect_vec(),
+            vec![(
+                OsStr::new("CODSPEED_MONGO_INSTR_SERVER_ADDRESS"),
+                Some(OsStr::new("http://0.0.0.0:55581"))
+            )]
         );
     }
 }
