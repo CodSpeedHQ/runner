@@ -118,6 +118,7 @@ impl MongoTracer {
             .context("Failed to parse the uris")?;
 
         let mut envs = vec![
+            ("RUST_LOG", "debug"),
             (
                 "CODSPEED_MONGO_INSTR_SERVER_ADDRESS",
                 server_address.as_str(),
