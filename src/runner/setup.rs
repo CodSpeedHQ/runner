@@ -6,7 +6,7 @@ use std::{
 use url::Url;
 
 use super::{check_system::SystemInfo, helpers::download_file::download_file};
-use crate::{instruments::Instruments, prelude::*};
+use crate::{config::Config, prelude::*};
 
 const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
 
@@ -79,10 +79,10 @@ async fn install_mongodb_tracer() -> Result<()> {
     Ok(())
 }
 
-pub async fn setup(system_info: &SystemInfo, instruments: &Instruments) -> Result<()> {
+pub async fn setup(system_info: &SystemInfo, config: &Config) -> Result<()> {
     install_valgrind(system_info).await?;
 
-    if instruments.is_mongodb_enabled() {
+    if config.instruments.is_mongodb_enabled() {
         install_mongodb_tracer().await?;
     }
 

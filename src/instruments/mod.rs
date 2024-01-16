@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::config::Config;
+use crate::app::AppArgs;
+use crate::prelude::*;
 
 pub mod mongo_tracer;
 
@@ -15,7 +18,7 @@ pub struct Instruments {
     pub mongodb: Option<MongoDBConfig>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InstrumentNames {
     MongoDB,
 }
@@ -36,20 +39,30 @@ impl Instruments {
     }
 }
 
-impl From<&Config> for Instruments {
-    fn from(config: &Config) -> Self {
-        let mongodb = match (config.mongodb, &config.mongo_uri_env_name) {
-            (true, uri_env_name) => Some(MongoDBConfig {
-                uri_env_name: uri_env_name.clone(),
-            }),
-            (_, Some(_)) => {
-                warn!("The MongoDB instrument is disabled but a MongoDB URI environment variable name was provided, ignoring it");
-                None
-            }
-            _ => None,
+impl TryFrom<&AppArgs> for Instruments {
+    type Error = Error;
+    fn try_from(args: &AppArgs) -> Result<Self> {
+        let mut validated_instrument_names: HashSet<InstrumentNames> = HashSet::new();
+
+        for instrument_name in &args.instruments {
+            match instrument_name.as_str() {
+                "mongodb" => validated_instrument_names.insert(InstrumentNames::MongoDB),
+                _ => bail!("Invalid instrument name: {}", instrument_name),
+            };
+        }
+
+        let mongodb = if validated_instrument_names.contains(&InstrumentNames::MongoDB) {
+            Some(MongoDBConfig {
+                uri_env_name: args.mongo_uri_env_name.clone(),
+            })
+        } else if args.mongo_uri_env_name.is_some() {
+            warn!("The MongoDB instrument is disabled but a MongoDB URI environment variable name was provided, ignoring it");
+            None
+        } else {
+            None
         };
 
-        Self { mongodb }
+        Ok(Self { mongodb })
     }
 }
 
@@ -70,19 +83,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_from_env_empty() {
-        let instruments = Instruments::from(&Config::test());
+    fn test_from_args_empty() {
+        let instruments = Instruments::try_from(&AppArgs::test()).unwrap();
         assert!(instruments.mongodb.is_none());
     }
 
     #[test]
-    fn test_from_config() {
-        let config = Config {
-            mongodb: true,
+    fn test_from_args() {
+        let args = AppArgs {
+            instruments: vec!["mongodb".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
-            ..Config::test()
+            ..AppArgs::test()
         };
-        let instruments = Instruments::from(&config);
+        let instruments = Instruments::try_from(&args).unwrap();
         assert_eq!(
             instruments.mongodb,
             Some(MongoDBConfig {
@@ -93,14 +106,29 @@ mod tests {
     }
 
     #[test]
-    fn test_from_config_mongodb_disabled() {
-        let config = Config {
-            mongodb: false,
+    fn test_from_args_mongodb_disabled() {
+        let args = AppArgs {
+            instruments: vec![],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
-            ..Config::test()
+            ..AppArgs::test()
         };
-        let instruments = Instruments::from(&config);
+        let instruments = Instruments::try_from(&args).unwrap();
         assert_eq!(instruments.mongodb, None);
         assert!(!instruments.is_mongodb_enabled());
+    }
+
+    #[test]
+    fn test_from_args_unknown_instrument_value() {
+        let args = AppArgs {
+            instruments: vec!["unknown".into()],
+            mongo_uri_env_name: Some("MONGODB_URI".into()),
+            ..AppArgs::test()
+        };
+        let instruments = Instruments::try_from(&args);
+        assert!(instruments.is_err());
+        assert_eq!(
+            instruments.unwrap_err().to_string(),
+            "Invalid instrument name: unknown"
+        );
     }
 }

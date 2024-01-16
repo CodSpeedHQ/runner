@@ -1,8 +1,6 @@
 use std::env;
 
-use crate::{
-    ci_provider, config::Config, instruments::Instruments, prelude::*, runner, uploader, VERSION,
-};
+use crate::{ci_provider, config::Config, prelude::*, runner, uploader, VERSION};
 use clap::Parser;
 
 fn show_banner() {
@@ -36,15 +34,14 @@ pub struct AppArgs {
     #[arg(long)]
     pub working_directory: Option<String>,
 
-    /// Enables the MongoDB instrumentation
-    #[arg(long, default_value = "false")]
-    pub mongo_db: bool,
+    /// Comma-separated list of instruments to enable. Possible values: mongodb.
+    #[arg(long, value_delimiter = ',')]
+    pub instruments: Vec<String>,
 
     /// The name of the environment variable that contains the MongoDB URI to patch.
-    /// If not provided it will be read from the CODSPEED_MONGO_INSTR_URI_ENV_NAME environment variable.
-    /// If the environment variable is not set, user will have to provide it dynamically through a CodSpeed integration.
+    /// If not provided, user will have to provide it dynamically through a CodSpeed integration.
     ///
-    /// Only used if `--mongo-db` is enabled.
+    /// Only used if the `mongodb` instrument is enabled.
     #[arg(long)]
     pub mongo_uri_env_name: Option<String>,
 
@@ -60,11 +57,27 @@ pub struct AppArgs {
     pub command: Vec<String>,
 }
 
+#[cfg(test)]
+impl AppArgs {
+    /// Constructs a new `AppArgs` with default values for testing purposes
+    pub fn test() -> Self {
+        Self {
+            upload_url: None,
+            token: None,
+            working_directory: None,
+            instruments: vec![],
+            mongo_uri_env_name: None,
+            skip_upload: false,
+            skip_setup: false,
+            command: vec![],
+        }
+    }
+}
+
 pub async fn run() -> Result<()> {
     let args = AppArgs::parse();
     let config = Config::try_from(args)?;
     let provider = ci_provider::get_provider(&config)?;
-    let instruments = Instruments::from(&config);
 
     let log_level = env::var("CODSPEED_LOG")
         .ok()
@@ -76,10 +89,10 @@ pub async fn run() -> Result<()> {
     show_banner();
     debug!("config: {:#?}", config);
 
-    let run_data = runner::run(&config, &instruments).await?;
+    let run_data = runner::run(&config).await?;
     if !config.skip_upload {
         start_group!("Upload the results");
-        uploader::upload(&config, provider, &run_data, &instruments).await?;
+        uploader::upload(&config, provider, &run_data).await?;
         end_group!();
     }
     Ok(())
