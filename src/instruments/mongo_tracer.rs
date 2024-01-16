@@ -29,6 +29,9 @@ pub struct MongoTracer {
     user_input: Option<UserInput>,
 }
 
+/// TODO: This implementation is not optimal: full lines might get split in multiple chunks.
+/// This is not a problem for the current use case, as the tracer will be directly invoked as a .so library in the future,
+/// inheriting the current process' stdout/stderr.
 fn dump_tracer_log(mut stream: impl Read) -> Result<()> {
     let mut buf = [0u8; 1024];
     loop {
