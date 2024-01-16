@@ -6,9 +6,7 @@ use std::{
 use url::Url;
 
 use super::{check_system::SystemInfo, helpers::download_file::download_file};
-use crate::{config::Config, prelude::*};
-
-const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
+use crate::{config::Config, prelude::*, MONGODB_TRACER_VERSION, VALGRIND_CODSPEED_VERSION};
 
 /// Run a command with sudo if available
 fn run_with_sudo(command_args: &[&str]) -> Result<()> {
@@ -50,8 +48,6 @@ async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
 
     Ok(())
 }
-
-const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
 
 async fn install_mongodb_tracer() -> Result<()> {
     debug!("Installing mongodb-tracer");

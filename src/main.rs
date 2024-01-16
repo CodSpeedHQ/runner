@@ -9,6 +9,8 @@ mod runner;
 mod uploader;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
+pub const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
