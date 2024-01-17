@@ -41,11 +41,11 @@ async fn retrieve_upload_data(
     match response {
         Ok(response) => {
             if response.status().is_client_error() {
-                return Err(anyhow!(
+                bail!(
                     "Failed to retrieve upload data: {} {}",
                     response.status(),
                     response.text().await?
-                ));
+                );
             }
 
             Ok(response.json().await?)
