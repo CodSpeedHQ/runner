@@ -8,6 +8,9 @@ mod request_client;
 mod runner;
 mod uploader;
 
+use log::log_enabled;
+use prelude::*;
+
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
 pub const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
@@ -16,7 +19,11 @@ pub const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
 async fn main() {
     let res = crate::app::run().await;
     if let Err(err) = res {
-        eprintln!("Error: {}", err);
+        if log_enabled!(log::Level::Error) {
+            error!("Error {}", err);
+        } else {
+            eprintln!("Error {}", err);
+        }
         std::process::exit(1);
     }
 }
