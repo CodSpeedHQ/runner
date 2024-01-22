@@ -14,7 +14,7 @@ use crate::{helpers::get_env_variable, prelude::*};
 
 use super::MongoDBConfig;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct UserInput {
     mongo_uri: String,
     uri_env_name: String,
@@ -231,7 +231,49 @@ impl MongoTracer {
 mod tests {
     use std::ffi::OsStr;
 
+    use temp_env::with_var;
+
     use super::*;
+
+    #[test]
+    fn test_try_from() {
+        with_var("MONGO_URL", "mongodb://localhost:27017".into(), || {
+            let profile_folder = PathBuf::from("/tmp/codspeed");
+            let mongodb_config = MongoDBConfig {
+                uri_env_name: Some("MONGO_URL".into()),
+            };
+
+            let tracer = MongoTracer::try_from(&profile_folder, &mongodb_config).unwrap();
+
+            assert!(tracer.process.is_none());
+            assert_eq!(tracer.server_address, "http://0.0.0.0:55581");
+            assert_eq!(tracer.profile_folder, profile_folder);
+            assert_eq!(tracer.proxy_mongo_uri, "mongodb://127.0.0.1:27018");
+            assert_eq!(
+                tracer.user_input,
+                Some(UserInput {
+                    mongo_uri: "mongodb://localhost:27017".into(),
+                    uri_env_name: "MONGO_URL".into(),
+                })
+            );
+        });
+    }
+
+    #[test]
+    fn test_try_from_empty_env() {
+        let profile_folder = PathBuf::from("/tmp/codspeed");
+        let mongodb_config = MongoDBConfig {
+            uri_env_name: Some("MONGO_URL".into()),
+        };
+
+        let tracer = MongoTracer::try_from(&profile_folder, &mongodb_config);
+
+        assert!(tracer.is_err());
+        assert_eq!(
+            tracer.unwrap_err().to_string(),
+            "MONGO_URL environment variable not found"
+        );
+    }
 
     #[test]
     fn test_get_host_port_from_uris() {
