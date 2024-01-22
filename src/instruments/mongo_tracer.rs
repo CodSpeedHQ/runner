@@ -68,7 +68,8 @@ impl MongoTracer {
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: profile_folder.into(),
             // TODO: later choose a random available port dynamically, and/or make it configurable
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            // we set the host to an ip address instead of localhost to prevent having to resolve the hostname
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input,
         })
     }
@@ -79,13 +80,6 @@ impl MongoTracer {
         let destination_uri = match &self.user_input {
             Some(user_input) => Some(Url::parse(&user_input.mongo_uri)?),
             None => None,
-        };
-
-        let parsing_error_fn = || {
-            anyhow!(
-            "Failed to parse the Mongo URI: {}. Be sure to follow the MongoDB URI format described here: https://www.mongodb.com/docs/manual/reference/connection-string/#connection-string-formats",
-            self.proxy_mongo_uri
-        )
         };
 
         let server_address_host_port = format!(
@@ -99,11 +93,20 @@ impl MongoTracer {
             proxy_uri.port().unwrap_or_default()
         );
         let destination_host_port = match destination_uri {
-            Some(destination_uri) => Some(format!(
-                "{}:{}",
-                destination_uri.host_str().ok_or_else(parsing_error_fn)?,
-                destination_uri.port().ok_or_else(parsing_error_fn)?
-            )),
+            Some(destination_uri) => {
+                let parsing_error_fn = || {
+                    anyhow!(
+                    "Failed to parse the Mongo URI: {}. Be sure to follow the MongoDB URI format described here: https://www.mongodb.com/docs/manual/reference/connection-string/#connection-string-formats",
+                    destination_uri.as_str()
+                )
+                };
+
+                Some(format!(
+                    "{}:{}",
+                    destination_uri.host_str().ok_or_else(parsing_error_fn)?,
+                    destination_uri.port().ok_or_else(parsing_error_fn)?
+                ))
+            }
             None => None,
         };
 
@@ -236,7 +239,7 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: Some(UserInput {
                 mongo_uri: "mongodb://localhost:27017".into(),
                 uri_env_name: "".into(),
@@ -248,7 +251,7 @@ mod tests {
             .expect("Failed to parse the uris");
 
         assert_eq!(server_address, "0.0.0.0:55581");
-        assert_eq!(proxy_host_port, "localhost:27018");
+        assert_eq!(proxy_host_port, "127.0.0.1:27018");
         assert_eq!(destination_host_port, Some("localhost:27017".into()));
     }
 
@@ -258,7 +261,7 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: None,
         };
 
@@ -267,7 +270,7 @@ mod tests {
             .expect("Failed to parse the uris");
 
         assert_eq!(server_address, "0.0.0.0:55581");
-        assert_eq!(proxy_host_port, "localhost:27018");
+        assert_eq!(proxy_host_port, "127.0.0.1:27018");
         assert_eq!(destination_host_port, None);
     }
 
@@ -277,9 +280,9 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: Some(UserInput {
-                mongo_uri: "localhost:27018".into(),
+                mongo_uri: "localhost:27017".into(),
                 uri_env_name: "".into(),
             }),
         };
@@ -289,7 +292,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "Failed to parse the Mongo URI: mongodb://localhost:27018. Be sure to follow the MongoDB URI format described here: https://www.mongodb.com/docs/manual/reference/connection-string/#connection-string-formats"
+            "Failed to parse the Mongo URI: localhost:27017. Be sure to follow the MongoDB URI format described here: https://www.mongodb.com/docs/manual/reference/connection-string/#connection-string-formats"
         );
     }
 
@@ -302,7 +305,7 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: Some(UserInput {
                 mongo_uri: "mongodb://localhost:27017/my-database".into(),
                 uri_env_name: "MONGO_URL".into(),
@@ -323,7 +326,7 @@ mod tests {
                 (
                     OsStr::new("MONGO_URL"),
                     Some(OsStr::new(
-                        "mongodb://localhost:27018/my-database?directConnection=true"
+                        "mongodb://127.0.0.1:27018/my-database?directConnection=true"
                     ))
                 ),
             ]
@@ -339,7 +342,7 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: Some(UserInput {
                 mongo_uri: "mongodb://localhost:27017".into(),
                 uri_env_name: "MONGO_URL".into(),
@@ -360,7 +363,7 @@ mod tests {
                 (
                     OsStr::new("MONGO_URL"),
                     Some(OsStr::new(
-                        "mongodb://localhost:27018?directConnection=true"
+                        "mongodb://127.0.0.1:27018?directConnection=true"
                     ))
                 ),
             ]
@@ -376,7 +379,7 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: Some(UserInput {
                 mongo_uri: "mongodb://localhost:27017?w=majority&directConnection=false".into(),
                 uri_env_name: "MONGO_URL".into(),
@@ -397,7 +400,7 @@ mod tests {
                 (
                     OsStr::new("MONGO_URL"),
                     Some(OsStr::new(
-                        "mongodb://localhost:27018?w=majority&directConnection=true"
+                        "mongodb://127.0.0.1:27018?w=majority&directConnection=true"
                     ))
                 ),
             ]
@@ -413,7 +416,7 @@ mod tests {
             process: None,
             server_address: "http://0.0.0.0:55581".into(),
             profile_folder: "".into(),
-            proxy_mongo_uri: "mongodb://localhost:27018".into(),
+            proxy_mongo_uri: "mongodb://127.0.0.1:27018".into(),
             user_input: None,
         };
 
