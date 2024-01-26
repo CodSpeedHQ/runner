@@ -1,5 +1,3 @@
-use std::env;
-
 use crate::{instruments::Instruments, prelude::*};
 use url::Url;
 
@@ -43,15 +41,13 @@ impl TryFrom<AppArgs> for Config {
         let raw_upload_url = args.upload_url.unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
         let upload_url = Url::parse(&raw_upload_url)
             .map_err(|e| anyhow!("Invalid upload URL: {}, {}", raw_upload_url, e))?;
-        let skip_upload = args.skip_upload || env::var("CODSPEED_SKIP_UPLOAD") == Ok("true".into());
-        let token = args.token.or_else(|| env::var("CODSPEED_TOKEN").ok());
         Ok(Self {
             upload_url,
-            token,
+            token: args.token,
             working_directory: args.working_directory,
             instruments,
             command: args.command.join(" "),
-            skip_upload,
+            skip_upload: args.skip_upload,
             skip_setup: args.skip_setup,
         })
     }

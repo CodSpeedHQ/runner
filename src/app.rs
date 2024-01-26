@@ -26,8 +26,7 @@ pub struct AppArgs {
     pub upload_url: Option<String>,
 
     /// The token to use for uploading the results,
-    /// if not provided it will be read from the CODSPEED_TOKEN environment variable
-    #[arg(long)]
+    #[arg(long, env = "CODSPEED_TOKEN")]
     pub token: Option<String>,
 
     /// The directory where the command will be executed.
@@ -46,7 +45,12 @@ pub struct AppArgs {
     pub mongo_uri_env_name: Option<String>,
 
     /// Only for debugging purposes, skips the upload of the results
-    #[arg(long, default_value = "false", hide = true)]
+    #[arg(
+        long,
+        default_value = "false",
+        hide = true,
+        env = "CODSPEED_SKIP_UPLOAD"
+    )]
     pub skip_upload: bool,
 
     /// Only for debugging purposes, skips the setup of the runner
