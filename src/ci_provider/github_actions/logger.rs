@@ -1,6 +1,7 @@
-use log::*;
-
 use crate::ci_provider::logger::{get_group_event, GroupEvent};
+use log::*;
+use simplelog::SharedLogger;
+use std::io::Write;
 
 /// A logger that prints logs in the format expected by GitHub Actions, with grouping support.
 ///
@@ -41,5 +42,23 @@ impl Log for GithubActionLogger {
         lines.for_each(|line| println!("{}{}", prefix, line));
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        std::io::stdout().flush().unwrap();
+    }
+}
+
+impl SharedLogger for GithubActionLogger {
+    fn level(&self) -> LevelFilter {
+        // since TRACE and DEBUG use ::debug::, we always enable them and let GitHub handle the filtering
+        // thanks to https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/enabling-debug-logging#enabling-step-debug-logging
+        LevelFilter::Trace
+    }
+
+    fn config(&self) -> Option<&simplelog::Config> {
+        None
+    }
+
+    fn as_log(self: Box<Self>) -> Box<dyn Log> {
+        Box::new(*self)
+    }
 }

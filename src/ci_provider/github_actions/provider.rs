@@ -1,8 +1,8 @@
-use std::{env, fs};
-
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
+use simplelog::SharedLogger;
+use std::{env, fs};
 
 use crate::{
     ci_provider::{
@@ -116,12 +116,8 @@ impl CIProviderDetector for GitHubActionsProvider {
 }
 
 impl CIProvider for GitHubActionsProvider {
-    fn setup_logger(&self) -> Result<()> {
-        log::set_logger(&GithubActionLogger)?;
-        // since TRACE and DEBUG use ::debug::, we always enable them and let GitHub handle the filtering
-        // thanks to https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/enabling-debug-logging#enabling-step-debug-logging
-        log::set_max_level(log::LevelFilter::Trace);
-        Ok(())
+    fn get_logger(&self) -> Box<dyn SharedLogger> {
+        Box::new(GithubActionLogger)
     }
 
     fn get_provider_name(&self) -> &'static str {

@@ -1,3 +1,5 @@
+use simplelog::SharedLogger;
+
 use crate::config::Config;
 use crate::prelude::*;
 use crate::uploader::{Runner, UploadMetadata};
@@ -11,8 +13,8 @@ pub trait CIProviderDetector {
 
 /// `CIProvider` is a trait that defines the necessary methods for a continuous integration provider.
 pub trait CIProvider {
-    /// Registers the logger for the CI provider.
-    fn setup_logger(&self) -> Result<()>;
+    /// Returns the logger for the CI provider.
+    fn get_logger(&self) -> Box<dyn SharedLogger>;
 
     /// Returns the name of the CI provider.
     ///

@@ -1,11 +1,24 @@
-use log::*;
-
 use crate::ci_provider::logger::{get_group_event, GroupEvent};
+use log::*;
+use simplelog::SharedLogger;
+use std::{env, io::Write};
 
 /// A logger that prints logs in the format expected by Buildkite
 ///
 /// See https://buildkite.com/docs/pipelines/managing-log-output
-pub struct BuildkiteLogger;
+pub struct BuildkiteLogger {
+    log_level: LevelFilter,
+}
+
+impl BuildkiteLogger {
+    pub fn new() -> Self {
+        let log_level = env::var("CODSPEED_LOG")
+            .ok()
+            .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
+            .unwrap_or(log::LevelFilter::Info);
+        Self { log_level }
+    }
+}
 
 impl Log for BuildkiteLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {
@@ -49,5 +62,21 @@ impl Log for BuildkiteLogger {
         }
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        std::io::stdout().flush().unwrap();
+    }
+}
+
+impl SharedLogger for BuildkiteLogger {
+    fn level(&self) -> LevelFilter {
+        self.log_level
+    }
+
+    fn config(&self) -> Option<&simplelog::Config> {
+        None
+    }
+
+    fn as_log(self: Box<Self>) -> Box<dyn Log> {
+        Box::new(*self)
+    }
 }

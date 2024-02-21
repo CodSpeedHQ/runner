@@ -2,6 +2,7 @@ use std::env;
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use simplelog::SharedLogger;
 
 use crate::{
     ci_provider::{
@@ -125,9 +126,8 @@ impl CIProviderDetector for BuildkiteProvider {
 }
 
 impl CIProvider for BuildkiteProvider {
-    fn setup_logger(&self) -> Result<()> {
-        log::set_logger(&BuildkiteLogger)?;
-        Ok(())
+    fn get_logger(&self) -> Box<dyn SharedLogger> {
+        Box::new(BuildkiteLogger::new())
     }
 
     fn get_provider_name(&self) -> &'static str {

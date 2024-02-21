@@ -3,13 +3,15 @@ mod ci_provider;
 mod config;
 mod helpers;
 mod instruments;
+mod logger;
 mod prelude;
 mod request_client;
 mod runner;
 mod uploader;
 
-use log::log_enabled;
 use prelude::*;
+
+use log::log_enabled;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
