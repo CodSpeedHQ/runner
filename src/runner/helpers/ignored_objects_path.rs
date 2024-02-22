@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 fn get_python_objects() -> Vec<String> {
     let output = Command::new("python")
@@ -40,10 +40,29 @@ fn get_node_objects() -> Vec<String> {
     vec![so_output]
 }
 
+fn normalize_object_paths(objects_path_to_ignore: &mut [String]) {
+    for path in objects_path_to_ignore.iter_mut() {
+        let cpath = PathBuf::from(&path).canonicalize();
+        if cpath.is_err() {
+            debug!("Failed to get normalized shared objects: {:?}", cpath.err());
+            continue;
+        }
+        *path = cpath.unwrap().to_string_lossy().to_string();
+    }
+}
+
 pub fn get_objects_path_to_ignore() -> Vec<String> {
     let mut objects_path_to_ignore = vec![];
     objects_path_to_ignore.extend(get_python_objects());
     objects_path_to_ignore.extend(get_node_objects());
-    debug!("objects_path_to_ignore: {:?}", objects_path_to_ignore);
+    debug!(
+        "objects_path_to_ignore before normalization: {:?}",
+        objects_path_to_ignore
+    );
+    normalize_object_paths(&mut objects_path_to_ignore);
+    debug!(
+        "objects_path_to_ignore after normalization: {:?}",
+        objects_path_to_ignore
+    );
     objects_path_to_ignore
 }
