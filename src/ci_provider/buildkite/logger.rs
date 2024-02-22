@@ -48,6 +48,9 @@ impl Log for BuildkiteLogger {
             return;
         }
 
+        if level > self.log_level {
+            return;
+        }
         // there is no support for log levels in Buildkite, so we print the level in the message
         match level {
             Level::Error => {
