@@ -1,0 +1,31 @@
+name: Bump action runner version
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+
+jobs:
+  greeter:
+    runs-on: ubuntu-latest
+    env:
+      PLAN: ${{ inputs.plan }}
+    steps:
+      - name: Plan details
+        run: |
+          echo "Plan details: $PLAN"
+
+      - name: Trigger action runner version bump workflow
+        env:
+          GH_TOKEN: ${{ secrets.PAT_CODSPEED_ACTION }}
+        run: |
+          IS_PRE_RELEASE=$(echo ${PLAN} | jq '.announcement_is_prerelease')
+          if [ "${IS_PRE_RELEASE}" == "true" ]; then
+            echo "Skipping action runner version bump for pre-releases"
+            exit 0
+          fi
+          NEW_VERSION=$(echo ${PLAN} | jq '.releases[] | select(.app_name == "codspeed-runner") | .app_version')
+          # Trigger the bump-runner-version workflow in the CodSpeedHQ/actions repository
+          gh workflow run bump-runner-version.yml -R CodSpeedHQ/action -f version=${NEW_VERSION}

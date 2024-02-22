@@ -49,9 +49,10 @@ strip = true
 
 [workspace.metadata.dist]
 dist = true
-cargo-dist-version = "0.6.2"
+cargo-dist-version = "0.10.0"
 ci = ["github"]
 installers = ["shell"]
 targets = ["x86_64-unknown-linux-musl"]
 unix-archive = ".tar.gz"
 pr-run-mode = "upload"
+post-announce-jobs = ["./bump-action"]
