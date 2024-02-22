@@ -1,3 +1,5 @@
+use crate::runner::VALGRIND_EXECUTION_TARGET;
+
 /// This target is used exclusively to handle group events.
 pub const GROUP_TARGET: &str = "codspeed::group";
 pub const OPENED_GROUP_TARGET: &str = "codspeed::group::opened";
@@ -70,4 +72,9 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
         }
         _ => None,
     }
+}
+
+pub(super) fn should_provider_logger_handle_record(record: &log::Record) -> bool {
+    // Provider logger should handle all records except the ones from the valgrind execution target
+    record.target() != VALGRIND_EXECUTION_TARGET
 }

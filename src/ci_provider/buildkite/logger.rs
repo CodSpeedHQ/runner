@@ -1,4 +1,6 @@
-use crate::ci_provider::logger::{get_group_event, GroupEvent};
+use crate::ci_provider::logger::{
+    get_group_event, should_provider_logger_handle_record, GroupEvent,
+};
 use log::*;
 use simplelog::SharedLogger;
 use std::{env, io::Write};
@@ -26,6 +28,10 @@ impl Log for BuildkiteLogger {
     }
 
     fn log(&self, record: &Record) {
+        if !should_provider_logger_handle_record(record) {
+            return;
+        }
+
         let level = record.level();
         let message = record.args();
 
