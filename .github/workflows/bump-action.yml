@@ -8,7 +8,7 @@ on:
         type: string
 
 jobs:
-  greeter:
+  main:
     runs-on: ubuntu-latest
     env:
       PLAN: ${{ inputs.plan }}
