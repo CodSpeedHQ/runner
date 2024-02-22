@@ -38,6 +38,10 @@ temp-env = { version = "0.3.6", features = ["async_closure"] }
 insta = { version = "1.29.0", features = ["json", "redactions"] }
 
 
+[workspace.metadata.release]
+sign-tag = true
+sign-commit = true
+
 [profile.dist]
 inherits = "release"
 lto = "thin"
