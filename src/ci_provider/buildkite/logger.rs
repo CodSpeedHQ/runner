@@ -1,4 +1,4 @@
-use crate::ci_provider::logger::{get_group_event, GroupEvent};
+use crate::ci_provider::logger::{get_group_event, GroupEvent, PROVIDER_LOGGER_CONFIG};
 use log::*;
 use simplelog::SharedLogger;
 use std::{env, io::Write};
@@ -73,7 +73,7 @@ impl SharedLogger for BuildkiteLogger {
     }
 
     fn config(&self) -> Option<&simplelog::Config> {
-        None
+        Some(&PROVIDER_LOGGER_CONFIG)
     }
 
     fn as_log(self: Box<Self>) -> Box<dyn Log> {

@@ -1,3 +1,7 @@
+use lazy_static::lazy_static;
+
+use crate::runner::VALGRIND_EXECUTION_TARGET;
+
 /// This target is used exclusively to handle group events.
 pub const GROUP_TARGET: &str = "codspeed::group";
 pub const OPENED_GROUP_TARGET: &str = "codspeed::group::opened";
@@ -70,4 +74,11 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
         }
         _ => None,
     }
+}
+
+lazy_static! {
+    pub static ref PROVIDER_LOGGER_CONFIG: simplelog::Config = simplelog::ConfigBuilder::new()
+    // We don't want to display the execution twice, so we ignore the logs from the provider target
+        .add_filter_ignore_str(VALGRIND_EXECUTION_TARGET)
+        .build();
 }

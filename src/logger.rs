@@ -1,3 +1,4 @@
+use crate::ci_provider::logger::{GROUP_TARGET, OPENED_GROUP_TARGET};
 use crate::runner::RunData;
 use crate::{ci_provider::CIProvider, prelude::*};
 use log::LevelFilter;
@@ -16,8 +17,12 @@ impl Logger {
         let provider_logger = provider.get_logger();
         let log_file = NamedTempFile::new().context("Failed to create log file")?;
         let log_file_path = log_file.path().to_path_buf();
-        let file_logger =
-            WriteLogger::new(LevelFilter::Trace, simplelog::Config::default(), log_file);
+        let file_logger_config = simplelog::ConfigBuilder::new()
+            // Groups are not logged to the file
+            .add_filter_ignore_str(GROUP_TARGET)
+            .add_filter_ignore_str(OPENED_GROUP_TARGET)
+            .build();
+        let file_logger = WriteLogger::new(LevelFilter::Trace, file_logger_config, log_file);
         CombinedLogger::init(vec![provider_logger, file_logger])
             .context("Failed to init logger")?;
         Ok(Self { log_file_path })
