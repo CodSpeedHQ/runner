@@ -1,4 +1,6 @@
-use crate::ci_provider::logger::{get_group_event, GroupEvent, PROVIDER_LOGGER_CONFIG};
+use crate::ci_provider::logger::{
+    get_group_event, should_provider_logger_handle_record, GroupEvent,
+};
 use log::*;
 use simplelog::SharedLogger;
 use std::io::Write;
@@ -14,6 +16,10 @@ impl Log for GithubActionLogger {
     }
 
     fn log(&self, record: &Record) {
+        if !should_provider_logger_handle_record(record) {
+            return;
+        }
+
         let level = record.level();
         let message = record.args();
 
@@ -55,7 +61,7 @@ impl SharedLogger for GithubActionLogger {
     }
 
     fn config(&self) -> Option<&simplelog::Config> {
-        Some(&PROVIDER_LOGGER_CONFIG)
+        None
     }
 
     fn as_log(self: Box<Self>) -> Box<dyn Log> {

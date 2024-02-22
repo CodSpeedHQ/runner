@@ -1,5 +1,3 @@
-use lazy_static::lazy_static;
-
 use crate::runner::VALGRIND_EXECUTION_TARGET;
 
 /// This target is used exclusively to handle group events.
@@ -76,9 +74,7 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
     }
 }
 
-lazy_static! {
-    pub static ref PROVIDER_LOGGER_CONFIG: simplelog::Config = simplelog::ConfigBuilder::new()
-    // We don't want to display the execution twice, so we ignore the logs from the provider target
-        .add_filter_ignore_str(VALGRIND_EXECUTION_TARGET)
-        .build();
+pub(super) fn should_provider_logger_handle_record(record: &log::Record) -> bool {
+    // Provider logger should handle all records except the ones from the valgrind execution target
+    record.target() != VALGRIND_EXECUTION_TARGET
 }
