@@ -2,6 +2,15 @@ use std::process::Command;
 
 use crate::prelude::*;
 
+/// Returns the OS and version of the system
+///
+/// ## Example output
+/// ```
+/// ("Ubuntu", "20.04")
+/// ("Ubuntu", "22.04")
+/// ("Debian", "11")
+/// ("Debian", "12")
+/// ```
 fn get_os_details() -> Result<(String, String)> {
     let lsb_output = Command::new("lsb_release")
         .args(["-i", "-r", "-s"])
@@ -36,20 +45,28 @@ fn get_arch() -> Result<String> {
     Ok(output_str.trim().to_string())
 }
 
+#[derive(Eq, PartialEq, Hash)]
 pub struct SystemInfo {
     pub os: String,
     pub os_version: String,
     pub arch: String,
 }
 
+/// Checks if the system is supported
+///
+/// Supported systems:
+/// - Ubuntu 20.04 on amd64
+/// - Ubuntu 22.04 on amd64
+/// - Debian 11 on amd64
+/// - Debian 12 on amd64
 pub fn check_system() -> Result<SystemInfo> {
     let (os, os_version) = get_os_details()?;
     debug!("OS: {}, Version: {}", os, os_version);
-    if os != "Ubuntu" {
-        bail!("Only Ubuntu is supported at the moment");
-    }
-    if !["20.04", "22.04"].contains(&os_version.as_str()) {
-        bail!("Only Ubuntu 20.04 and 22.04 are supported at the moment");
+    match (os.as_str(), os_version.as_str()) {
+        ("Ubuntu", "20.04") | ("Ubuntu", "22.04") | ("Debian", "11") | ("Debian", "12") => (),
+        ("Ubuntu", _) => bail!("Only Ubuntu 20.04 and 22.04 are supported at the moment"),
+        ("Debian", _) => bail!("Only Debian 11 and 12 are supported at the moment"),
+        _ => bail!("Only Ubuntu and Debian are supported at the moment"),
     }
     let arch = get_arch()?;
     debug!("Arch: {}", arch);

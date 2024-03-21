@@ -1,8 +1,10 @@
 use std::{
+    collections::HashMap,
     env,
     process::{Command, Stdio},
 };
 
+use lazy_static::lazy_static;
 use url::Url;
 
 use super::{check_system::SystemInfo, helpers::download_file::download_file};
@@ -37,9 +39,66 @@ fn run_with_sudo(command_args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+lazy_static! {
+    static ref SYSTEM_INFO_TO_CODSPEED_VALGRIND_FILENAME: HashMap<SystemInfo, String> = {
+        let mut m = HashMap::new();
+        m.insert(
+            SystemInfo {
+                os: "Ubuntu".to_string(),
+                os_version: "20.04".to_string(),
+                arch: "amd64".to_string(),
+            },
+            format!(
+                "valgrind_{}_ubuntu-{}_amd64.deb",
+                VALGRIND_CODSPEED_VERSION, "20.04"
+            ),
+        );
+        m.insert(
+            SystemInfo {
+                os: "Ubuntu".to_string(),
+                os_version: "22.04".to_string(),
+                arch: "amd64".to_string(),
+            },
+            format!(
+                "valgrind_{}_ubuntu-{}_amd64.deb",
+                VALGRIND_CODSPEED_VERSION, "22.04"
+            ),
+        );
+        m.insert(
+            SystemInfo {
+                os: "Debian".to_string(),
+                os_version: "11".to_string(),
+                arch: "amd64".to_string(),
+            },
+            format!(
+                "valgrind_{}_ubuntu-{}_amd64.deb",
+                VALGRIND_CODSPEED_VERSION, "20.04"
+            ),
+        );
+        m.insert(
+            SystemInfo {
+                os: "Debian".to_string(),
+                os_version: "12".to_string(),
+                arch: "amd64".to_string(),
+            },
+            format!(
+                "valgrind_{}_ubuntu-{}_amd64.deb",
+                VALGRIND_CODSPEED_VERSION, "20.04"
+            ),
+        );
+        m
+    };
+}
+
 async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
     debug!("Installing valgrind");
-    let valgrind_deb_url = format!("https://github.com/CodSpeedHQ/valgrind-codspeed/releases/download/{}/valgrind_{}_ubuntu-{}_amd64.deb", VALGRIND_CODSPEED_VERSION, VALGRIND_CODSPEED_VERSION, system_info.os_version);
+    let valgrind_deb_url = format!(
+        "https://github.com/CodSpeedHQ/valgrind-codspeed/releases/download/{}/{}",
+        VALGRIND_CODSPEED_VERSION,
+        SYSTEM_INFO_TO_CODSPEED_VALGRIND_FILENAME
+            .get(system_info)
+            .context("Unsupported system")?
+    );
     let deb_path = env::temp_dir().join("valgrind-codspeed.deb");
     download_file(&Url::parse(valgrind_deb_url.as_str()).unwrap(), &deb_path).await?;
 
@@ -84,4 +143,25 @@ pub async fn setup(system_info: &SystemInfo, config: &Config) -> Result<()> {
 
     info!("Environment ready");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_system_info_to_codspeed_valgrind_version() {
+        let system_info = SystemInfo {
+            os: "Debian".to_string(),
+            os_version: "11".to_string(),
+            arch: "amd64".to_string(),
+        };
+        assert_eq!(
+            SYSTEM_INFO_TO_CODSPEED_VALGRIND_FILENAME[&system_info],
+            format!(
+                "valgrind_{}_ubuntu-{}_amd64.deb",
+                VALGRIND_CODSPEED_VERSION, "20.04"
+            )
+        );
+    }
 }
