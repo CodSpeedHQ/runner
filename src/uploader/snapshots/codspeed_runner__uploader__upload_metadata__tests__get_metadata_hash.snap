@@ -19,6 +19,7 @@ expression: upload_metadata
   "baseRef": "main",
   "owner": "CodSpeedHQ",
   "repository": "codspeed-node",
+  "actualCommitHash": "5bd77cb0da72bef094893ed45fb793ff16ecfbe3",
   "commitHash": "ea4005444338762d85163c8e8787387e2ba97fb6",
   "event": "pull_request",
   "ghData": {

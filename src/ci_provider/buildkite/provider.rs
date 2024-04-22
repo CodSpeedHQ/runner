@@ -142,6 +142,7 @@ impl CIProvider for BuildkiteProvider {
         Ok(ProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
+            actual_commit_hash: self.commit_hash.clone(),
             commit_hash: self.commit_hash.clone(),
             event: self.event.clone(),
             owner: self.owner.clone(),

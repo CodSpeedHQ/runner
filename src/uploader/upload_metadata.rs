@@ -37,6 +37,7 @@ mod tests {
                 base_ref: Some("main".into()),
                 owner: "CodSpeedHQ".into(),
                 repository: "codspeed-node".into(),
+                actual_commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
                 commit_hash: "ea4005444338762d85163c8e8787387e2ba97fb6".into(),
                 event: RunEvent::PullRequest,
                 gh_data: Some(GhData {
@@ -54,7 +55,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "ae0421143ff1cd8ddad4566c0ccecce3f30c25b0be86736d91555ff323ec16ba"
+            "56598a0833e56a696c4130a14c2d15d91348a532d43c4ad8627c5ff4fd52985d"
         );
         assert_json_snapshot!(upload_metadata);
     }

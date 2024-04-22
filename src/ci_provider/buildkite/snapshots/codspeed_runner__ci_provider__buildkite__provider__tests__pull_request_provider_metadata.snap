@@ -8,6 +8,7 @@ expression: upload_metadata
   "baseRef": "main",
   "owner": "my-org",
   "repository": "adrien-python-test",
+  "actualCommitHash": "abc123",
   "commitHash": "abc123",
   "event": "pull_request",
   "ghData": null,
