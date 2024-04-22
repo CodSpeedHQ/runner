@@ -10,6 +10,7 @@ pub struct UploadMetadata {
     pub profile_md5: String,
     pub runner: Runner,
     pub platform: String,
+    pub commit_hash: String,
     #[serde(flatten)]
     pub provider_metadata: ProviderMetadata,
 }
