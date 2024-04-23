@@ -21,7 +21,6 @@ pub struct GitHubActionsProvider {
     pub owner: String,
     pub repository: String,
     pub ref_: String,
-    pub sha: String,
     pub head_ref: Option<String>,
     pub base_ref: Option<String>,
     pub commit_hash: String,
@@ -49,7 +48,6 @@ impl TryFrom<&Config> for GitHubActionsProvider {
     fn try_from(_config: &Config) -> Result<Self> {
         let (owner, repository) = Self::get_owner_and_repository()?;
         let ref_ = get_env_variable("GITHUB_REF")?;
-        let sha = get_env_variable("GITHUB_SHA")?;
         let is_pr = PR_REF_REGEX.is_match(&ref_);
         let (head_ref, commit_hash) = if is_pr {
             let github_event_path = get_env_variable("GITHUB_EVENT_PATH")?;
@@ -77,7 +75,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
                 pull_request["head"]["sha"].as_str().unwrap().to_owned(),
             )
         } else {
-            (None, sha.clone())
+            (None, get_env_variable("GITHUB_SHA")?)
         };
 
         let github_event_name = get_env_variable("GITHUB_EVENT_NAME")?;
@@ -89,7 +87,6 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             owner,
             repository: repository.clone(),
             ref_,
-            sha,
             commit_hash,
             head_ref,
             event,
@@ -135,7 +132,6 @@ impl CIProvider for GitHubActionsProvider {
         Ok(ProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
-            actual_commit_hash: self.sha.clone(),
             commit_hash: self.commit_hash.clone(),
             event: self.event.clone(),
             gh_data: Some(self.gh_data.clone()),
@@ -195,7 +191,6 @@ mod tests {
                 assert_eq!(github_actions_provider.owner, "owner");
                 assert_eq!(github_actions_provider.repository, "repository");
                 assert_eq!(github_actions_provider.ref_, "refs/heads/main");
-                assert_eq!(github_actions_provider.sha, "1234567890abcdef");
                 assert_eq!(github_actions_provider.base_ref, Some("main".into()));
                 assert_eq!(github_actions_provider.head_ref, None);
                 assert_eq!(github_actions_provider.commit_hash, "1234567890abcdef");

@@ -1,3 +1,4 @@
+use git2::Repository;
 use simplelog::SharedLogger;
 
 use crate::config::Config;
@@ -9,6 +10,20 @@ use super::interfaces::ProviderMetadata;
 pub trait CIProviderDetector {
     /// Detects if the current environment is running inside the CI provider.
     fn detect() -> bool;
+}
+
+fn get_actual_commit_hash(repository_root_path: &str) -> Result<String> {
+    let repo = Repository::open(repository_root_path).context(format!(
+        "Failed to open repository at path: {}",
+        repository_root_path
+    ))?;
+
+    let actual_commit_hash = repo
+        .revparse_single("HEAD")
+        .context("Failed to get HEAD commit")?
+        .id()
+        .to_string();
+    Ok(actual_commit_hash)
 }
 
 /// `CIProvider` is a trait that defines the necessary methods for a continuous integration provider.
@@ -58,11 +73,14 @@ pub trait CIProvider {
     fn get_upload_metadata(&self, config: &Config, archive_hash: &str) -> Result<UploadMetadata> {
         let provider_metadata = self.get_provider_metadata()?;
 
+        let actual_commit_hash = get_actual_commit_hash(&provider_metadata.repository_root_path)?;
+
         Ok(UploadMetadata {
             version: Some(2),
             tokenless: config.token.is_none(),
             provider_metadata,
             profile_md5: archive_hash.into(),
+            actual_commit_hash,
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),
@@ -70,5 +88,17 @@ pub trait CIProvider {
             },
             platform: self.get_provider_slug().into(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_actual_commit_hash() {
+        let actual_commit_hash = get_actual_commit_hash(env!("CARGO_MANIFEST_DIR")).unwrap();
+        // ensure that the commit hash is correct, thus it has 40 characters
+        assert_eq!(actual_commit_hash.len(), 40);
     }
 }

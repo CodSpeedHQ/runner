@@ -9,7 +9,6 @@ pub struct ProviderMetadata {
     pub base_ref: Option<String>,
     pub owner: String,
     pub repository: String,
-    pub actual_commit_hash: String,
     pub commit_hash: String,
     pub event: RunEvent,
     pub gh_data: Option<GhData>,
