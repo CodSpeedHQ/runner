@@ -31,8 +31,8 @@ fn run_with_sudo(command_args: &[&str]) -> Result<()> {
         .map_err(|_| anyhow!("Failed to execute command: {}", command_args.join(" ")))?;
 
     if !output.status.success() {
-        info!("stdout: {:?}", output.stdout);
-        error!("stderr: {:?}", output.stderr);
+        info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
         bail!("Failed to execute command: {}", command_args.join(" "));
     }
 
@@ -126,8 +126,8 @@ async fn install_mongodb_tracer() -> Result<()> {
         .map_err(|_| anyhow!("Failed to install mongo-tracer"))?;
 
     if !output.status.success() {
-        info!("stdout: {:?}", output.stdout);
-        error!("stderr: {:?}", output.stderr);
+        info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
         bail!("Failed to install mongo-tracer");
     }
 
