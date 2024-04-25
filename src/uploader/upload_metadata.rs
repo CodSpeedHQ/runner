@@ -31,14 +31,13 @@ mod tests {
                 instruments: vec![InstrumentNames::MongoDB],
             },
             platform: "github-actions".into(),
-            actual_commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
+            commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
             provider_metadata: ProviderMetadata {
                 ref_: "refs/pull/29/merge".into(),
                 head_ref: Some("chore/native-action-runner".into()),
                 base_ref: Some("main".into()),
                 owner: "CodSpeedHQ".into(),
                 repository: "codspeed-node".into(),
-                commit_hash: "ea4005444338762d85163c8e8787387e2ba97fb6".into(),
                 event: RunEvent::PullRequest,
                 gh_data: Some(GhData {
                     run_id: 7044765741,
@@ -55,7 +54,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "16652dfb6f4f8eeb00c3e84f6bc0039f62b9096bdb213be86929d9a1c88c6e07"
+            "8beb149c4645c666156e24fe0f68d24a63cec1d7756f35dd17cab1d84528ed7b"
         );
         assert_json_snapshot!(upload_metadata);
     }

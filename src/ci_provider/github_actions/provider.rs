@@ -132,7 +132,6 @@ impl CIProvider for GitHubActionsProvider {
         Ok(ProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
-            commit_hash: self.commit_hash.clone(),
             event: self.event.clone(),
             gh_data: Some(self.gh_data.clone()),
             owner: self.owner.clone(),

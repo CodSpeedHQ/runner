@@ -1,6 +1,6 @@
 ---
 source: src/ci_provider/github_actions/provider.rs
-expression: upload_metadata
+expression: provider_metadata
 ---
 {
   "ref": "refs/pull/22/merge",
@@ -8,7 +8,6 @@ expression: upload_metadata
   "baseRef": "main",
   "owner": "my-org",
   "repository": "adrien-python-test",
-  "commitHash": "24809d9fca9ad0808a777bcbd807ecd5ec8a9100",
   "event": "pull_request",
   "ghData": {
     "runId": 6957110437,
