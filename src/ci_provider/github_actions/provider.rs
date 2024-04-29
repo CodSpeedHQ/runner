@@ -10,7 +10,7 @@ use crate::{
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
-    helpers::get_env_variable,
+    helpers::{find_repository_root, get_env_variable},
     prelude::*,
 };
 
@@ -82,6 +82,14 @@ impl TryFrom<&Config> for GitHubActionsProvider {
         let event = serde_json::from_str(&format!("\"{}\"", github_event_name)).context(
             format!("Event {} is not supported by CodSpeed", github_event_name),
         )?;
+        let repository_root_path = match find_repository_root(&std::env::current_dir()?) {
+            Some(mut path) => {
+                // Add a trailing slash to the path
+                path.push("");
+                path.to_string_lossy().to_string()
+            }
+            None => format!("/home/runner/work/{}/{}/", repository, repository),
+        };
 
         Ok(Self {
             owner,
@@ -103,7 +111,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
                 }),
             },
             base_ref: get_env_variable("GITHUB_BASE_REF").ok(),
-            repository_root_path: format!("/home/runner/work/{}/{}/", repository, repository),
+            repository_root_path,
         })
     }
 }
