@@ -1,16 +1,15 @@
 #[cfg(not(test))]
 pub fn find_repository_root() -> Option<String> {
     let path = std::env::current_dir().ok()?;
-    let mut current_dir = std::path::Path::new(&path).canonicalize().ok()?;
+    let current_dir = std::path::Path::new(&path).canonicalize().ok()?;
 
-    loop {
-        let git_dir = current_dir.join(".git");
+    for ancestor in current_dir.ancestors() {
+        let git_dir = ancestor.join(".git");
         if git_dir.exists() {
-            return Some(current_dir.to_string_lossy().to_string());
-        }
-
-        if !current_dir.pop() {
-            break;
+            let mut repository_root = ancestor.to_path_buf();
+            // add a trailing slash to the path
+            repository_root.push("");
+            return Some(repository_root.to_string_lossy().to_string());
         }
     }
 
