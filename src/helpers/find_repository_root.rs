@@ -1,15 +1,22 @@
+use std::path::{Path, PathBuf};
+
 #[cfg(not(test))]
-pub fn find_repository_root() -> Option<String> {
-    let path = std::env::current_dir().ok()?;
-    let current_dir = std::path::Path::new(&path).canonicalize().ok()?;
+pub fn find_repository_root(base_dir: &Path) -> Option<PathBuf> {
+    _find_repository_root(base_dir)
+}
+
+#[cfg(test)]
+pub fn find_repository_root(_base_dir: &Path) -> Option<PathBuf> {
+    None
+}
+
+fn _find_repository_root(base_dir: &Path) -> Option<PathBuf> {
+    let current_dir = base_dir.canonicalize().ok()?;
 
     for ancestor in current_dir.ancestors() {
         let git_dir = ancestor.join(".git");
         if git_dir.exists() {
-            let mut repository_root = ancestor.to_path_buf();
-            // add a trailing slash to the path
-            repository_root.push("");
-            return Some(repository_root.to_string_lossy().to_string());
+            return Some(ancestor.to_path_buf());
         }
     }
 
@@ -19,6 +26,36 @@ pub fn find_repository_root() -> Option<String> {
 }
 
 #[cfg(test)]
-pub fn find_repository_root() -> Option<String> {
-    None
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_repository_root() {
+        // create an empty directory in a tmp directory, add a nested .git directory
+        // and check if the repository root is found when calling _find_repository_root from a nested directory
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let base_dir = tmp_dir.path().join("base-dir");
+        let git_dir = base_dir.join(".git");
+        std::fs::create_dir_all(git_dir).unwrap();
+        let nested_current_dir = base_dir.join("nested").join("deeply");
+        std::fs::create_dir_all(&nested_current_dir).unwrap();
+
+        let repository_root = _find_repository_root(&nested_current_dir).unwrap();
+        assert_eq!(repository_root, base_dir.canonicalize().unwrap());
+
+        tmp_dir.close().unwrap();
+    }
+
+    #[test]
+    fn test_find_repository_root_no_git_dir() {
+        // create an empty directory in a tmp directory and check if the repository root is not found
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let base_dir = tmp_dir.path().join("base-dir");
+        std::fs::create_dir_all(&base_dir).unwrap();
+
+        let repository_root = _find_repository_root(&base_dir);
+        assert_eq!(repository_root, None);
+
+        tmp_dir.close().unwrap();
+    }
 }

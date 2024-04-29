@@ -82,8 +82,14 @@ impl TryFrom<&Config> for GitHubActionsProvider {
         let event = serde_json::from_str(&format!("\"{}\"", github_event_name)).context(
             format!("Event {} is not supported by CodSpeed", github_event_name),
         )?;
-        let repository_root_path = find_repository_root()
-            .unwrap_or(format!("/home/runner/work/{}/{}/", repository, repository));
+        let repository_root_path = match find_repository_root(&std::env::current_dir()?) {
+            Some(mut path) => {
+                // Add a trailing slash to the path
+                path.push("");
+                path.to_string_lossy().to_string()
+            }
+            None => format!("/home/runner/work/{}/{}/", repository, repository),
+        };
 
         Ok(Self {
             owner,

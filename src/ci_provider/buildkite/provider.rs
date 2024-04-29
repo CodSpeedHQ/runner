@@ -93,12 +93,19 @@ impl TryFrom<&Config> for BuildkiteProvider {
         let is_pr = get_pr_number()?.is_some();
         let (owner, repository) = get_owner_and_repository()?;
 
-        let repository_root_path = find_repository_root().unwrap_or(format!(
-            "/buildkite/builds/{}/{}/{}/",
-            get_env_variable("BUILDKITE_AGENT_NAME")?,
-            get_env_variable("BUILDKITE_ORGANIZATION_SLUG")?,
-            get_env_variable("BUILDKITE_PIPELINE_SLUG")?,
-        ));
+        let repository_root_path = match find_repository_root(&std::env::current_dir()?) {
+            Some(mut path) => {
+                // Add a trailing slash to the path
+                path.push("");
+                path.to_string_lossy().to_string()
+            }
+            None => format!(
+                "/buildkite/builds/{}/{}/{}/",
+                get_env_variable("BUILDKITE_AGENT_NAME")?,
+                get_env_variable("BUILDKITE_ORGANIZATION_SLUG")?,
+                get_env_variable("BUILDKITE_PIPELINE_SLUG")?,
+            ),
+        };
 
         Ok(Self {
             owner: owner.clone(),
