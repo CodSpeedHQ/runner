@@ -1,4 +1,6 @@
-use crate::{config::Config, instruments::mongo_tracer::MongoTracer, prelude::*};
+use crate::prelude::*;
+use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
+
 use std::path::PathBuf;
 
 use super::{

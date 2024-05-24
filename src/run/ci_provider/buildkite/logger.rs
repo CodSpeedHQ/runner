@@ -1,4 +1,4 @@
-use crate::ci_provider::logger::{
+use crate::run::ci_provider::logger::{
     get_group_event, should_provider_logger_handle_record, GroupEvent,
 };
 use log::*;

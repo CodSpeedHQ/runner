@@ -10,7 +10,8 @@ use reqwest::Client;
 use tokio::fs;
 use url::Url;
 
-use crate::{helpers::get_env_variable, prelude::*};
+use crate::prelude::*;
+use crate::run::helpers::get_env_variable;
 
 use super::MongoDBConfig;
 

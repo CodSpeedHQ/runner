@@ -4,14 +4,14 @@ use serde_json::Value;
 use simplelog::SharedLogger;
 use std::{env, fs};
 
-use crate::{
+use crate::prelude::*;
+use crate::run::{
     ci_provider::{
         interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
     helpers::{find_repository_root, get_env_variable},
-    prelude::*,
 };
 
 use super::logger::GithubActionLogger;
@@ -234,7 +234,7 @@ mod tests {
                     "GITHUB_EVENT_PATH",
                     Some(
                         format!(
-                            "{}/src/ci_provider/github_actions/samples/pr-event.json",
+                            "{}/src/run/ci_provider/github_actions/samples/pr-event.json",
                             env!("CARGO_MANIFEST_DIR")
                         )
                         .as_str(),
@@ -282,7 +282,7 @@ mod tests {
                     "GITHUB_EVENT_PATH",
                     Some(
                         format!(
-                            "{}/src/ci_provider/github_actions/samples/fork-pr-event.json",
+                            "{}/src/run/ci_provider/github_actions/samples/fork-pr-event.json",
                             env!("CARGO_MANIFEST_DIR")
                         )
                         .as_str(),

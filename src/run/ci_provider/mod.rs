@@ -2,11 +2,11 @@ pub mod interfaces;
 pub mod logger;
 mod provider;
 
-use crate::ci_provider::buildkite::BuildkiteProvider;
-use crate::ci_provider::github_actions::GitHubActionsProvider;
-use crate::ci_provider::provider::CIProviderDetector;
-use crate::config::Config;
 use crate::prelude::*;
+use crate::run::ci_provider::buildkite::BuildkiteProvider;
+use crate::run::ci_provider::github_actions::GitHubActionsProvider;
+use crate::run::ci_provider::provider::CIProviderDetector;
+use crate::run::config::Config;
 
 pub use self::provider::CIProvider;
 
