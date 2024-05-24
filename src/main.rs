@@ -1,13 +1,7 @@
 mod app;
-mod ci_provider;
-mod config;
-mod helpers;
-mod instruments;
-mod logger;
 mod prelude;
 mod request_client;
-mod runner;
-mod uploader;
+mod run;
 
 use prelude::*;
 

@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::app::AppArgs;
 use crate::prelude::*;
+use crate::run::RunArgs;
 
 pub mod mongo_tracer;
 
@@ -39,9 +39,9 @@ impl Instruments {
     }
 }
 
-impl TryFrom<&AppArgs> for Instruments {
+impl TryFrom<&RunArgs> for Instruments {
     type Error = Error;
-    fn try_from(args: &AppArgs) -> Result<Self> {
+    fn try_from(args: &RunArgs) -> Result<Self> {
         let mut validated_instrument_names: HashSet<InstrumentNames> = HashSet::new();
 
         for instrument_name in &args.instruments {
@@ -84,16 +84,16 @@ mod tests {
 
     #[test]
     fn test_from_args_empty() {
-        let instruments = Instruments::try_from(&AppArgs::test()).unwrap();
+        let instruments = Instruments::try_from(&RunArgs::test()).unwrap();
         assert!(instruments.mongodb.is_none());
     }
 
     #[test]
     fn test_from_args() {
-        let args = AppArgs {
+        let args = RunArgs {
             instruments: vec!["mongodb".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
-            ..AppArgs::test()
+            ..RunArgs::test()
         };
         let instruments = Instruments::try_from(&args).unwrap();
         assert_eq!(
@@ -107,10 +107,10 @@ mod tests {
 
     #[test]
     fn test_from_args_mongodb_disabled() {
-        let args = AppArgs {
+        let args = RunArgs {
             instruments: vec![],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
-            ..AppArgs::test()
+            ..RunArgs::test()
         };
         let instruments = Instruments::try_from(&args).unwrap();
         assert_eq!(instruments.mongodb, None);
@@ -119,10 +119,10 @@ mod tests {
 
     #[test]
     fn test_from_args_unknown_instrument_value() {
-        let args = AppArgs {
+        let args = RunArgs {
             instruments: vec!["unknown".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
-            ..AppArgs::test()
+            ..RunArgs::test()
         };
         let instruments = Instruments::try_from(&args);
         assert!(instruments.is_err());

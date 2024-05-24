@@ -1,4 +1,4 @@
-use crate::runner::VALGRIND_EXECUTION_TARGET;
+use crate::run::runner::VALGRIND_EXECUTION_TARGET;
 
 /// This target is used exclusively to handle group events.
 pub const GROUP_TARGET: &str = "codspeed::group";
@@ -16,7 +16,7 @@ pub const OPENED_GROUP_TARGET: &str = "codspeed::group::opened";
 /// ```
 macro_rules! start_group {
     ($name:expr) => {
-        log::log!(target: $crate::ci_provider::logger::GROUP_TARGET, log::Level::Info, "{}", $name);
+        log::log!(target: $crate::run::ci_provider::logger::GROUP_TARGET, log::Level::Info, "{}", $name);
     };
 }
 
@@ -32,7 +32,7 @@ macro_rules! start_group {
 /// ```
 macro_rules! start_opened_group {
     ($name:expr) => {
-        log::log!(target: $crate::ci_provider::logger::OPENED_GROUP_TARGET, log::Level::Info, "{}", $name);
+        log::log!(target: $crate::run::ci_provider::logger::OPENED_GROUP_TARGET, log::Level::Info, "{}", $name);
     };
 }
 
@@ -41,7 +41,7 @@ macro_rules! start_opened_group {
 /// See [`start_group!`] for more information.
 macro_rules! end_group {
     () => {
-        log::log!(target: $crate::ci_provider::logger::GROUP_TARGET, log::Level::Info, "");
+        log::log!(target: $crate::run::ci_provider::logger::GROUP_TARGET, log::Level::Info, "");
     };
 }
 

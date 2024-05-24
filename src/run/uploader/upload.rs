@@ -1,7 +1,5 @@
-use crate::{
-    ci_provider::CIProvider, config::Config, prelude::*, request_client::REQUEST_CLIENT,
-    runner::RunData, uploader::UploadError,
-};
+use crate::run::{ci_provider::CIProvider, config::Config, runner::RunData, uploader::UploadError};
+use crate::{prelude::*, request_client::REQUEST_CLIENT};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
 use tokio::io::AsyncWriteExt;
@@ -110,7 +108,7 @@ mod tests {
     use url::Url;
 
     use super::*;
-    use crate::runner::RunData;
+    use crate::run::runner::RunData;
     use std::path::PathBuf;
 
     // TODO: remove the ignore when implementing network mocking
@@ -158,7 +156,7 @@ mod tests {
                 ("VERSION", Some("0.1.0")),
             ],
             async {
-                let provider = crate::ci_provider::get_provider(&config).unwrap();
+                let provider = crate::run::ci_provider::get_provider(&config).unwrap();
                 upload(&config, provider, &run_data).await.unwrap();
             },
         )

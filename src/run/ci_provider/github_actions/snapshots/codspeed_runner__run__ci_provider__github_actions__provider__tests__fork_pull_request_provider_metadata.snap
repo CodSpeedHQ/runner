@@ -1,10 +1,10 @@
 ---
-source: src/ci_provider/github_actions/provider.rs
+source: src/run/ci_provider/github_actions/provider.rs
 expression: provider_metadata
 ---
 {
   "ref": "refs/pull/22/merge",
-  "headRef": "feat/codspeed-runner",
+  "headRef": "fork-owner:feat/codspeed-runner",
   "baseRef": "main",
   "owner": "my-org",
   "repository": "adrien-python-test",

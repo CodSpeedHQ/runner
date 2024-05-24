@@ -1,6 +1,9 @@
-use crate::ci_provider::logger::{GROUP_TARGET, OPENED_GROUP_TARGET};
-use crate::runner::RunData;
-use crate::{ci_provider::CIProvider, prelude::*};
+use crate::prelude::*;
+use crate::run::{
+    ci_provider::logger::{GROUP_TARGET, OPENED_GROUP_TARGET},
+    ci_provider::CIProvider,
+    runner::RunData,
+};
 use log::LevelFilter;
 use simplelog::{CombinedLogger, WriteLogger};
 use std::fs::copy;

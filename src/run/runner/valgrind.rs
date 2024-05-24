@@ -1,8 +1,9 @@
-use crate::config::Config;
-use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
-use crate::runner::helpers::ignored_objects_path::get_objects_path_to_ignore;
-use crate::runner::helpers::introspected_node::setup_introspected_node;
+use crate::run::{
+    config::Config, instruments::mongo_tracer::MongoTracer,
+    runner::helpers::ignored_objects_path::get_objects_path_to_ignore,
+    runner::helpers::introspected_node::setup_introspected_node,
+};
 use lazy_static::lazy_static;
 use std::fs::canonicalize;
 use std::io::{Read, Write};

@@ -8,7 +8,8 @@ use lazy_static::lazy_static;
 use url::Url;
 
 use super::{check_system::SystemInfo, helpers::download_file::download_file};
-use crate::{config::Config, prelude::*, MONGODB_TRACER_VERSION, VALGRIND_CODSPEED_VERSION};
+use crate::run::config::Config;
+use crate::{prelude::*, MONGODB_TRACER_VERSION, VALGRIND_CODSPEED_VERSION};
 
 /// Run a command with sudo if available
 fn run_with_sudo(command_args: &[&str]) -> Result<()> {

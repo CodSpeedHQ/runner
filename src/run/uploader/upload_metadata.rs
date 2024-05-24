@@ -13,7 +13,7 @@ impl UploadMetadata {
 mod tests {
     use insta::assert_json_snapshot;
 
-    use crate::{
+    use crate::run::{
         ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
         instruments::InstrumentNames,
         uploader::{Runner, UploadMetadata},

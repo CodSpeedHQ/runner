@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ci_provider::interfaces::ProviderMetadata, instruments::InstrumentNames};
+use crate::run::{ci_provider::interfaces::ProviderMetadata, instruments::InstrumentNames};
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -1,7 +1,8 @@
-use crate::{instruments::Instruments, prelude::*};
+use crate::prelude::*;
+use crate::run::instruments::Instruments;
 use url::Url;
 
-use crate::app::AppArgs;
+use crate::run::RunArgs;
 
 #[derive(Debug)]
 pub struct Config {
@@ -34,9 +35,9 @@ impl Config {
 
 const DEFAULT_UPLOAD_URL: &str = "https://api.codspeed.io/upload";
 
-impl TryFrom<AppArgs> for Config {
+impl TryFrom<RunArgs> for Config {
     type Error = Error;
-    fn try_from(args: AppArgs) -> Result<Self> {
+    fn try_from(args: RunArgs) -> Result<Self> {
         let instruments = Instruments::try_from(&args)?;
         let raw_upload_url = args.upload_url.unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
         let upload_url = Url::parse(&raw_upload_url)
@@ -55,13 +56,13 @@ impl TryFrom<AppArgs> for Config {
 
 #[cfg(test)]
 mod tests {
-    use crate::instruments::MongoDBConfig;
+    use crate::run::instruments::MongoDBConfig;
 
     use super::*;
 
     #[test]
     fn test_try_from_env_empty() {
-        let config = Config::try_from(AppArgs {
+        let config = Config::try_from(RunArgs {
             upload_url: None,
             token: None,
             working_directory: None,
@@ -83,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_try_from_args() {
-        let config = Config::try_from(AppArgs {
+        let config = Config::try_from(RunArgs {
             upload_url: Some("https://example.com/upload".into()),
             token: Some("token".into()),
             working_directory: Some("/tmp".into()),

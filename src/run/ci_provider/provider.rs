@@ -1,9 +1,9 @@
 use git2::Repository;
 use simplelog::SharedLogger;
 
-use crate::config::Config;
 use crate::prelude::*;
-use crate::uploader::{Runner, UploadMetadata};
+use crate::run::config::Config;
+use crate::run::uploader::{Runner, UploadMetadata};
 
 use super::interfaces::ProviderMetadata;
 

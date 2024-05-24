@@ -4,14 +4,14 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use simplelog::SharedLogger;
 
-use crate::{
+use crate::prelude::*;
+use crate::run::{
     ci_provider::{
         interfaces::{ProviderMetadata, RunEvent},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
     helpers::{find_repository_root, get_env_variable},
-    prelude::*,
 };
 
 use super::logger::BuildkiteLogger;

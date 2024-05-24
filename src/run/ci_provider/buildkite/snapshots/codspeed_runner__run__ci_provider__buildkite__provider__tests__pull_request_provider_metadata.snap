@@ -1,5 +1,5 @@
 ---
-source: src/ci_provider/buildkite/provider.rs
+source: src/run/ci_provider/buildkite/provider.rs
 expression: provider_metadata
 ---
 {
