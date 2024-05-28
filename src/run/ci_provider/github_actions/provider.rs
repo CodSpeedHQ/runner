@@ -23,7 +23,6 @@ pub struct GitHubActionsProvider {
     pub ref_: String,
     pub head_ref: Option<String>,
     pub base_ref: Option<String>,
-    pub commit_hash: String,
     pub gh_data: GhData,
     pub event: RunEvent,
     pub repository_root_path: String,
@@ -49,7 +48,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
         let (owner, repository) = Self::get_owner_and_repository()?;
         let ref_ = get_env_variable("GITHUB_REF")?;
         let is_pr = PR_REF_REGEX.is_match(&ref_);
-        let (head_ref, commit_hash) = if is_pr {
+        let head_ref = if is_pr {
             let github_event_path = get_env_variable("GITHUB_EVENT_PATH")?;
             let github_event = fs::read_to_string(github_event_path)?;
             let github_event: Value = serde_json::from_str(&github_event)
@@ -70,12 +69,9 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             } else {
                 pull_request["head"]["ref"].as_str().unwrap().to_owned()
             };
-            (
-                Some(head_ref),
-                pull_request["head"]["sha"].as_str().unwrap().to_owned(),
-            )
+            Some(head_ref)
         } else {
-            (None, get_env_variable("GITHUB_SHA")?)
+            None
         };
 
         let github_event_name = get_env_variable("GITHUB_EVENT_NAME")?;
@@ -95,7 +91,6 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             owner,
             repository: repository.clone(),
             ref_,
-            commit_hash,
             head_ref,
             event,
             gh_data: GhData {
@@ -187,7 +182,6 @@ mod tests {
                 ("GITHUB_REF", Some("refs/heads/main")),
                 ("GITHUB_REPOSITORY", Some("owner/repository")),
                 ("GITHUB_RUN_ID", Some("1234567890")),
-                ("GITHUB_SHA", Some("1234567890abcdef")),
             ],
             || {
                 let config = Config {
@@ -200,7 +194,6 @@ mod tests {
                 assert_eq!(github_actions_provider.ref_, "refs/heads/main");
                 assert_eq!(github_actions_provider.base_ref, Some("main".into()));
                 assert_eq!(github_actions_provider.head_ref, None);
-                assert_eq!(github_actions_provider.commit_hash, "1234567890abcdef");
                 assert_eq!(github_actions_provider.event, RunEvent::Push);
                 assert_eq!(github_actions_provider.gh_data.job, "job");
                 assert_eq!(github_actions_provider.gh_data.run_id, 1234567890);
@@ -245,10 +238,6 @@ mod tests {
                 ("GITHUB_REF", Some("refs/pull/22/merge")),
                 ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
                 ("GITHUB_RUN_ID", Some("6957110437")),
-                (
-                    "GITHUB_SHA",
-                    Some("5bd77cb0da72bef094893ed45fb793ff16ecfbe3"),
-                ),
                 ("VERSION", Some("0.1.0")),
             ],
             || {
@@ -293,10 +282,6 @@ mod tests {
                 ("GITHUB_REF", Some("refs/pull/22/merge")),
                 ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
                 ("GITHUB_RUN_ID", Some("6957110437")),
-                (
-                    "GITHUB_SHA",
-                    Some("5bd77cb0da72bef094893ed45fb793ff16ecfbe3"),
-                ),
                 ("VERSION", Some("0.1.0")),
             ],
             || {
