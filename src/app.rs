@@ -1,4 +1,4 @@
-use crate::{prelude::*, run};
+use crate::{auth, prelude::*, run};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -11,6 +11,8 @@ struct Cli {
 enum Commands {
     /// Run the bench command and upload the results to CodSpeed
     Run(run::RunArgs),
+    /// Commands related to authentication with CodSpeed
+    Auth(auth::AuthArgs),
 }
 
 pub async fn run() -> Result<()> {
@@ -18,6 +20,7 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Commands::Run(args) => run::run(args).await?,
+        Commands::Auth(args) => auth::run(args).await?,
     }
     Ok(())
 }
