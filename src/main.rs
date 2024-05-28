@@ -1,4 +1,8 @@
+mod api_client;
 mod app;
+mod auth;
+mod config;
+mod logger;
 mod prelude;
 mod request_client;
 mod run;
@@ -15,10 +19,12 @@ pub const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
 async fn main() {
     let res = crate::app::run().await;
     if let Err(err) = res {
-        if log_enabled!(log::Level::Error) {
-            error!("Error {}", err);
-        } else {
-            eprintln!("Error {}", err);
+        for cause in err.chain() {
+            if log_enabled!(log::Level::Error) {
+                error!("Error {}", cause);
+            } else {
+                eprintln!("Error {}", cause);
+            }
         }
         if log_enabled!(log::Level::Debug) {
             for e in err.chain().skip(1) {
