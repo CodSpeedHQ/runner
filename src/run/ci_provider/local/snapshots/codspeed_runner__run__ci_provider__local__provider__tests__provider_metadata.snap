@@ -1,0 +1,12 @@
+---
+source: src/run/ci_provider/local/provider.rs
+expression: provider_metadata
+---
+{
+  "ref": "18ec1d64b5f25fb27451d89eee03cc569bd6bbb1",
+  "headRef": "feat/branch",
+  "owner": "my-org",
+  "repository": "adrien-python-test",
+  "event": "local",
+  "repositoryRootPath": "/Users/adrien/projects/my-org/adrien-python-test"
+}
