@@ -19,7 +19,8 @@ fn get_commit_hash(repository_root_path: &str) -> Result<String> {
     ))?;
 
     let commit_hash = repo
-        .revparse_single("HEAD")
+        .head()
+        .and_then(|head| head.peel_to_commit())
         .context("Failed to get HEAD commit")?
         .id()
         .to_string();
