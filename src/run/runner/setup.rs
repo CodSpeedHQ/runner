@@ -91,7 +91,33 @@ lazy_static! {
     };
 }
 
+fn is_valgrind_installed() -> bool {
+    let is_valgrind_installed = Command::new("which")
+        .arg("valgrind")
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if !is_valgrind_installed {
+        return false;
+    }
+
+    if let Ok(version_output) = Command::new("valgrind").arg("--version").output() {
+        if !version_output.status.success() {
+            return false;
+        }
+
+        let version = String::from_utf8_lossy(&version_output.stdout);
+        // TODO: use only VALGRIND_CODSPEED_VERSION here, the other value is when valgrind has been built locally
+        version.contains("valgrind-3.21.0.codspeed") || version.contains(VALGRIND_CODSPEED_VERSION)
+    } else {
+        false
+    }
+}
+
 async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
+    if is_valgrind_installed() {
+        debug!("Valgrind is already installed with the correct version, skipping installation");
+        return Ok(());
+    }
     debug!("Installing valgrind");
     let valgrind_deb_url = format!(
         "https://github.com/CodSpeedHQ/valgrind-codspeed/releases/download/{}/{}",
