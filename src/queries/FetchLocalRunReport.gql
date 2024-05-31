@@ -1,0 +1,14 @@
+query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
+  repository(owner: $owner, name: $name) {
+    runs(where: { id: { equals: $runId } }) {
+      id
+      status
+      url
+      headReports {
+        id
+        impact
+        conclusion
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
-use crate::app::Cli;
 use crate::prelude::*;
+use crate::{app::Cli, config::CodSpeedConfig};
 use gql_client::{Client as GQLClient, ClientConfig};
 use nestify::nest;
 use serde::{Deserialize, Serialize};
@@ -8,23 +8,31 @@ pub struct CodSpeedAPIClient {
     pub gql_client: GQLClient,
 }
 
-impl From<&Cli> for CodSpeedAPIClient {
-    fn from(args: &Cli) -> Self {
-        Self {
-            gql_client: build_gql_api_client(args.api_url.clone()),
-        }
+impl TryFrom<&Cli> for CodSpeedAPIClient {
+    type Error = Error;
+    fn try_from(args: &Cli) -> Result<Self> {
+        let codspeed_config = CodSpeedConfig::load()?;
+
+        Ok(Self {
+            gql_client: build_gql_api_client(&codspeed_config, args.api_url.clone()),
+        })
     }
 }
 
-const CODSPEED_GRAPHQL_ENDPOINT: &str = "https://gql.codspeed.io/";
-
-fn build_gql_api_client(api_url: Option<String>) -> GQLClient {
-    let endpoint = api_url.unwrap_or_else(|| CODSPEED_GRAPHQL_ENDPOINT.to_string());
+fn build_gql_api_client(codspeed_config: &CodSpeedConfig, api_url: String) -> GQLClient {
+    let headers = match &codspeed_config.auth.token {
+        Some(token) => {
+            let mut headers = std::collections::HashMap::new();
+            headers.insert("Authorization".to_string(), token.to_string());
+            headers
+        }
+        None => Default::default(),
+    };
 
     GQLClient::new_with_config(ClientConfig {
-        endpoint,
+        endpoint: api_url,
         timeout: Some(10),
-        headers: Default::default(),
+        headers: Some(headers),
         proxy: None,
     })
 }
@@ -40,6 +48,11 @@ nest! {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsumeLoginSessionVars {
+    session_id: String,
+}
 nest! {
     #[derive(Debug, Deserialize, Serialize)]*
     #[serde(rename_all = "camelCase")]*
@@ -50,10 +63,50 @@ nest! {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct ConsumeLoginSessionVars {
-    session_id: String,
+pub struct FetchLocalRunReportVars {
+    pub owner: String,
+    pub name: String,
+    pub run_id: String,
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+pub enum ReportConclusion {
+    AcknowledgedFailure,
+    Failure,
+    MissingBaseRun,
+    Success,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchLocalRunReportHeadReport {
+    pub id: String,
+    pub impact: Option<f64>,
+    pub conclusion: ReportConclusion,
+}
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RunStatus {
+    Pending,
+    Processing,
+    Completed,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchLocalRunReportRun {
+    pub id: String,
+    pub status: RunStatus,
+    pub url: String,
+    pub head_reports: Vec<FetchLocalRunReportHeadReport>,
+}
+nest! {
+    #[derive(Debug, Deserialize, Serialize)]*
+    #[serde(rename_all = "camelCase")]*
+    struct FetchLocalRunReportData {
+        repository: pub struct FetchLocalRunReportRepository {
+            pub runs: Vec<FetchLocalRunReportRun>,
+        }
+    }
 }
 
 impl CodSpeedAPIClient {
@@ -84,6 +137,31 @@ impl CodSpeedAPIClient {
         match response {
             Ok(response) => Ok(response.consume_login_session),
             Err(err) => bail!("Failed to use login session: {}", err),
+        }
+    }
+
+    pub async fn fetch_local_run_report(
+        &self,
+        vars: FetchLocalRunReportVars,
+    ) -> Result<FetchLocalRunReportRun> {
+        let response = self
+            .gql_client
+            .query_with_vars_unwrap::<FetchLocalRunReportData, FetchLocalRunReportVars>(
+                include_str!("queries/FetchLocalRunReport.gql"),
+                vars.clone(),
+            )
+            .await;
+        match response {
+            Ok(response) => match response.repository.runs.into_iter().next() {
+                Some(run) => Ok(run),
+                None => bail!(
+                    "No runs found for owner: {}, name: {}, run_id: {}",
+                    vars.owner,
+                    vars.name,
+                    vars.run_id
+                ),
+            },
+            Err(err) => bail!("Failed to fetch local run report: {}", err),
         }
     }
 }
