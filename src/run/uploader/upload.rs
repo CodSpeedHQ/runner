@@ -74,11 +74,16 @@ async fn upload_archive_buffer(
     Ok(())
 }
 
+pub struct UploadResult {
+    pub run_id: String,
+}
+
+#[allow(clippy::borrowed_box)]
 pub async fn upload(
     config: &Config,
-    provider: Box<dyn CIProvider>,
+    provider: &Box<dyn CIProvider>,
     run_data: &RunData,
-) -> Result<()> {
+) -> Result<UploadResult> {
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
     debug!("CI provider detected: {:#?}", provider.get_provider_name());
@@ -99,7 +104,9 @@ pub async fn upload(
     upload_archive_buffer(&upload_data, archive_buffer, &archive_hash).await?;
     info!("Results uploaded.");
 
-    Ok(())
+    Ok(UploadResult {
+        run_id: upload_data.run_id,
+    })
 }
 
 #[cfg(test)]
@@ -157,7 +164,7 @@ mod tests {
             ],
             async {
                 let provider = crate::run::ci_provider::get_provider(&config).unwrap();
-                upload(&config, provider, &run_data).await.unwrap();
+                upload(&config, &provider, &run_data).await.unwrap();
             },
         )
         .await;

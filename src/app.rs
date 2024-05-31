@@ -21,10 +21,10 @@ enum Commands {
 
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
-    let api_client = CodSpeedAPIClient::from(&cli);
+    let api_client = CodSpeedAPIClient::try_from(&cli)?;
 
     match cli.command {
-        Commands::Run(args) => run::run(args).await?,
+        Commands::Run(args) => run::run(args, &api_client).await?,
         Commands::Auth(args) => auth::run(args, &api_client).await?,
     }
     Ok(())
