@@ -4,8 +4,14 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 pub struct Cli {
     /// The URL of the CodSpeed GraphQL API
-    #[arg(long, env = "CODSPEED_API_URL", global = true, hide = true)]
-    pub api_url: Option<String>,
+    #[arg(
+        long,
+        env = "CODSPEED_API_URL",
+        global = true,
+        hide = true,
+        default_value = "https://gql.codspeed.io/"
+    )]
+    pub api_url: String,
 
     #[command(subcommand)]
     command: Commands,

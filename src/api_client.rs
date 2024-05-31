@@ -19,11 +19,7 @@ impl TryFrom<&Cli> for CodSpeedAPIClient {
     }
 }
 
-const CODSPEED_GRAPHQL_ENDPOINT: &str = "https://gql.codspeed.io/";
-
-fn build_gql_api_client(codspeed_config: &CodSpeedConfig, api_url: Option<String>) -> GQLClient {
-    let endpoint = api_url.unwrap_or_else(|| CODSPEED_GRAPHQL_ENDPOINT.to_string());
-
+fn build_gql_api_client(codspeed_config: &CodSpeedConfig, api_url: String) -> GQLClient {
     let headers = match &codspeed_config.auth.token {
         Some(token) => {
             let mut headers = std::collections::HashMap::new();
@@ -34,7 +30,7 @@ fn build_gql_api_client(codspeed_config: &CodSpeedConfig, api_url: Option<String
     };
 
     GQLClient::new_with_config(ClientConfig {
-        endpoint,
+        endpoint: api_url,
         timeout: Some(10),
         headers: Some(headers),
         proxy: None,
