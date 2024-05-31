@@ -1,3 +1,5 @@
+use crate::api_client::CodSpeedAPIClient;
+use crate::config::CodSpeedConfig;
 use crate::prelude::*;
 use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
@@ -6,8 +8,9 @@ use clap::Args;
 pub mod ci_provider;
 mod helpers;
 mod instruments;
-pub mod runner;
-pub mod uploader;
+mod poll_results;
+mod runner;
+mod uploader;
 
 pub mod config;
 pub mod logger;
@@ -87,21 +90,36 @@ impl RunArgs {
     }
 }
 
-pub async fn run(args: RunArgs) -> Result<()> {
-    let config = Config::try_from(args)?;
+pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
+    let mut config = Config::try_from(args)?;
     let provider = ci_provider::get_provider(&config)?;
+    let codspeed_config = CodSpeedConfig::load()?;
     let logger = Logger::new(&provider)?;
 
     show_banner();
     debug!("config: {:#?}", config);
+
+    if provider.get_provider_slug() == "local" {
+        if codspeed_config.auth.token.is_none() {
+            bail!("You have to authenticate the CLI first. Run `codspeed-runner auth login`.");
+        }
+        debug!("Using the token from the CodSpeed configuration file");
+        config.set_token(codspeed_config.auth.token.clone());
+    }
 
     let run_data = runner::run(&config).await?;
 
     if !config.skip_upload {
         start_group!("Upload the results");
         logger.persist_log_to_profile_folder(&run_data)?;
-        uploader::upload(&config, provider, &run_data).await?;
+        let upload_result = uploader::upload(&config, &provider, &run_data).await?;
         end_group!();
+
+        if provider.get_provider_slug() == "local" {
+            start_group!("Fetch the results");
+            poll_results::poll_results(api_client, &provider, upload_result.run_id).await?;
+            end_group!();
+        }
     }
 
     Ok(())

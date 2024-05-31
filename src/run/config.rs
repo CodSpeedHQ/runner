@@ -17,6 +17,12 @@ pub struct Config {
     pub skip_setup: bool,
 }
 
+impl Config {
+    pub fn set_token(&mut self, token: Option<String>) {
+        self.token = token;
+    }
+}
+
 #[cfg(test)]
 impl Config {
     /// Constructs a new `Config` with default values for testing purposes
