@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::logger::get_local_logger;
-use crate::{api_client::CodSpeedAPIClient, config::Config, prelude::*};
+use crate::{api_client::CodSpeedAPIClient, config::CodSpeedConfig, prelude::*};
 use clap::{Args, Subcommand};
 use simplelog::CombinedLogger;
 use tokio::time::{sleep, Instant};
@@ -67,9 +67,9 @@ async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
     }
     debug!("Login completed");
 
-    let mut config = Config::load().await?;
-    config.auth.token = token;
-    config.persist().await?;
+    let mut config = CodSpeedConfig::load()?;
+    config.auth.token = Some(token);
+    config.persist()?;
     debug!("Token saved to configuration file");
 
     info!("Login successful, your are now authenticated on CodSpeed");

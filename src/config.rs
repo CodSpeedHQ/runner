@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use crate::prelude::*;
 use nestify::nest;
@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 nest! {
     #[derive(Debug, Deserialize, Serialize)]*
     #[serde(rename_all = "kebab-case")]*
-    pub struct Config {
+    pub struct CodSpeedConfig {
         pub auth: pub struct AuthConfig {
-            pub token: String,
+            pub token: Option<String>,
         }
     }
 }
@@ -27,20 +27,20 @@ fn get_configuration_file_path() -> PathBuf {
     config_dir.join("config.yaml")
 }
 
-impl Default for Config {
+impl Default for CodSpeedConfig {
     fn default() -> Self {
         Self {
-            auth: AuthConfig { token: "".into() },
+            auth: AuthConfig { token: None },
         }
     }
 }
 
-impl Config {
+impl CodSpeedConfig {
     /// Load the configuration. If it does not exist, store and return a default configuration
-    pub async fn load() -> Result<Self> {
+    pub fn load() -> Result<Self> {
         let config_path = get_configuration_file_path();
 
-        match tokio::fs::read(&config_path).await {
+        match fs::read(&config_path) {
             Ok(config_str) => {
                 let config = serde_yaml::from_slice(&config_str).context(format!(
                     "Failed to parse CodSpeed config at {}",
@@ -51,8 +51,8 @@ impl Config {
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 debug!("Config file not found at {}", config_path.display());
-                let config = Config::default();
-                config.persist().await?;
+                let config = CodSpeedConfig::default();
+                config.persist()?;
                 Ok(config)
             }
             Err(e) => bail!("Failed to load config: {}", e),
@@ -60,12 +60,12 @@ impl Config {
     }
 
     /// Persist changes to the configuration
-    pub async fn persist(&self) -> Result<()> {
+    pub fn persist(&self) -> Result<()> {
         let config_path = get_configuration_file_path();
-        tokio::fs::create_dir_all(config_path.parent().unwrap()).await?;
+        fs::create_dir_all(config_path.parent().unwrap())?;
 
         let config_str = serde_yaml::to_string(self)?;
-        tokio::fs::write(&config_path, config_str).await?;
+        fs::write(&config_path, config_str)?;
         debug!("Config written to {}", config_path.display());
 
         Ok(())
