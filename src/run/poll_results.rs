@@ -9,13 +9,13 @@ use crate::api_client::{
 use crate::prelude::*;
 
 use super::ci_provider::CIProvider;
+use super::config::Config;
 
-/// TODO: change this to a CLI arg, like CODSPEED_API_URL
-const FRONTEND_URL: &str = "http://localhost:3000";
 const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
+    config: &Config,
     api_client: &CodSpeedAPIClient,
     provider: &Box<dyn CIProvider>,
     run_id: String,
@@ -63,7 +63,7 @@ pub async fn poll_results(
     }
     info!("Conclusion: {:?}", report.conclusion);
 
-    let mut report_url = Url::parse(FRONTEND_URL)?;
+    let mut report_url = Url::parse(config.frontend_url.as_str())?;
     report_url.set_path(format!("{}/{}/runs/{}", owner, name, run.id).as_str());
 
     info!("\nTo see the full report, visit: {}", report_url);
