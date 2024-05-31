@@ -69,6 +69,16 @@ pub struct RunArgs {
     #[arg(long, default_value = "false", hide = true)]
     pub skip_setup: bool,
 
+    /// The URL of the CodSpeed frontend
+    #[arg(
+        long,
+        env = "CODSPEED_FRONTEND_URL",
+        global = true,
+        hide = true,
+        default_value = "https://codspeed.io/"
+    )]
+    pub frontend_url: String,
+
     /// The bench command to run
     pub command: Vec<String>,
 }
@@ -85,6 +95,7 @@ impl RunArgs {
             mongo_uri_env_name: None,
             skip_upload: false,
             skip_setup: false,
+            frontend_url: "https://codspeed.io/".into(),
             command: vec![],
         }
     }
@@ -117,7 +128,8 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
 
         if provider.get_provider_slug() == "local" {
             start_group!("Fetch the results");
-            poll_results::poll_results(api_client, &provider, upload_result.run_id).await?;
+            poll_results::poll_results(&config, api_client, &provider, upload_result.run_id)
+                .await?;
             end_group!();
         }
     }
