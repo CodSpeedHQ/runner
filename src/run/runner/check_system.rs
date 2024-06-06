@@ -70,8 +70,8 @@ pub fn check_system() -> Result<SystemInfo> {
     }
     let arch = get_arch()?;
     debug!("Arch: {}", arch);
-    if arch != "amd64" {
-        bail!("Only amd64 is supported at the moment");
+    if arch != "amd64" && arch != "arm64" {
+        bail!("Only amd64 and arm64 are supported at the moment");
     }
     Ok(SystemInfo {
         os,
