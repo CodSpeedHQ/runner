@@ -2,6 +2,7 @@ use git2::Repository;
 use simplelog::SharedLogger;
 
 use crate::prelude::*;
+use crate::run::check_system::SystemInfo;
 use crate::run::config::Config;
 use crate::run::uploader::{Runner, UploadMetadata};
 
@@ -71,13 +72,18 @@ pub trait CIProvider {
     /// let instruments = Instruments::new();
     /// let metadata = provider.get_upload_metadata(&config, "abc123").unwrap();
     /// ```
-    fn get_upload_metadata(&self, config: &Config, archive_hash: &str) -> Result<UploadMetadata> {
+    fn get_upload_metadata(
+        &self,
+        config: &Config,
+        system_info: &SystemInfo,
+        archive_hash: &str,
+    ) -> Result<UploadMetadata> {
         let provider_metadata = self.get_provider_metadata()?;
 
         let commit_hash = get_commit_hash(&provider_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(2),
+            version: Some(3),
             tokenless: config.token.is_none(),
             provider_metadata,
             profile_md5: archive_hash.into(),
@@ -86,6 +92,7 @@ pub trait CIProvider {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),
                 instruments: config.instruments.get_active_instrument_names(),
+                system_info: system_info.clone(),
             },
             platform: self.get_provider_slug().into(),
         })

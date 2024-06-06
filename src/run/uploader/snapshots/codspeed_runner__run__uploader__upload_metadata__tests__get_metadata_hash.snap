@@ -3,7 +3,7 @@ source: src/run/uploader/upload_metadata.rs
 expression: upload_metadata
 ---
 {
-  "version": 2,
+  "version": 3,
   "tokenless": true,
   "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",
   "runner": {
@@ -11,7 +11,12 @@ expression: upload_metadata
     "version": "2.1.0",
     "instruments": [
       "MongoDB"
-    ]
+    ],
+    "os": "Ubuntu",
+    "osVersion": "20.04",
+    "arch": "x86_64",
+    "host": "host",
+    "user": "user"
   },
   "platform": "github-actions",
   "commitHash": "5bd77cb0da72bef094893ed45fb793ff16ecfbe3",

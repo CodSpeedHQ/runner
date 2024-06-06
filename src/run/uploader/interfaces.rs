@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::run::{ci_provider::interfaces::ProviderMetadata, instruments::InstrumentNames};
+use crate::run::{
+    check_system::SystemInfo, ci_provider::interfaces::ProviderMetadata,
+    instruments::InstrumentNames,
+};
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -21,6 +24,8 @@ pub struct Runner {
     pub name: String,
     pub version: String,
     pub instruments: Vec<InstrumentNames>,
+    #[serde(flatten)]
+    pub system_info: SystemInfo,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
