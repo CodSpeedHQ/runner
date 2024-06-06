@@ -1,4 +1,7 @@
-use crate::run::{ci_provider::CIProvider, config::Config, runner::RunData, uploader::UploadError};
+use crate::run::{
+    check_system::SystemInfo, ci_provider::CIProvider, config::Config, runner::RunData,
+    uploader::UploadError,
+};
 use crate::{prelude::*, request_client::REQUEST_CLIENT};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
@@ -81,6 +84,7 @@ pub struct UploadResult {
 #[allow(clippy::borrowed_box)]
 pub async fn upload(
     config: &Config,
+    system_info: &SystemInfo,
     provider: &Box<dyn CIProvider>,
     run_data: &RunData,
 ) -> Result<UploadResult> {
@@ -88,7 +92,7 @@ pub async fn upload(
 
     debug!("CI provider detected: {:#?}", provider.get_provider_name());
 
-    let upload_metadata = provider.get_upload_metadata(config, &archive_hash)?;
+    let upload_metadata = provider.get_upload_metadata(config, system_info, &archive_hash)?;
     debug!("Upload metadata: {:#?}", upload_metadata);
     if upload_metadata.tokenless {
         let hash = upload_metadata.get_hash();
@@ -115,7 +119,6 @@ mod tests {
     use url::Url;
 
     use super::*;
-    use crate::run::runner::RunData;
     use std::path::PathBuf;
 
     // TODO: remove the ignore when implementing network mocking
@@ -134,6 +137,7 @@ mod tests {
                 env!("CARGO_MANIFEST_DIR")
             )),
         };
+        let system_info = SystemInfo::test();
         async_with_vars(
             [
                 ("GITHUB_ACTIONS", Some("true")),
@@ -164,7 +168,9 @@ mod tests {
             ],
             async {
                 let provider = crate::run::ci_provider::get_provider(&config).unwrap();
-                upload(&config, &provider, &run_data).await.unwrap();
+                upload(&config, &system_info, &provider, &run_data)
+                    .await
+                    .unwrap();
             },
         )
         .await;
