@@ -30,3 +30,9 @@ pub struct UploadData {
     pub upload_url: String,
     pub run_id: String,
 }
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadError {
+    pub error: String,
+}

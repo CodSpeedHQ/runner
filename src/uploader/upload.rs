@@ -1,6 +1,6 @@
 use crate::{
     ci_provider::CIProvider, config::Config, prelude::*, request_client::REQUEST_CLIENT,
-    runner::RunData,
+    runner::RunData, uploader::UploadError,
 };
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
@@ -41,10 +41,15 @@ async fn retrieve_upload_data(
     match response {
         Ok(response) => {
             if response.status().is_client_error() {
+                let status = response.status();
+                let text = response.text().await?;
+                let error_message = serde_json::from_str::<UploadError>(&text)
+                    .map(|body| body.error)
+                    .unwrap_or(text);
                 bail!(
-                    "Failed to retrieve upload data: {} {}",
-                    response.status(),
-                    response.text().await?
+                    "Failed to retrieve upload data: {}\n{}",
+                    status,
+                    error_message
                 );
             }
 
