@@ -1,7 +1,19 @@
 use crate::{api_client::CodSpeedAPIClient, auth, prelude::*, run};
-use clap::{Parser, Subcommand};
+use clap::{
+    builder::{styling, Styles},
+    Parser, Subcommand,
+};
+
+fn create_styles() -> Styles {
+    styling::Styles::styled()
+        .header(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
+        .usage(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
+        .literal(styling::AnsiColor::Magenta.on_default() | styling::Effects::BOLD)
+        .placeholder(styling::AnsiColor::Cyan.on_default())
+}
 
 #[derive(Parser, Debug)]
+#[command(about = "The CodSpeed CLI tool", styles = create_styles())]
 pub struct Cli {
     /// The URL of the CodSpeed GraphQL API
     #[arg(
