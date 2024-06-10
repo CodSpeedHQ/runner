@@ -5,6 +5,10 @@ edition = "2021"
 repository = "https://github.com/CodSpeedHQ/runner"
 publish = false
 
+[[bin]]
+name = "codspeed"
+path = "src/main.rs"
+
 
 [dependencies]
 anyhow = "1.0.75"
