@@ -29,7 +29,7 @@ fn show_banner() {
         VERSION
     );
     println!("{}", banner);
-    debug!("codspeed-runner v{}", VERSION);
+    debug!("codspeed v{}", VERSION);
 }
 
 #[derive(Args, Debug)]
@@ -113,7 +113,7 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
 
     if provider.get_provider_slug() == "local" {
         if codspeed_config.auth.token.is_none() {
-            bail!("You have to authenticate the CLI first. Run `codspeed-runner auth login`.");
+            bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
         }
         debug!("Using the token from the CodSpeed configuration file");
         config.set_token(codspeed_config.auth.token.clone());
