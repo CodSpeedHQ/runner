@@ -5,6 +5,7 @@ use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
 use clap::Args;
 
+mod check_system;
 pub mod ci_provider;
 mod helpers;
 mod instruments;
@@ -118,12 +119,13 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
         config.set_token(codspeed_config.auth.token.clone());
     }
 
-    let run_data = runner::run(&config).await?;
+    let system_info = check_system::check_system()?;
+    let run_data = runner::run(&config, &system_info).await?;
 
     if !config.skip_upload {
         start_group!("Upload the results");
         logger.persist_log_to_profile_folder(&run_data)?;
-        let upload_result = uploader::upload(&config, &provider, &run_data).await?;
+        let upload_result = uploader::upload(&config, &system_info, &provider, &run_data).await?;
         end_group!();
 
         if provider.get_provider_slug() == "local" {

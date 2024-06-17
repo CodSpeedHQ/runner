@@ -14,6 +14,7 @@ mod tests {
     use insta::assert_json_snapshot;
 
     use crate::run::{
+        check_system::SystemInfo,
         ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
         instruments::InstrumentNames,
         uploader::{Runner, UploadMetadata},
@@ -29,6 +30,7 @@ mod tests {
                 name: "codspeed-runner".into(),
                 version: "2.1.0".into(),
                 instruments: vec![InstrumentNames::MongoDB],
+                system_info: SystemInfo::test(),
             },
             platform: "github-actions".into(),
             commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
@@ -54,7 +56,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "8beb149c4645c666156e24fe0f68d24a63cec1d7756f35dd17cab1d84528ed7b"
+            "bffdebb199d035349d7433c5b6e437d4263f60c9f68385ebfe5becd4aa51d095"
         );
         assert_json_snapshot!(upload_metadata);
     }

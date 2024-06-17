@@ -1,4 +1,3 @@
-mod check_system;
 mod helpers;
 mod run;
 mod setup;
