@@ -1,0 +1,5 @@
+mutation ConsumeLoginSession($sessionId: String!) {
+  consumeLoginSession(sessionId: $sessionId) {
+    token
+  }
+}

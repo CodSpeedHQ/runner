@@ -20,7 +20,7 @@ The following providers are supported:
 
 If you want to use the CLI with another provider, you can open an issue or chat with us on [Discord](https://discord.com/invite/MxpaCfKSqF) 🚀
 
-You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/runner/tree/main/src/ci_provider) for reference.
+You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/runner/tree/main/src/run/ci_provider) for reference.
 
 ## Installation
 
@@ -40,11 +40,11 @@ Refer to the [releases page](https://github.com/CodSpeedHQ/runner/releases) to s
 Example of a command to run benchmarks with [Vitest](https://docs.codspeed.io/benchmarks/nodejs/vitest):
 
 ```bash
-codspeed-runner --token=$CODSPEED_TOKEN -- pnpm vitest bench
+codspeed-runner run --token=$CODSPEED_TOKEN -- pnpm vitest bench
 ```
 
 ```
-Usage: codspeed-runner [OPTIONS] [COMMAND]...
+Usage: codspeed-runner run [OPTIONS] [COMMAND]...
 
 Arguments:
   [COMMAND]...  The bench command to run
@@ -65,5 +65,5 @@ Options:
 Use the `CODSPEED_LOG` environment variable to set the logging level:
 
 ```bash
-CODSPEED_LOG=debug codspeed-runner ...
+CODSPEED_LOG=debug codspeed-runner run ...
 ```

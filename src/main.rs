@@ -1,13 +1,10 @@
 mod app;
-mod ci_provider;
+mod auth;
 mod config;
-mod helpers;
-mod instruments;
 mod logger;
 mod prelude;
 mod request_client;
-mod runner;
-mod uploader;
+mod run;
 
 use prelude::*;
 
@@ -21,10 +18,12 @@ pub const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed1";
 async fn main() {
     let res = crate::app::run().await;
     if let Err(err) = res {
-        if log_enabled!(log::Level::Error) {
-            error!("Error {}", err);
-        } else {
-            eprintln!("Error {}", err);
+        for cause in err.chain() {
+            if log_enabled!(log::Level::Error) {
+                error!("Error {}", cause);
+            } else {
+                eprintln!("Error {}", cause);
+            }
         }
         std::process::exit(1);
     }
