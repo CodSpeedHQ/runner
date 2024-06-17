@@ -21,6 +21,7 @@ pub enum RunEvent {
     PullRequest,
     WorkflowDispatch,
     Schedule,
+    Local,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
