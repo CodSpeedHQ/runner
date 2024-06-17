@@ -7,6 +7,7 @@ use crate::run::RunArgs;
 #[derive(Debug)]
 pub struct Config {
     pub upload_url: Url,
+    pub frontend_url: Url,
     pub token: Option<String>,
     pub working_directory: Option<String>,
     pub command: String,
@@ -17,12 +18,19 @@ pub struct Config {
     pub skip_setup: bool,
 }
 
+impl Config {
+    pub fn set_token(&mut self, token: Option<String>) {
+        self.token = token;
+    }
+}
+
 #[cfg(test)]
 impl Config {
     /// Constructs a new `Config` with default values for testing purposes
     pub fn test() -> Self {
         Self {
             upload_url: Url::parse(DEFAULT_UPLOAD_URL).unwrap(),
+            frontend_url: Url::parse("https://codspeed.io/").unwrap(),
             token: None,
             working_directory: None,
             command: "".into(),
@@ -40,10 +48,12 @@ impl TryFrom<RunArgs> for Config {
     fn try_from(args: RunArgs) -> Result<Self> {
         let instruments = Instruments::try_from(&args)?;
         let raw_upload_url = args.upload_url.unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
+        let frontend_url = Url::parse(&args.frontend_url).context("Invalid frontend URL")?;
         let upload_url = Url::parse(&raw_upload_url)
             .map_err(|e| anyhow!("Invalid upload URL: {}, {}", raw_upload_url, e))?;
         Ok(Self {
             upload_url,
+            frontend_url,
             token: args.token,
             working_directory: args.working_directory,
             instruments,
@@ -64,6 +74,7 @@ mod tests {
     fn test_try_from_env_empty() {
         let config = Config::try_from(RunArgs {
             upload_url: None,
+            frontend_url: "https://codspeed.io/".into(),
             token: None,
             working_directory: None,
             instruments: vec![],
@@ -74,6 +85,10 @@ mod tests {
         })
         .unwrap();
         assert_eq!(config.upload_url, Url::parse(DEFAULT_UPLOAD_URL).unwrap());
+        assert_eq!(
+            config.frontend_url,
+            Url::parse("https://codspeed.io/").unwrap()
+        );
         assert_eq!(config.token, None);
         assert_eq!(config.working_directory, None);
         assert_eq!(config.instruments, Instruments { mongodb: None });
@@ -86,6 +101,7 @@ mod tests {
     fn test_try_from_args() {
         let config = Config::try_from(RunArgs {
             upload_url: Some("https://example.com/upload".into()),
+            frontend_url: "https://codspeed.io/".into(),
             token: Some("token".into()),
             working_directory: Some("/tmp".into()),
             instruments: vec!["mongodb".into()],
@@ -99,6 +115,10 @@ mod tests {
         assert_eq!(
             config.upload_url,
             Url::parse("https://example.com/upload").unwrap()
+        );
+        assert_eq!(
+            config.frontend_url,
+            Url::parse("https://codspeed.io/").unwrap()
         );
         assert_eq!(config.token, Some("token".into()));
         assert_eq!(config.working_directory, Some("/tmp".into()));
