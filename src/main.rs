@@ -1,3 +1,4 @@
+mod api_client;
 mod app;
 mod auth;
 mod config;
