@@ -28,7 +28,6 @@ pub async fn poll_results(
     };
 
     let run;
-    info!("Polling results...");
     loop {
         if start.elapsed() > RUN_PROCESSING_MAX_DURATION {
             bail!("Polling results timed out");
