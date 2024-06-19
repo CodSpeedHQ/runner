@@ -1,5 +1,6 @@
-use crate::run::ci_provider::logger::{
-    get_group_event, should_provider_logger_handle_record, GroupEvent,
+use crate::{
+    logger::{get_group_event, GroupEvent},
+    run::ci_provider::logger::should_provider_logger_handle_record,
 };
 use log::*;
 use simplelog::SharedLogger;
