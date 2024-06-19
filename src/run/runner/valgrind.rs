@@ -1,3 +1,4 @@
+use crate::logger::SPINNER;
 use crate::prelude::*;
 use crate::run::{
     config::Config, instruments::mongo_tracer::MongoTracer,
@@ -72,7 +73,9 @@ fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
             if bytes_read == 0 {
                 break;
             }
-            writer.write_all(&buffer[..bytes_read])?;
+            SPINNER.suspend(|| {
+                writer.write_all(&buffer[..bytes_read]).unwrap();
+            });
             trace!(target: VALGRIND_EXECUTION_TARGET, "{}{}", prefix, String::from_utf8_lossy(&buffer[..bytes_read]));
         }
         Ok(())

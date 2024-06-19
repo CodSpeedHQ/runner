@@ -1,6 +1,10 @@
-use std::env;
+use std::{env, time::Duration};
 
-use simplelog::{ConfigBuilder, SharedLogger};
+use indicatif::{ProgressBar, ProgressStyle};
+use lazy_static::lazy_static;
+use log::Log;
+use simplelog::SharedLogger;
+use std::io::Write;
 
 /// This target is used exclusively to handle group events.
 pub const GROUP_TARGET: &str = "codspeed::group";
@@ -76,20 +80,80 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
     }
 }
 
+lazy_static! {
+    pub static ref SPINNER: ProgressBar = {
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_style(ProgressStyle::with_template("{spinner:.cyan} {wide_msg}").unwrap());
+        spinner
+    };
+}
+pub struct LocalLogger {
+    log_level: log::LevelFilter,
+}
+
+impl LocalLogger {
+    pub fn new() -> Self {
+        let log_level = env::var("CODSPEED_LOG")
+            .ok()
+            .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
+            .unwrap_or(log::LevelFilter::Info);
+
+        LocalLogger { log_level }
+    }
+}
+
+impl Log for LocalLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= self.log_level
+    }
+
+    fn log(&self, record: &log::Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
+        if let Some(group_event) = get_group_event(record) {
+            match group_event {
+                GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
+                    SPINNER.set_message(format!("{}...", name));
+                    SPINNER.enable_steady_tick(Duration::from_millis(100));
+                }
+                GroupEvent::End => {
+                    SPINNER.reset();
+                }
+            }
+
+            return;
+        }
+
+        SPINNER.suspend(|| {
+            if record.level() == log::Level::Error {
+                eprintln!("{}", record.args());
+            } else {
+                println!("{}", record.args());
+            }
+        });
+    }
+
+    fn flush(&self) {
+        std::io::stdout().flush().unwrap();
+    }
+}
+
+impl SharedLogger for LocalLogger {
+    fn level(&self) -> log::LevelFilter {
+        self.log_level
+    }
+
+    fn config(&self) -> Option<&simplelog::Config> {
+        None
+    }
+
+    fn as_log(self: Box<Self>) -> Box<dyn Log> {
+        Box::new(*self)
+    }
+}
+
 pub fn get_local_logger() -> Box<dyn SharedLogger> {
-    let log_level = env::var("CODSPEED_LOG")
-        .ok()
-        .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
-        .unwrap_or(log::LevelFilter::Info);
-
-    let config = ConfigBuilder::new()
-        .set_time_level(log::LevelFilter::Debug)
-        .build();
-
-    simplelog::TermLogger::new(
-        log_level,
-        config,
-        simplelog::TerminalMode::Mixed,
-        simplelog::ColorChoice::Auto,
-    )
+    Box::new(LocalLogger::new())
 }
