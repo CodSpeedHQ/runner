@@ -86,7 +86,20 @@ lazy_static! {
         spinner.set_style(ProgressStyle::with_template("{spinner:.cyan} {wide_msg}").unwrap());
         spinner
     };
+    pub static ref IS_TTY: bool = atty::is(atty::Stream::Stdout);
 }
+
+/// Hide the progress bar temporarily, execute `f`, then redraw the progress bar.
+///
+/// If the output is not a TTY, `f` will be executed without hiding the progress bar.
+pub fn suspend_progress_bar<F: FnOnce() -> R, R>(f: F) -> R {
+    if *IS_TTY {
+        SPINNER.suspend(f)
+    } else {
+        f()
+    }
+}
+
 pub struct LocalLogger {
     log_level: log::LevelFilter,
 }
@@ -115,18 +128,24 @@ impl Log for LocalLogger {
         if let Some(group_event) = get_group_event(record) {
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
-                    SPINNER.set_message(format!("{}...", name));
-                    SPINNER.enable_steady_tick(Duration::from_millis(100));
+                    if *IS_TTY {
+                        SPINNER.set_message(format!("{}...", name));
+                        SPINNER.enable_steady_tick(Duration::from_millis(100));
+                    } else {
+                        println!("{}...", name);
+                    }
                 }
                 GroupEvent::End => {
-                    SPINNER.reset();
+                    if *IS_TTY {
+                        SPINNER.reset();
+                    }
                 }
             }
 
             return;
         }
 
-        SPINNER.suspend(|| {
+        suspend_progress_bar(|| {
             if record.level() == log::Level::Error {
                 eprintln!("{}", record.args());
             } else {
