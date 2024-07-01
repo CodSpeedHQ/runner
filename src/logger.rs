@@ -1,4 +1,8 @@
-use std::{env, time::Duration};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
@@ -81,11 +85,7 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
 }
 
 lazy_static! {
-    pub static ref SPINNER: ProgressBar = {
-        let spinner = ProgressBar::new_spinner();
-        spinner.set_style(ProgressStyle::with_template("{spinner:.cyan} {wide_msg}").unwrap());
-        spinner
-    };
+    pub static ref SPINNER: Arc<Mutex<Option<ProgressBar>>> = Arc::new(Mutex::new(None));
     pub static ref IS_TTY: bool = atty::is(atty::Stream::Stdout);
 }
 
@@ -93,11 +93,17 @@ lazy_static! {
 ///
 /// If the output is not a TTY, `f` will be executed without hiding the progress bar.
 pub fn suspend_progress_bar<F: FnOnce() -> R, R>(f: F) -> R {
+    // If the output is a TTY, and there is a spinner, suspend it
     if *IS_TTY {
-        SPINNER.suspend(f)
-    } else {
-        f()
+        if let Ok(mut spinner) = SPINNER.lock() {
+            if let Some(spinner) = spinner.as_mut() {
+                return spinner.suspend(f);
+            }
+        }
     }
+
+    // Otherwise, just run the function
+    f()
 }
 
 pub struct LocalLogger {
@@ -129,15 +135,28 @@ impl Log for LocalLogger {
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
                     if *IS_TTY {
-                        SPINNER.set_message(format!("{}...", name));
-                        SPINNER.enable_steady_tick(Duration::from_millis(100));
+                        let spinner = ProgressBar::new_spinner();
+                        spinner.set_style(
+                            ProgressStyle::with_template(
+                                "    {spinner:>.cyan} {wide_msg:.magenta.bold}",
+                            )
+                            .unwrap(),
+                        );
+                        spinner.set_message(format!("{}...", name));
+                        spinner.enable_steady_tick(Duration::from_millis(100));
+                        SPINNER.lock().unwrap().replace(spinner);
                     } else {
                         println!("{}...", name);
                     }
                 }
                 GroupEvent::End => {
                     if *IS_TTY {
-                        SPINNER.reset();
+                        let mut spinner = SPINNER.lock().unwrap();
+                        if let Some(spinner) = spinner.as_mut() {
+                            spinner.finish_and_clear();
+                            // Separate groups with a newline
+                            println!();
+                        }
                     }
                 }
             }
