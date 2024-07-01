@@ -18,7 +18,6 @@ enum AuthCommands {
     Login,
 }
 
-// TODO: tweak the logger to make it more user-friendly
 fn init_logger() -> Result<()> {
     let logger = get_local_logger();
     CombinedLogger::init(vec![logger])?;
@@ -38,14 +37,16 @@ const LOGIN_SESSION_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 m
 
 async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
     debug!("Login to CodSpeed");
-    debug!("Creating login session...");
+    start_group!("Creating login session");
     let login_session_payload = api_client.create_login_session().await?;
+    end_group!();
+
     info!(
-        "Login session created, open the following URL in your browser: {}",
+        "Login session created, open the following URL in your browser: {}\n",
         login_session_payload.callback_url
     );
 
-    info!("Waiting for the login to be completed...");
+    start_group!("Waiting for the login to be completed");
     let token;
     let start = Instant::now();
     loop {
@@ -65,7 +66,7 @@ async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
             None => sleep(Duration::from_secs(5)).await,
         }
     }
-    debug!("Login completed");
+    end_group!();
 
     let mut config = CodSpeedConfig::load()?;
     config.auth.token = Some(token);
