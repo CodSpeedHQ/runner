@@ -1,5 +1,8 @@
+use std::fmt::Display;
+
 use crate::prelude::*;
 use crate::{app::Cli, config::CodSpeedConfig};
+use console::style;
 use gql_client::{Client as GQLClient, ClientConfig};
 use nestify::nest;
 use serde::{Deserialize, Serialize};
@@ -77,6 +80,22 @@ pub enum ReportConclusion {
     MissingBaseRun,
     Success,
 }
+
+impl Display for ReportConclusion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReportConclusion::AcknowledgedFailure => {
+                write!(f, "{}", style("Acknowledged Failure").yellow().bold())
+            }
+            ReportConclusion::Failure => write!(f, "{}", style("Failure").red().bold()),
+            ReportConclusion::MissingBaseRun => {
+                write!(f, "{}", style("Missing Base Run").yellow().bold())
+            }
+            ReportConclusion::Success => write!(f, "{}", style("Success").green().bold()),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchLocalRunReportHeadReport {
@@ -104,9 +123,17 @@ nest! {
     #[serde(rename_all = "camelCase")]*
     struct FetchLocalRunReportData {
         repository: pub struct FetchLocalRunReportRepository {
-            pub runs: Vec<FetchLocalRunReportRun>,
+            settings: struct FetchLocalRunReportSettings {
+                allowed_regression: f64,
+            },
+            runs: Vec<FetchLocalRunReportRun>,
         }
     }
+}
+
+pub struct FetchLocalRunReportResponse {
+    pub allowed_regression: f64,
+    pub run: FetchLocalRunReportRun,
 }
 
 impl CodSpeedAPIClient {
@@ -143,7 +170,7 @@ impl CodSpeedAPIClient {
     pub async fn fetch_local_run_report(
         &self,
         vars: FetchLocalRunReportVars,
-    ) -> Result<FetchLocalRunReportRun> {
+    ) -> Result<FetchLocalRunReportResponse> {
         let response = self
             .gql_client
             .query_with_vars_unwrap::<FetchLocalRunReportData, FetchLocalRunReportVars>(
@@ -152,15 +179,22 @@ impl CodSpeedAPIClient {
             )
             .await;
         match response {
-            Ok(response) => match response.repository.runs.into_iter().next() {
-                Some(run) => Ok(run),
-                None => bail!(
-                    "No runs found for owner: {}, name: {}, run_id: {}",
-                    vars.owner,
-                    vars.name,
-                    vars.run_id
-                ),
-            },
+            Ok(response) => {
+                let allowed_regression = response.repository.settings.allowed_regression;
+
+                match response.repository.runs.into_iter().next() {
+                    Some(run) => Ok(FetchLocalRunReportResponse {
+                        allowed_regression,
+                        run,
+                    }),
+                    None => bail!(
+                        "No runs found for owner: {}, name: {}, run_id: {}",
+                        vars.owner,
+                        vars.name,
+                        vars.run_id
+                    ),
+                }
+            }
             Err(err) => bail!("Failed to fetch local run report: {}", err),
         }
     }
