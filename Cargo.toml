@@ -45,6 +45,7 @@ serde_yaml = "0.9.34"
 sysinfo = { version = "0.30.12", features = ["serde"] }
 indicatif = "0.17.8"
 atty = "0.2.14"
+console = "0.15.8"
 
 [dev-dependencies]
 temp-env = { version = "0.3.6", features = ["async_closure"] }
