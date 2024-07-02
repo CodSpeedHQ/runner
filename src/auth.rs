@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::logger::get_local_logger;
 use crate::{api_client::CodSpeedAPIClient, config::CodSpeedConfig, prelude::*};
 use clap::{Args, Subcommand};
+use console::style;
 use simplelog::CombinedLogger;
 use tokio::time::{sleep, Instant};
 
@@ -18,7 +19,6 @@ enum AuthCommands {
     Login,
 }
 
-// TODO: tweak the logger to make it more user-friendly
 fn init_logger() -> Result<()> {
     let logger = get_local_logger();
     CombinedLogger::init(vec![logger])?;
@@ -38,14 +38,19 @@ const LOGIN_SESSION_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 m
 
 async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
     debug!("Login to CodSpeed");
-    debug!("Creating login session...");
+    start_group!("Creating login session");
     let login_session_payload = api_client.create_login_session().await?;
+    end_group!();
+
     info!(
-        "Login session created, open the following URL in your browser: {}",
-        login_session_payload.callback_url
+        "Login session created, open the following URL in your browser: {}\n",
+        style(login_session_payload.callback_url)
+            .blue()
+            .bold()
+            .underlined()
     );
 
-    info!("Waiting for the login to be completed...");
+    start_group!("Waiting for the login to be completed");
     let token;
     let start = Instant::now();
     loop {
@@ -65,7 +70,7 @@ async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
             None => sleep(Duration::from_secs(5)).await,
         }
     }
-    debug!("Login completed");
+    end_group!();
 
     let mut config = CodSpeedConfig::load()?;
     config.auth.token = Some(token);
