@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use console::Style;
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use log::Log;
@@ -138,7 +139,7 @@ impl Log for LocalLogger {
                         let spinner = ProgressBar::new_spinner();
                         spinner.set_style(
                             ProgressStyle::with_template(
-                                "    {spinner:>.cyan} {wide_msg:.magenta.bold}",
+                                "  {spinner:>.cyan} {wide_msg:.cyan.bold}",
                             )
                             .unwrap(),
                         );
@@ -164,17 +165,34 @@ impl Log for LocalLogger {
             return;
         }
 
-        suspend_progress_bar(|| {
-            if record.level() == log::Level::Error {
-                eprintln!("{}", record.args());
-            } else {
-                println!("{}", record.args());
-            }
-        });
+        suspend_progress_bar(|| print_record(record));
     }
 
     fn flush(&self) {
         std::io::stdout().flush().unwrap();
+    }
+}
+
+/// Print a log record to the console with the appropriate style
+fn print_record(record: &log::Record) {
+    let error_style = Style::new().red();
+    let info_style = Style::new().white();
+    let warn_style = Style::new().yellow();
+    let debug_style = Style::new().blue().dim();
+    let trace_style = Style::new().black().dim();
+
+    match record.level() {
+        log::Level::Error => eprintln!("{}", error_style.apply_to(record.args())),
+        log::Level::Warn => eprintln!("{}", warn_style.apply_to(record.args())),
+        log::Level::Info => println!("{}", info_style.apply_to(record.args())),
+        log::Level::Debug => println!(
+            "{}",
+            debug_style.apply_to(format!("[DEBUG::{}] {}", record.target(), record.args())),
+        ),
+        log::Level::Trace => println!(
+            "{}",
+            trace_style.apply_to(format!("[TRACE::{}] {}", record.target(), record.args()))
+        ),
     }
 }
 
