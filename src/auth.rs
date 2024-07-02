@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::logger::get_local_logger;
 use crate::{api_client::CodSpeedAPIClient, config::CodSpeedConfig, prelude::*};
 use clap::{Args, Subcommand};
+use console::style;
 use simplelog::CombinedLogger;
 use tokio::time::{sleep, Instant};
 
@@ -43,7 +44,10 @@ async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
 
     info!(
         "Login session created, open the following URL in your browser: {}\n",
-        login_session_payload.callback_url
+        style(login_session_payload.callback_url)
+            .blue()
+            .bold()
+            .underlined()
     );
 
     start_group!("Waiting for the login to be completed");
