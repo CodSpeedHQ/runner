@@ -1,5 +1,8 @@
 query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
   repository(owner: $owner, name: $name) {
+    settings {
+      allowedRegression
+    }
     runs(where: { id: { equals: $runId } }) {
       id
       status
