@@ -13,6 +13,7 @@ use super::ci_provider::CIProvider;
 use super::config::Config;
 
 const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
+const POLLING_INTERVAL: Duration = Duration::from_secs(1);
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
@@ -42,10 +43,10 @@ pub async fn poll_results(
             .await?
         {
             FetchLocalRunReportResponse { run, .. } if run.status != RunStatus::Completed => {
-                sleep(Duration::from_secs(5)).await;
+                sleep(POLLING_INTERVAL).await;
             }
-            reponse_from_api => {
-                response = reponse_from_api;
+            response_from_api => {
+                response = response_from_api;
                 break;
             }
         }
