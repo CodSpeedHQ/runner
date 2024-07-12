@@ -26,6 +26,11 @@ async fn main() {
         } else {
             eprintln!("Error {}", err);
         }
+        if log_enabled!(log::Level::Debug) {
+            for e in err.chain().skip(1) {
+                debug!("Caused by: {}", e);
+            }
+        }
         std::process::exit(1);
     }
 }
