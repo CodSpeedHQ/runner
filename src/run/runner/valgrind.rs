@@ -75,8 +75,8 @@ fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
             }
             suspend_progress_bar(|| {
                 writer.write_all(&buffer[..bytes_read]).unwrap();
+                trace!(target: VALGRIND_EXECUTION_TARGET, "{}{}", prefix, String::from_utf8_lossy(&buffer[..bytes_read]));
             });
-            trace!(target: VALGRIND_EXECUTION_TARGET, "{}{}", prefix, String::from_utf8_lossy(&buffer[..bytes_read]));
         }
         Ok(())
     }
