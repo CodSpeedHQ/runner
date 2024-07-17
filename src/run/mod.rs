@@ -123,13 +123,13 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let run_data = runner::run(&config, &system_info).await?;
 
     if !config.skip_upload {
-        start_group!("Upload the results");
+        start_group!("Uploading performance data");
         logger.persist_log_to_profile_folder(&run_data)?;
         let upload_result = uploader::upload(&config, &system_info, &provider, &run_data).await?;
         end_group!();
 
         if provider.get_provider_slug() == "local" {
-            start_group!("Fetch the results");
+            start_group!("Fetching the results");
             poll_results::poll_results(&config, api_client, &provider, upload_result.run_id)
                 .await?;
             end_group!();
