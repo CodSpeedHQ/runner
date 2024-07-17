@@ -97,6 +97,14 @@ pub async fn upload(
 
     let upload_metadata = provider.get_upload_metadata(config, system_info, &archive_hash)?;
     debug!("Upload metadata: {:#?}", upload_metadata);
+    info!(
+        "Repository {} detected\n",
+        style(format!(
+            "{}/{}",
+            upload_metadata.provider_metadata.owner, upload_metadata.provider_metadata.repository
+        ))
+        .bold(),
+    );
     if upload_metadata.tokenless {
         let hash = upload_metadata.get_hash();
         info!("CodSpeed Run Hash: \"{}\"", hash);
@@ -106,10 +114,10 @@ pub async fn upload(
     let upload_data = retrieve_upload_data(config, &upload_metadata).await?;
     debug!("runId: {}", upload_data.run_id);
 
-    info!("Uploading profile data...");
+    info!("Uploading performance data...");
     debug!("Uploading {} bytes...", archive_buffer.len());
     upload_archive_buffer(&upload_data, archive_buffer, &archive_hash).await?;
-    info!("Results uploaded.");
+    info!("Performance data uploaded");
 
     Ok(UploadResult {
         run_id: upload_data.run_id,
