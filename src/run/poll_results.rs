@@ -56,7 +56,6 @@ pub async fn poll_results(
         .next()
         .ok_or_else(|| anyhow!("No head report found in the run report"))?;
 
-    info!("Report completed, here are the results:");
     if let Some(impact) = report.impact {
         let rounded_impact = (impact * 100.0).round();
         let impact_text = if impact > 0.0 {
@@ -70,8 +69,9 @@ pub async fn poll_results(
             impact_text,
             (response.allowed_regression * 100.0).round()
         );
+    } else {
+        info!("No impact detected, reason: {}", report.conclusion);
     }
-    info!("Conclusion: {}", report.conclusion);
 
     info!(
         "\nTo see the full report, visit: {}",
