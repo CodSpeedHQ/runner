@@ -108,7 +108,9 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let codspeed_config = CodSpeedConfig::load()?;
     let logger = Logger::new(&provider)?;
 
-    show_banner();
+    if provider.get_provider_slug() != "local" {
+        show_banner();
+    }
     debug!("config: {:#?}", config);
 
     if provider.get_provider_slug() == "local" {
