@@ -7,6 +7,7 @@ mod prelude;
 mod request_client;
 mod run;
 
+use console::style;
 use prelude::*;
 
 use log::log_enabled;
@@ -21,9 +22,9 @@ async fn main() {
     if let Err(err) = res {
         for cause in err.chain() {
             if log_enabled!(log::Level::Error) {
-                error!("Error {}", cause);
+                error!("{} {}", style("Error:").bold().red(), style(cause).red());
             } else {
-                eprintln!("Error {}", cause);
+                eprintln!("Error: {}", cause);
             }
         }
         if log_enabled!(log::Level::Debug) {
@@ -31,6 +32,8 @@ async fn main() {
                 debug!("Caused by: {}", e);
             }
         }
+        logger::clean_logger();
+
         std::process::exit(1);
     }
 }
