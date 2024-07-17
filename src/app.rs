@@ -1,4 +1,4 @@
-use crate::{api_client::CodSpeedAPIClient, auth, prelude::*, run};
+use crate::{api_client::CodSpeedAPIClient, auth, logger::CODSPEED_U8_COLOR_CODE, prelude::*, run};
 use clap::{
     builder::{styling, Styles},
     Parser, Subcommand,
@@ -8,7 +8,9 @@ fn create_styles() -> Styles {
     styling::Styles::styled()
         .header(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
         .usage(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
-        .literal(styling::AnsiColor::Magenta.on_default() | styling::Effects::BOLD)
+        .literal(
+            styling::Ansi256Color(CODSPEED_U8_COLOR_CODE).on_default() | styling::Effects::BOLD,
+        )
         .placeholder(styling::AnsiColor::Cyan.on_default())
 }
 

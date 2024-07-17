@@ -4,12 +4,15 @@ use std::{
     time::Duration,
 };
 
-use console::Style;
+use console::{style, Style};
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use log::Log;
 use simplelog::SharedLogger;
 use std::io::Write;
+
+pub const CODSPEED_U8_COLOR_CODE: u8 = 208; // #FF8700
+const BLACK_U8_COLOR_CODE: u8 = 16; // #000
 
 /// This target is used exclusively to handle group events.
 pub const GROUP_TARGET: &str = "codspeed::group";
@@ -135,11 +138,24 @@ impl Log for LocalLogger {
         if let Some(group_event) = get_group_event(record) {
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
+                    println!(
+                        "  {}",
+                        style(format!(" {} ", name.to_uppercase()))
+                            .bold()
+                            .color256(BLACK_U8_COLOR_CODE)
+                            .on_color256(CODSPEED_U8_COLOR_CODE)
+                    );
+                    println!();
+
                     if *IS_TTY {
                         let spinner = ProgressBar::new_spinner();
                         spinner.set_style(
                             ProgressStyle::with_template(
-                                "  {spinner:>.cyan} {wide_msg:.cyan.bold}",
+                                format!(
+                                    "  {{spinner:>.{}}} {{wide_msg:.{}.bold}}",
+                                    CODSPEED_U8_COLOR_CODE, CODSPEED_U8_COLOR_CODE
+                                )
+                                .as_str(),
                             )
                             .unwrap(),
                         );
@@ -155,10 +171,10 @@ impl Log for LocalLogger {
                         let mut spinner = SPINNER.lock().unwrap();
                         if let Some(spinner) = spinner.as_mut() {
                             spinner.finish_and_clear();
-                            // Separate groups with a newline
                             println!();
                         }
                     }
+                    println!();
                 }
             }
 
@@ -212,4 +228,11 @@ impl SharedLogger for LocalLogger {
 
 pub fn get_local_logger() -> Box<dyn SharedLogger> {
     Box::new(LocalLogger::new())
+}
+
+pub fn clean_logger() {
+    let mut spinner = SPINNER.lock().unwrap();
+    if let Some(spinner) = spinner.as_mut() {
+        spinner.finish_and_clear();
+    }
 }

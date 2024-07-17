@@ -5,6 +5,7 @@ use crate::run::{
 use crate::{prelude::*, request_client::REQUEST_CLIENT};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
+use console::style;
 use tokio::io::AsyncWriteExt;
 use tokio_tar::Builder;
 
@@ -48,9 +49,11 @@ async fn retrieve_upload_data(
                     .map(|body| body.error)
                     .unwrap_or(text);
                 bail!(
-                    "Failed to retrieve upload data: {}\n{}",
+                    "Failed to retrieve upload data: {}\n  -> {} {}",
                     status,
-                    error_message
+                    style("Reason:").bold(),
+                    // !!! we have to manually apply `.red()` this because the `.red()` from the logger is not applied to everything that follows the first `style()` call, for some reasons 🤷‍♂️🤷‍♂️🤷‍♂️
+                    style(error_message).red()
                 );
             }
 
