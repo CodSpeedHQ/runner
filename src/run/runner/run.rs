@@ -17,12 +17,12 @@ pub struct RunData {
 
 pub async fn run(config: &Config, system_info: &SystemInfo) -> Result<RunData> {
     if !config.skip_setup {
-        start_group!("Prepare the environment");
+        start_group!("Preparing the environment");
         setup(system_info, config).await?;
         end_group!();
     }
     //TODO: add valgrind version check
-    start_opened_group!("Run the benchmarks");
+    start_opened_group!("Running the benchmarks");
     let profile_folder = create_profile_folder()?;
     let mongo_tracer = if let Some(mongodb_config) = &config.instruments.mongodb {
         let mut mongo_tracer = MongoTracer::try_from(&profile_folder, mongodb_config)?;
