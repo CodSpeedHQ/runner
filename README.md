@@ -9,7 +9,7 @@ CLI to gather performance data and upload performance reports to [CodSpeed](http
 
 </div>
 
-The `codspeed` CLI is designed to be used both in local in CI environments.
+The `codspeed` CLI is designed to be used both in **local** in **CI environments**.
 
 The following CI providers are supported:
 
@@ -35,12 +35,27 @@ Refer to the [releases page](https://github.com/CodSpeedHQ/runner/releases) to s
 ## Usage
 
 > [!NOTE]
-> For now, the CLI only supports Ubuntu 20.04 and 22.04.
+> For now, the CLI only supports Ubuntu 20.04, 22.04, and Debian 11, 12.
 
-Example of a command to run benchmarks with [Vitest](https://docs.codspeed.io/benchmarks/nodejs/vitest):
+First, authenticate with your CodSpeed account:
 
 ```bash
-codspeed run --token=$CODSPEED_TOKEN -- pnpm vitest bench
+codspeed auth login
+```
+
+Then, run benchmarks with the following command:
+
+```bash
+codspeed run <my-benchmark-command>
+
+# Example, using https://github.com/CodSpeedHQ/codspeed-rust
+codspeed run cargo codspeed run
+
+# Example, using https://github.com/CodSpeedHQ/pytest-codspeed
+codspeed run pytest ./tests --codspeed
+
+# Example, using https://github.com/CodSpeedHQ/codspeed-node/tree/main/packages/vitest-plugin
+codspeed run pnpm vitest bench
 ```
 
 ```
