@@ -8,7 +8,8 @@ use nestify::nest;
 use serde::{Deserialize, Serialize};
 
 pub struct CodSpeedAPIClient {
-    pub gql_client: GQLClient,
+    gql_client: GQLClient,
+    unauthenticated_gql_client: GQLClient,
 }
 
 impl TryFrom<&Cli> for CodSpeedAPIClient {
@@ -17,19 +18,30 @@ impl TryFrom<&Cli> for CodSpeedAPIClient {
         let codspeed_config = CodSpeedConfig::load()?;
 
         Ok(Self {
-            gql_client: build_gql_api_client(&codspeed_config, args.api_url.clone()),
+            gql_client: build_gql_api_client(&codspeed_config, args.api_url.clone(), true),
+            unauthenticated_gql_client: build_gql_api_client(
+                &codspeed_config,
+                args.api_url.clone(),
+                false,
+            ),
         })
     }
 }
 
-fn build_gql_api_client(codspeed_config: &CodSpeedConfig, api_url: String) -> GQLClient {
-    let headers = match &codspeed_config.auth.token {
-        Some(token) => {
-            let mut headers = std::collections::HashMap::new();
-            headers.insert("Authorization".to_string(), token.to_string());
-            headers
-        }
-        None => Default::default(),
+fn build_gql_api_client(
+    codspeed_config: &CodSpeedConfig,
+    api_url: String,
+    with_auth: bool,
+) -> GQLClient {
+    let headers = if with_auth && codspeed_config.auth.token.is_some() {
+        let mut headers = std::collections::HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            codspeed_config.auth.token.clone().unwrap(),
+        );
+        headers
+    } else {
+        Default::default()
     };
 
     GQLClient::new_with_config(ClientConfig {
@@ -139,7 +151,7 @@ pub struct FetchLocalRunReportResponse {
 impl CodSpeedAPIClient {
     pub async fn create_login_session(&self) -> Result<CreateLoginSessionPayload> {
         let response = self
-            .gql_client
+            .unauthenticated_gql_client
             .query_unwrap::<CreateLoginSessionData>(include_str!("queries/CreateLoginSession.gql"))
             .await;
         match response {
@@ -153,7 +165,7 @@ impl CodSpeedAPIClient {
         session_id: &str,
     ) -> Result<ConsumeLoginSessionPayload> {
         let response = self
-            .gql_client
+            .unauthenticated_gql_client
             .query_with_vars_unwrap::<ConsumeLoginSessionData, ConsumeLoginSessionVars>(
                 include_str!("queries/ConsumeLoginSession.gql"),
                 ConsumeLoginSessionVars {
@@ -194,6 +206,9 @@ impl CodSpeedAPIClient {
                         vars.run_id
                     ),
                 }
+            }
+            Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
+                bail!("Your session has expired, please login again using `codspeed auth login`")
             }
             Err(err) => bail!("Failed to fetch local run report: {}", err),
         }

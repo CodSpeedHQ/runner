@@ -6,6 +6,7 @@ use crate::{prelude::*, request_client::REQUEST_CLIENT};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{engine::general_purpose, Engine as _};
 use console::style;
+use reqwest::StatusCode;
 use tokio::io::AsyncWriteExt;
 use tokio_tar::Builder;
 
@@ -45,9 +46,17 @@ async fn retrieve_upload_data(
             if response.status().is_client_error() {
                 let status = response.status();
                 let text = response.text().await?;
-                let error_message = serde_json::from_str::<UploadError>(&text)
+                let mut error_message = serde_json::from_str::<UploadError>(&text)
                     .map(|body| body.error)
                     .unwrap_or(text);
+                if status == StatusCode::UNAUTHORIZED {
+                    let additional_message = if upload_metadata.platform == "local" {
+                        "Run `codspeed auth login` to authenticate the CLI"
+                    } else {
+                        "Check that CODSPEED_TOKEN is set and has the correct value"
+                    };
+                    error_message.push_str(&format!("\n\n{}", additional_message));
+                }
                 bail!(
                     "Failed to retrieve upload data: {}\n  -> {} {}",
                     status,
