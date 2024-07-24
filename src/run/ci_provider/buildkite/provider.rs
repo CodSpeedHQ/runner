@@ -23,7 +23,6 @@ pub struct BuildkiteProvider {
     pub ref_: String,
     pub head_ref: Option<String>,
     pub base_ref: Option<String>,
-    pub commit_hash: String,
     pub event: RunEvent,
     pub repository_root_path: String,
 }
@@ -121,7 +120,6 @@ impl TryFrom<&Config> for BuildkiteProvider {
             } else {
                 None
             },
-            commit_hash: get_env_variable("BUILDKITE_COMMIT")?,
             event: get_run_event()?,
             repository_root_path,
         })
@@ -230,7 +228,6 @@ mod tests {
                 assert_eq!(provider.ref_, "refs/heads/main");
                 assert_eq!(provider.base_ref, None);
                 assert_eq!(provider.head_ref, None);
-                assert_eq!(provider.commit_hash, "abc123");
                 assert_eq!(provider.event, RunEvent::Push);
                 assert_eq!(
                     provider.repository_root_path,
@@ -270,7 +267,6 @@ mod tests {
                 assert_eq!(provider.ref_, "refs/pull/22/merge");
                 assert_eq!(provider.base_ref, Some("main".into()));
                 assert_eq!(provider.head_ref, Some("feat/codspeed-runner".into()));
-                assert_eq!(provider.commit_hash, "abc123");
                 assert_eq!(provider.event, RunEvent::PullRequest);
                 assert_eq!(
                     provider.repository_root_path,
