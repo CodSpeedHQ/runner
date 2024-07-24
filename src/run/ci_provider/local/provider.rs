@@ -2,7 +2,7 @@ use git2::Repository;
 use lazy_static::lazy_static;
 use simplelog::SharedLogger;
 
-use crate::logger::get_local_logger;
+use crate::local_logger::get_local_logger;
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{

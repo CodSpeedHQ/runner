@@ -1,4 +1,4 @@
-use crate::logger::suspend_progress_bar;
+use crate::local_logger::suspend_progress_bar;
 use crate::prelude::*;
 use crate::run::{
     config::Config, instruments::mongo_tracer::MongoTracer,

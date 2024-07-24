@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::logger::get_local_logger;
+use crate::local_logger::get_local_logger;
 use crate::{api_client::CodSpeedAPIClient, config::CodSpeedConfig, prelude::*};
 use clap::{Args, Subcommand};
 use console::style;

@@ -1,4 +1,6 @@
-use crate::{api_client::CodSpeedAPIClient, auth, logger::CODSPEED_U8_COLOR_CODE, prelude::*, run};
+use crate::{
+    api_client::CodSpeedAPIClient, auth, local_logger::CODSPEED_U8_COLOR_CODE, prelude::*, run,
+};
 use clap::{
     builder::{styling, Styles},
     Parser, Subcommand,

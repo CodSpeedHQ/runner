@@ -2,12 +2,14 @@ mod api_client;
 mod app;
 mod auth;
 mod config;
+mod local_logger;
 mod logger;
 mod prelude;
 mod request_client;
 mod run;
 
 use console::style;
+use local_logger::clean_logger;
 use prelude::*;
 
 use log::log_enabled;
@@ -32,7 +34,7 @@ async fn main() {
                 debug!("Caused by: {}", e);
             }
         }
-        logger::clean_logger();
+        clean_logger();
 
         std::process::exit(1);
     }
