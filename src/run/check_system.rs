@@ -41,7 +41,7 @@ impl SystemInfo {
 }
 
 impl SystemInfo {
-    fn new() -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let os = System::name().ok_or(anyhow!("Failed to get OS name"))?;
         let os_version = System::os_version().ok_or(anyhow!("Failed to get OS version"))?;
         let arch = System::cpu_arch().ok_or(anyhow!("Failed to get CPU architecture"))?;
@@ -58,15 +58,14 @@ impl SystemInfo {
     }
 }
 
-/// Checks if the system is supported and returns the system info
+/// Checks if the provided system info is supported
 ///
 /// Supported systems:
 /// - Ubuntu 20.04 on x86_64
 /// - Ubuntu 22.04 on x86_64
 /// - Debian 11 on x86_64
 /// - Debian 12 on x86_64
-pub fn check_system() -> Result<SystemInfo> {
-    let system_info = SystemInfo::new()?;
+pub fn check_system(system_info: &SystemInfo) -> Result<()> {
     debug!("System info: {:#?}", system_info);
 
     match (system_info.os.as_str(), system_info.os_version.as_str()) {
@@ -79,5 +78,5 @@ pub fn check_system() -> Result<SystemInfo> {
         bail!("Only x86_64 is supported at the moment");
     }
 
-    Ok(system_info)
+    Ok(())
 }

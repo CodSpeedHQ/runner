@@ -3,6 +3,7 @@ use crate::config::CodSpeedConfig;
 use crate::prelude::*;
 use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
+use check_system::SystemInfo;
 use clap::Args;
 
 mod check_system;
@@ -110,7 +111,9 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
         config.set_token(codspeed_config.auth.token.clone());
     }
 
-    let system_info = check_system::check_system()?;
+    let system_info = SystemInfo::new()?;
+    check_system::check_system(&system_info)?;
+
     let run_data = runner::run(&config, &system_info).await?;
 
     if !config.skip_upload {
