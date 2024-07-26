@@ -53,7 +53,7 @@ fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
     };
 
     Ok(format!(
-        "valgrind_{}_ubuntu_{}_amd64.deb",
+        "valgrind_{}_ubuntu-{}_amd64.deb",
         VALGRIND_CODSPEED_VERSION, version
     ))
 }
@@ -139,6 +139,8 @@ pub async fn setup(system_info: &SystemInfo, config: &Config) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use super::*;
 
     #[test]
@@ -150,9 +152,9 @@ mod tests {
             host: "host".to_string(),
             user: "user".to_string(),
         };
-        assert_eq!(
+        assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            "valgrind_3.21.0-0codspeed1_ubuntu_22.04_amd64.deb"
+            @"valgrind_3.21.0-0codspeed1_ubuntu-22.04_amd64.deb"
         );
     }
 
@@ -165,9 +167,9 @@ mod tests {
             host: "host".to_string(),
             user: "user".to_string(),
         };
-        assert_eq!(
+        assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            "valgrind_3.21.0-0codspeed1_ubuntu_20.04_amd64.deb"
+            @"valgrind_3.21.0-0codspeed1_ubuntu-20.04_amd64.deb"
         );
     }
 }
