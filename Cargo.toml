@@ -71,7 +71,7 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["x86_64-unknown-linux-musl"]
+targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
 # The archive format to use for non-windows builds (defaults .tar.xz)
 unix-archive = ".tar.gz"
 # Which actions to run on pull requests
@@ -82,3 +82,6 @@ post-announce-jobs = ["./bump-action"]
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
+
+[workspace.metadata.dist.github-custom-runners]
+aarch64-unknown-linux-musl = "buildjet-2vcpu-ubuntu-2204-arm"
