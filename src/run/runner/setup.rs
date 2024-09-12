@@ -39,22 +39,22 @@ fn run_with_sudo(command_args: &[&str]) -> Result<()> {
 }
 
 fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
-    let version = match (
+    let (version, architecture) = match (
         system_info.os.as_str(),
         system_info.os_version.as_str(),
         system_info.arch.as_str(),
     ) {
         ("Ubuntu", "20.04", "x86_64") | ("Debian", "11", "x86_64") | ("Debian", "12", "x86_64") => {
-            "20.04"
+            ("20.04", "amd64")
         }
-        ("Ubuntu", "22.04", "x86_64") => "22.04",
-
+        ("Ubuntu", "22.04", "x86_64") => ("22.04", "amd64"),
+        ("Ubuntu", "22.04", "aarch64") => ("22.04", "arm64"),
         _ => bail!("Unsupported system"),
     };
 
     Ok(format!(
-        "valgrind_{}_ubuntu-{}_amd64.deb",
-        VALGRIND_CODSPEED_VERSION, version
+        "valgrind_{}_ubuntu-{}_{}.deb",
+        VALGRIND_CODSPEED_VERSION, version, architecture
     ))
 }
 
@@ -154,7 +154,7 @@ mod tests {
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            @"valgrind_3.21.0-0codspeed1_ubuntu-22.04_amd64.deb"
+            @"valgrind_3.21.0-0codspeed2_ubuntu-22.04_amd64.deb"
         );
     }
 
@@ -169,7 +169,22 @@ mod tests {
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            @"valgrind_3.21.0-0codspeed1_ubuntu-20.04_amd64.deb"
+            @"valgrind_3.21.0-0codspeed2_ubuntu-20.04_amd64.deb"
+        );
+    }
+
+    #[test]
+    fn test_system_info_to_codspeed_valgrind_version_ubuntu_arm() {
+        let system_info = SystemInfo {
+            os: "Ubuntu".to_string(),
+            os_version: "22.04".to_string(),
+            arch: "aarch64".to_string(),
+            host: "host".to_string(),
+            user: "user".to_string(),
+        };
+        assert_snapshot!(
+            get_codspeed_valgrind_filename(&system_info).unwrap(),
+            @"valgrind_3.21.0-0codspeed2_ubuntu-22.04_arm64.deb"
         );
     }
 }

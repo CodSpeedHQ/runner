@@ -1,6 +1,8 @@
 use std::process::Command;
 
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use sysinfo::System;
 
 use crate::prelude::*;
@@ -58,25 +60,37 @@ impl SystemInfo {
     }
 }
 
+lazy_static! {
+    static ref SUPPORTED_SYSTEMS: HashSet<(&'static str, &'static str, &'static str)> = {
+        HashSet::from([
+            ("Ubuntu", "20.04", "x86_64"),
+            ("Ubuntu", "22.04", "x86_64"),
+            ("Ubuntu", "22.04", "aarch64"),
+            ("Debian", "11", "x86_64"),
+            ("Debian", "12", "x86_64"),
+        ])
+    };
+}
+
 /// Checks if the provided system info is supported
 ///
 /// Supported systems:
-/// - Ubuntu 20.04 on x86_64
-/// - Ubuntu 22.04 on x86_64
-/// - Debian 11 on x86_64
-/// - Debian 12 on x86_64
+/// - Ubuntu 20.04 x86_64
+/// - Ubuntu 22.04 x86_64 and aarch64
+/// - Debian 11 x86_64
+/// - Debian 12 x86_64
 pub fn check_system(system_info: &SystemInfo) -> Result<()> {
     debug!("System info: {:#?}", system_info);
 
-    match (system_info.os.as_str(), system_info.os_version.as_str()) {
-        ("Ubuntu", "20.04") | ("Ubuntu", "22.04") | ("Debian", "11") | ("Debian", "12") => (),
-        ("Ubuntu", _) => bail!("Only Ubuntu 20.04 and 22.04 are supported at the moment"),
-        ("Debian", _) => bail!("Only Debian 11 and 12 are supported at the moment"),
-        _ => bail!("Only Ubuntu and Debian are supported at the moment"),
-    }
-    if system_info.arch != "x86_64" {
-        bail!("Only x86_64 is supported at the moment");
+    let system_tuple = (
+        system_info.os.as_str(),
+        system_info.os_version.as_str(),
+        system_info.arch.as_str(),
+    );
+
+    if SUPPORTED_SYSTEMS.contains(&system_tuple) {
+        return Ok(());
     }
 
-    Ok(())
+    bail!("Unsupported system: {:?}", system_info);
 }
