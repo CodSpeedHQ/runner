@@ -60,12 +60,25 @@ inherits = "release"
 lto = "thin"
 strip = true
 
+# Config for 'cargo dist'
 [workspace.metadata.dist]
+# Whether to consider the binaries in a package for distribution (defaults true)
 dist = true
-cargo-dist-version = "0.10.0"
-ci = ["github"]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.22.1"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
 installers = ["shell"]
+# Target platforms to build apps for (Rust target-triple syntax)
 targets = ["x86_64-unknown-linux-musl"]
+# The archive format to use for non-windows builds (defaults .tar.xz)
 unix-archive = ".tar.gz"
+# Which actions to run on pull requests
 pr-run-mode = "upload"
+# Post-announce jobs to run in CI
 post-announce-jobs = ["./bump-action"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
+# Whether to install an updater program
+install-updater = false
