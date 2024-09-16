@@ -6,12 +6,14 @@ mod executor;
 mod helpers;
 mod interfaces;
 mod valgrind;
+mod wall_time;
 
 use anyhow::bail;
 use executor::Executor;
 use helpers::profile_folder::create_profile_folder;
 pub use interfaces::{ExecutorName, RunData};
 use valgrind::executor::{ValgrindExecutor, INSTRUMENTATION_RUNNER_MODE};
+use wall_time::executor::{WallTimeExecutor, WALL_TIME_RUNNER_MODE};
 
 pub use valgrind::VALGRIND_EXECUTION_TARGET;
 
@@ -20,6 +22,7 @@ pub fn get_executor() -> Result<Box<dyn Executor>> {
         debug!("CODSPEED_RUNNER_MODE is set to {}", runner_mode);
         match runner_mode.as_str() {
             INSTRUMENTATION_RUNNER_MODE => Ok(Box::new(ValgrindExecutor)),
+            WALL_TIME_RUNNER_MODE => Ok(Box::new(WallTimeExecutor)),
             _ => bail!("Unknown codspeed runner mode"),
         }
     } else {

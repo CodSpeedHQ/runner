@@ -1,25 +1,17 @@
-use crate::local_logger::suspend_progress_bar;
 use crate::prelude::*;
+use crate::run::runner::helpers::env::BASE_INJECTED_ENV;
+use crate::run::runner::helpers::get_bench_command::get_bench_command;
+use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::introspected_node::setup_introspected_node;
 use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
+use std::env;
 use std::fs::canonicalize;
-use std::io::{Read, Write};
 use std::path::Path;
-use std::process::ExitStatus;
-use std::{collections::HashMap, env::consts::ARCH, process::Command};
-use std::{env, thread};
+use std::{env::consts::ARCH, process::Command};
 
 lazy_static! {
-    static ref BASE_INJECTED_ENV: HashMap<&'static str, String> = {
-        HashMap::from([
-            ("PYTHONMALLOC", "malloc".into()),
-            ("PYTHONHASHSEED", "0".into()),
-            ("ARCH", ARCH.into()),
-            ("CODSPEED_ENV", "runner".into()),
-        ])
-    };
     static ref VALGRIND_BASE_ARGS: Vec<String> = {
         let mut args = vec![];
         args.extend(
@@ -49,64 +41,13 @@ lazy_static! {
     };
 }
 
-fn get_bench_command(config: &Config) -> Result<String> {
-    let bench_command = &config.command.trim();
-
-    if bench_command.is_empty() {
-        bail!("The bench command is empty");
-    }
-
-    Ok(bench_command
-        // Fixes a compatibility issue with cargo 1.66+ running directly under valgrind <3.20
-        .replace("cargo codspeed", "cargo-codspeed"))
-}
-
 pub const VALGRIND_EXECUTION_TARGET: &str = "valgrind::execution";
-
-fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
-    fn log_tee(
-        mut reader: impl Read,
-        mut writer: impl Write,
-        log_prefix: Option<&str>,
-    ) -> Result<()> {
-        let prefix = log_prefix.unwrap_or("");
-        let mut buffer = [0; 1024];
-        loop {
-            let bytes_read = reader.read(&mut buffer)?;
-            if bytes_read == 0 {
-                break;
-            }
-            suspend_progress_bar(|| {
-                writer.write_all(&buffer[..bytes_read]).unwrap();
-                trace!(target: VALGRIND_EXECUTION_TARGET, "{}{}", prefix, String::from_utf8_lossy(&buffer[..bytes_read]));
-            });
-        }
-        Ok(())
-    }
-
-    let mut process = cmd
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .context("failed to spawn the process")?;
-    let stdout = process.stdout.take().expect("unable to get stdout");
-    let stderr = process.stderr.take().expect("unable to get stderr");
-    thread::spawn(move || {
-        log_tee(stdout, std::io::stdout(), None).unwrap();
-    });
-    thread::spawn(move || {
-        log_tee(stderr, std::io::stderr(), Some("[stderr]")).unwrap();
-    });
-    process.wait().context("failed to wait for the process")
-}
 
 pub fn measure(
     config: &Config,
     profile_folder: &Path,
     mongo_tracer: &Option<MongoTracer>,
 ) -> Result<()> {
-    debug!("profile dir: {}", profile_folder.display());
-
     // Create the command
     let mut cmd = Command::new("setarch");
     cmd.arg(ARCH).arg("-R");
@@ -148,55 +89,11 @@ pub fn measure(
     }
 
     debug!("cmd: {:?}", cmd);
-    let status = run_command_with_log_pipe(cmd)
+    let status = run_command_with_log_pipe(cmd, VALGRIND_EXECUTION_TARGET)
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
     if !status.success() {
         bail!("failed to execute the benchmark process");
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_get_bench_command_empty() {
-        let config = Config::test();
-        assert!(get_bench_command(&config).is_err());
-        assert_eq!(
-            get_bench_command(&config).unwrap_err().to_string(),
-            "The bench command is empty"
-        );
-    }
-
-    #[test]
-    fn test_get_bench_command_cargo() {
-        let config = Config {
-            command: "cargo codspeed bench".into(),
-            ..Config::test()
-        };
-        assert_eq!(get_bench_command(&config).unwrap(), "cargo-codspeed bench");
-    }
-
-    #[test]
-    fn test_get_bench_command_multiline() {
-        let config = Config {
-            // TODO: use indoc! macro
-            command: r#"
-cargo codspeed bench --features "foo bar"
-pnpm vitest bench "my-app"
-pytest tests/ --codspeed
-"#
-            .into(),
-            ..Config::test()
-        };
-        assert_eq!(
-            get_bench_command(&config).unwrap(),
-            r#"cargo-codspeed bench --features "foo bar"
-pnpm vitest bench "my-app"
-pytest tests/ --codspeed"#
-        );
-    }
 }
