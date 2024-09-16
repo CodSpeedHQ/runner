@@ -5,6 +5,8 @@ use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
 use check_system::SystemInfo;
 use clap::Args;
+use instruments::mongo_tracer::MongoTracer;
+use runner::get_run_data;
 
 mod check_system;
 pub mod ci_provider;
@@ -114,7 +116,39 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let run_data = runner::run(&config, &system_info).await?;
+    let executor = runner::get_executor()?;
+
+    let run_data = get_run_data()?;
+
+    if !config.skip_setup {
+        start_group!("Preparing the environment");
+        executor.setup(&config, &system_info, &run_data).await?;
+        end_group!();
+    }
+
+    start_opened_group!("Running the benchmarks");
+
+    // TODO: refactor and move directly in the Instruments struct as a `start` method
+    let mongo_tracer = if let Some(mongodb_config) = &config.instruments.mongodb {
+        let mut mongo_tracer = MongoTracer::try_from(&run_data.profile_folder, mongodb_config)?;
+        mongo_tracer.start().await?;
+        Some(mongo_tracer)
+    } else {
+        None
+    };
+
+    executor
+        .run(&config, &system_info, &run_data, &mongo_tracer)
+        .await?;
+
+    // TODO: refactor and move directly in the Instruments struct as a `stop` method
+    if let Some(mut mongo_tracer) = mongo_tracer {
+        mongo_tracer.stop().await?;
+    }
+
+    executor.teardown(&config, &system_info, &run_data).await?;
+
+    end_group!();
 
     if !config.skip_upload {
         start_group!("Uploading performance data");

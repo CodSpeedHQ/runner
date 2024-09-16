@@ -49,7 +49,7 @@ fn dump_tracer_log(mut stream: impl Read) -> Result<()> {
 }
 
 impl MongoTracer {
-    pub fn try_from(profile_folder: &PathBuf, mongodb_config: &MongoDBConfig) -> Result<Self> {
+    pub fn try_from(profile_folder: &Path, mongodb_config: &MongoDBConfig) -> Result<Self> {
         let user_input = match &mongodb_config.uri_env_name {
             Some(uri_env_name) => {
                 debug!(

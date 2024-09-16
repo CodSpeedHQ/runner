@@ -1,10 +1,8 @@
 use crate::local_logger::suspend_progress_bar;
 use crate::prelude::*;
-use crate::run::{
-    config::Config, instruments::mongo_tracer::MongoTracer,
-    runner::helpers::ignored_objects_path::get_objects_path_to_ignore,
-    runner::helpers::introspected_node::setup_introspected_node,
-};
+use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
+use crate::run::runner::valgrind::helpers::introspected_node::setup_introspected_node;
+use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
 use std::fs::canonicalize;
 use std::io::{Read, Write};
@@ -144,7 +142,7 @@ pub fn measure(
     // Set the command to execute
     cmd.args(["sh", "-c", get_bench_command(config)?.as_str()]);
 
-    // TODO: refactor and move this to the `Instrumentation` trait
+    // TODO: refactor and move this to the `Instruments` struct
     if let Some(mongo_tracer) = mongo_tracer {
         mongo_tracer.apply_run_command_transformations(&mut cmd)?;
     }

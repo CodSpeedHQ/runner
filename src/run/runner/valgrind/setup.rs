@@ -129,6 +129,7 @@ async fn install_mongodb_tracer() -> Result<()> {
 pub async fn setup(system_info: &SystemInfo, config: &Config) -> Result<()> {
     install_valgrind(system_info).await?;
 
+    // TODO: move into setup of the Instruments struct
     if config.instruments.is_mongodb_enabled() {
         install_mongodb_tracer().await?;
     }
