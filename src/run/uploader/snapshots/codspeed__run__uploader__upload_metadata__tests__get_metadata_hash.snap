@@ -3,7 +3,7 @@ source: src/run/uploader/upload_metadata.rs
 expression: upload_metadata
 ---
 {
-  "version": 3,
+  "version": 4,
   "tokenless": true,
   "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",
   "runner": {
@@ -17,7 +17,12 @@ expression: upload_metadata
     "osVersion": "20.04",
     "arch": "x86_64",
     "host": "host",
-    "user": "user"
+    "user": "user",
+    "cpuBrand": "Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz",
+    "cpuName": "cpu0",
+    "cpuVendorId": "GenuineIntel",
+    "cpuCores": 2,
+    "totalMemoryGb": 8
   },
   "platform": "github-actions",
   "commitHash": "5bd77cb0da72bef094893ed45fb793ff16ecfbe3",

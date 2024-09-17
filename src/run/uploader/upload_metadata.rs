@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
-            version: Some(3),
+            version: Some(4),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
             runner: Runner {
@@ -58,7 +58,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "0d3ce9d6174eb0d6aa197b429237035291a662c46c7809198162202ca94aff5e"
+            "3fc8e6c1b3f4adfe00e027d148f308a34730f1f2fa053c19378ce3e97b5dbab1"
         );
         assert_json_snapshot!(upload_metadata);
     }

@@ -150,8 +150,7 @@ mod tests {
             os: "Ubuntu".to_string(),
             os_version: "22.04".to_string(),
             arch: "x86_64".to_string(),
-            host: "host".to_string(),
-            user: "user".to_string(),
+            ..SystemInfo::test()
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
@@ -165,8 +164,7 @@ mod tests {
             os: "Debian".to_string(),
             os_version: "11".to_string(),
             arch: "x86_64".to_string(),
-            host: "host".to_string(),
-            user: "user".to_string(),
+            ..SystemInfo::test()
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
@@ -180,8 +178,7 @@ mod tests {
             os: "Ubuntu".to_string(),
             os_version: "22.04".to_string(),
             arch: "aarch64".to_string(),
-            host: "host".to_string(),
-            user: "user".to_string(),
+            ..SystemInfo::test()
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),

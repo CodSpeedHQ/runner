@@ -85,7 +85,7 @@ pub trait CIProvider {
         let commit_hash = get_commit_hash(&provider_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(3),
+            version: Some(4),
             tokenless: config.token.is_none(),
             provider_metadata,
             profile_md5: archive_hash.into(),
