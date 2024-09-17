@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::run::{
     check_system::SystemInfo, ci_provider::interfaces::ProviderMetadata,
-    instruments::InstrumentNames,
+    instruments::InstrumentNames, runner::ExecutorName,
 };
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -24,6 +24,7 @@ pub struct Runner {
     pub name: String,
     pub version: String,
     pub instruments: Vec<InstrumentNames>,
+    pub executor: ExecutorName,
     #[serde(flatten)]
     pub system_info: SystemInfo,
 }

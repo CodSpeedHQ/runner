@@ -17,6 +17,7 @@ mod tests {
         check_system::SystemInfo,
         ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
         instruments::InstrumentNames,
+        runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
     };
 
@@ -30,6 +31,7 @@ mod tests {
                 name: "codspeed-runner".into(),
                 version: "2.1.0".into(),
                 instruments: vec![InstrumentNames::MongoDB],
+                executor: ExecutorName::Valgrind,
                 system_info: SystemInfo::test(),
             },
             platform: "github-actions".into(),
@@ -56,7 +58,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "ada5057b0c440844a1558eed80a1993a41756984cc6147fdef459ce8a289f1d7"
+            "0d3ce9d6174eb0d6aa197b429237035291a662c46c7809198162202ca94aff5e"
         );
         assert_json_snapshot!(upload_metadata);
     }

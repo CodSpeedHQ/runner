@@ -12,6 +12,7 @@ expression: upload_metadata
     "instruments": [
       "MongoDB"
     ],
+    "executor": "valgrind",
     "os": "Ubuntu",
     "osVersion": "20.04",
     "arch": "x86_64",

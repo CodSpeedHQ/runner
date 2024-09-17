@@ -4,6 +4,7 @@ use simplelog::SharedLogger;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
 use crate::run::config::Config;
+use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
 use super::interfaces::ProviderMetadata;
@@ -77,6 +78,7 @@ pub trait CIProvider {
         config: &Config,
         system_info: &SystemInfo,
         archive_hash: &str,
+        executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
         let provider_metadata = self.get_provider_metadata()?;
 
@@ -92,6 +94,7 @@ pub trait CIProvider {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),
                 instruments: config.instruments.get_active_instrument_names(),
+                executor: executor_name,
                 system_info: system_info.clone(),
             },
             platform: self.get_provider_slug().into(),

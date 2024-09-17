@@ -1,3 +1,4 @@
+use crate::run::runner::ExecutorName;
 use crate::run::{
     check_system::SystemInfo, ci_provider::CIProvider, config::Config, runner::RunData,
     uploader::UploadError,
@@ -99,12 +100,14 @@ pub async fn upload(
     system_info: &SystemInfo,
     provider: &Box<dyn CIProvider>,
     run_data: &RunData,
+    executor_name: ExecutorName,
 ) -> Result<UploadResult> {
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
     debug!("CI provider detected: {:#?}", provider.get_provider_name());
 
-    let upload_metadata = provider.get_upload_metadata(config, system_info, &archive_hash)?;
+    let upload_metadata =
+        provider.get_upload_metadata(config, system_info, &archive_hash, executor_name)?;
     debug!("Upload metadata: {:#?}", upload_metadata);
     info!(
         "Linked repository: {}\n",
@@ -188,9 +191,15 @@ mod tests {
             ],
             async {
                 let provider = crate::run::ci_provider::get_provider(&config).unwrap();
-                upload(&config, &system_info, &provider, &run_data)
-                    .await
-                    .unwrap();
+                upload(
+                    &config,
+                    &system_info,
+                    &provider,
+                    &run_data,
+                    ExecutorName::Valgrind,
+                )
+                .await
+                .unwrap();
             },
         )
         .await;

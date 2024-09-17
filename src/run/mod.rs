@@ -153,7 +153,8 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     if !config.skip_upload {
         start_group!("Uploading performance data");
         logger.persist_log_to_profile_folder(&run_data)?;
-        let upload_result = uploader::upload(&config, &system_info, &provider, &run_data).await?;
+        let upload_result =
+            uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
         end_group!();
 
         if provider.get_provider_slug() == "local" {

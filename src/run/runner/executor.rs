@@ -7,8 +7,6 @@ use crate::run::{check_system::SystemInfo, config::Config};
 
 #[async_trait(?Send)]
 pub trait Executor {
-    // TODO: this function will be used in a later commit
-    #[allow(dead_code)]
     fn name(&self) -> ExecutorName;
 
     async fn setup(
