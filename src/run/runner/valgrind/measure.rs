@@ -3,7 +3,7 @@ use crate::run::runner::helpers::env::BASE_INJECTED_ENV;
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
-use crate::run::runner::valgrind::helpers::introspected_node::setup_introspected_node;
+use crate::run::runner::valgrind::helpers::introspected_nodejs::setup_introspected_nodejs;
 use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
 use std::env;
@@ -56,7 +56,7 @@ pub fn measure(
         "PATH",
         format!(
             "{}:{}",
-            setup_introspected_node()
+            setup_introspected_nodejs()
                 .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
                 .to_str()
                 .unwrap(),
