@@ -19,7 +19,7 @@ pub struct Instruments {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum InstrumentNames {
+pub enum InstrumentName {
     MongoDB,
 }
 
@@ -28,11 +28,11 @@ impl Instruments {
         self.mongodb.is_some()
     }
 
-    pub fn get_active_instrument_names(&self) -> Vec<InstrumentNames> {
+    pub fn get_active_instrument_names(&self) -> Vec<InstrumentName> {
         let mut names = vec![];
 
         if self.is_mongodb_enabled() {
-            names.push(InstrumentNames::MongoDB);
+            names.push(InstrumentName::MongoDB);
         }
 
         names
@@ -42,16 +42,16 @@ impl Instruments {
 impl TryFrom<&RunArgs> for Instruments {
     type Error = Error;
     fn try_from(args: &RunArgs) -> Result<Self> {
-        let mut validated_instrument_names: HashSet<InstrumentNames> = HashSet::new();
+        let mut validated_instrument_names: HashSet<InstrumentName> = HashSet::new();
 
         for instrument_name in &args.instruments {
             match instrument_name.as_str() {
-                "mongodb" => validated_instrument_names.insert(InstrumentNames::MongoDB),
+                "mongodb" => validated_instrument_names.insert(InstrumentName::MongoDB),
                 _ => bail!("Invalid instrument name: {}", instrument_name),
             };
         }
 
-        let mongodb = if validated_instrument_names.contains(&InstrumentNames::MongoDB) {
+        let mongodb = if validated_instrument_names.contains(&InstrumentName::MongoDB) {
             Some(MongoDBConfig {
                 uri_env_name: args.mongo_uri_env_name.clone(),
             })

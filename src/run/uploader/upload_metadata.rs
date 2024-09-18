@@ -16,7 +16,7 @@ mod tests {
     use crate::run::{
         check_system::SystemInfo,
         ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
-        instruments::InstrumentNames,
+        instruments::InstrumentName,
         runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
     };
@@ -30,7 +30,7 @@ mod tests {
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: "2.1.0".into(),
-                instruments: vec![InstrumentNames::MongoDB],
+                instruments: vec![InstrumentName::MongoDB],
                 executor: ExecutorName::Valgrind,
                 system_info: SystemInfo::test(),
             },
