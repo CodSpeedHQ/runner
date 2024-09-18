@@ -15,7 +15,7 @@ pub use interfaces::{ExecutorName, RunData};
 use valgrind::executor::{ValgrindExecutor, INSTRUMENTATION_RUNNER_MODE};
 use wall_time::executor::{WallTimeExecutor, WALL_TIME_RUNNER_MODE};
 
-pub use valgrind::VALGRIND_EXECUTION_TARGET;
+pub const EXECUTOR_TARGET: &str = "executor";
 
 pub fn get_executor() -> Result<Box<dyn Executor>> {
     if let Ok(runner_mode) = env::var("CODSPEED_RUNNER_MODE") {
