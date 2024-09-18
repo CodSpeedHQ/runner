@@ -41,8 +41,6 @@ lazy_static! {
     };
 }
 
-pub const VALGRIND_EXECUTION_TARGET: &str = "valgrind::execution";
-
 pub fn measure(
     config: &Config,
     profile_folder: &Path,
@@ -89,7 +87,7 @@ pub fn measure(
     }
 
     debug!("cmd: {:?}", cmd);
-    let status = run_command_with_log_pipe(cmd, VALGRIND_EXECUTION_TARGET)
+    let status = run_command_with_log_pipe(cmd)
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
     if !status.success() {
         bail!("failed to execute the benchmark process");

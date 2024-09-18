@@ -11,7 +11,6 @@ use async_trait::async_trait;
 use std::fs::canonicalize;
 use std::process::Command;
 
-const WALL_TIME_EXECUTION_TARGET: &str = "walltime::execution";
 pub const WALL_TIME_RUNNER_MODE: &str = "walltime";
 
 pub struct WallTimeExecutor;
@@ -55,7 +54,7 @@ impl Executor for WallTimeExecutor {
         cmd.args(["-c", get_bench_command(config)?.as_str()]);
 
         debug!("cmd: {:?}", cmd);
-        let status = run_command_with_log_pipe(cmd, WALL_TIME_EXECUTION_TARGET)
+        let status = run_command_with_log_pipe(cmd)
             .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
         if !status.success() {
             bail!("failed to execute the benchmark process");
