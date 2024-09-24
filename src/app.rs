@@ -17,7 +17,7 @@ fn create_styles() -> Styles {
 }
 
 #[derive(Parser, Debug)]
-#[command(about = "The CodSpeed CLI tool", styles = create_styles())]
+#[command(version, about = "The CodSpeed CLI tool", styles = create_styles())]
 pub struct Cli {
     /// The URL of the CodSpeed GraphQL API
     #[arg(
