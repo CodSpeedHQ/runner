@@ -48,6 +48,7 @@ fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
             ("20.04", "amd64")
         }
         ("Ubuntu", "22.04", "x86_64") => ("22.04", "amd64"),
+        ("Ubuntu", "24.04", "x86_64") => ("24.04", "amd64"),
         ("Ubuntu", "22.04", "aarch64") => ("22.04", "arm64"),
         _ => bail!("Unsupported system"),
     };
