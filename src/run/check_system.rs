@@ -69,7 +69,11 @@ pub fn check_system(system_info: &SystemInfo) -> Result<()> {
     debug!("System info: {:#?}", system_info);
 
     match (system_info.os.as_str(), system_info.os_version.as_str()) {
-        ("Ubuntu", "20.04") | ("Ubuntu", "22.04") | ("Debian", "11") | ("Debian", "12") => (),
+        ("Ubuntu", "20.04")
+        | ("Ubuntu", "22.04")
+        | ("Ubuntu", "24.04")
+        | ("Debian", "11")
+        | ("Debian", "12") => (),
         ("Ubuntu", _) => bail!("Only Ubuntu 20.04 and 22.04 are supported at the moment"),
         ("Debian", _) => bail!("Only Debian 11 and 12 are supported at the moment"),
         _ => bail!("Only Ubuntu and Debian are supported at the moment"),
