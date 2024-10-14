@@ -48,6 +48,7 @@ fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
             ("20.04", "amd64")
         }
         ("Ubuntu", "22.04", "x86_64") => ("22.04", "amd64"),
+        ("Ubuntu", "24.04", "x86_64") => ("24.04", "amd64"),
         ("Ubuntu", "22.04", "aarch64") => ("22.04", "arm64"),
         _ => bail!("Unsupported system"),
     };
@@ -154,7 +155,21 @@ mod tests {
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            @"valgrind_3.21.0-0codspeed2_ubuntu-22.04_amd64.deb"
+            @"valgrind_3.21.0-0codspeed3_ubuntu-22.04_amd64.deb"
+        );
+    }
+
+    #[test]
+    fn test_system_info_to_codspeed_valgrind_version_ubuntu_24() {
+        let system_info = SystemInfo {
+            os: "Ubuntu".to_string(),
+            os_version: "24.04".to_string(),
+            arch: "x86_64".to_string(),
+            ..SystemInfo::test()
+        };
+        assert_snapshot!(
+            get_codspeed_valgrind_filename(&system_info).unwrap(),
+            @"valgrind_3.21.0-0codspeed3_ubuntu-24.04_amd64.deb"
         );
     }
 
@@ -168,7 +183,7 @@ mod tests {
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            @"valgrind_3.21.0-0codspeed2_ubuntu-20.04_amd64.deb"
+            @"valgrind_3.21.0-0codspeed3_ubuntu-20.04_amd64.deb"
         );
     }
 
@@ -182,7 +197,7 @@ mod tests {
         };
         assert_snapshot!(
             get_codspeed_valgrind_filename(&system_info).unwrap(),
-            @"valgrind_3.21.0-0codspeed2_ubuntu-22.04_arm64.deb"
+            @"valgrind_3.21.0-0codspeed3_ubuntu-22.04_arm64.deb"
         );
     }
 }

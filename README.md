@@ -35,7 +35,7 @@ Refer to the [releases page](https://github.com/CodSpeedHQ/runner/releases) to s
 ## Usage
 
 > [!NOTE]
-> For now, the CLI only supports Ubuntu 20.04, 22.04, and Debian 11, 12.
+> For now, the CLI only supports Ubuntu 20.04, 22.04, 24.04 and Debian 11, 12.
 
 First, authenticate with your CodSpeed account:
 
