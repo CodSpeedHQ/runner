@@ -1,0 +1,6 @@
+build-job:
+  stage: test
+  image: rust
+  script:
+    - cargo test --all
+    - cargo run run echo 'This is a test'
