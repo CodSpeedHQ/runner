@@ -1,6 +1,10 @@
 use log::{Level, LevelFilter, Log};
 use simplelog::SharedLogger;
-use std::{env, io::Write};
+use std::{
+    env,
+    io::Write,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::{
     logger::{get_group_event, GroupEvent},
@@ -38,12 +42,15 @@ impl Log for GitLabCILogger {
         let message = record.args();
 
         if let Some(group_event) = get_group_event(record) {
+            let now = SystemTime::now();
+            let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
+
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
-                    println!("section_start:`date +%s`:{}", name);
+                    println!("section_start:{timestamp}:{name}");
                 }
                 GroupEvent::End => {
-                    println!("section_end:`date +%s`");
+                    println!("section_end:{timestamp}");
                 }
             }
             return;
