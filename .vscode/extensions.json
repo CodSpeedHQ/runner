@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "foxundermoon.shell-format",
+    "rust-lang.rust-analyzer",
+    "GitHub.vscode-github-actions",
+    "GitLab.gitlab-workflow"
+  ]
+}
