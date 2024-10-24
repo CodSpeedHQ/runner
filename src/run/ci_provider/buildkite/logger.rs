@@ -39,10 +39,10 @@ impl Log for BuildkiteLogger {
         if let Some(group_event) = get_group_event(record) {
             match group_event {
                 GroupEvent::Start(name) => {
-                    println!("--- {}", name);
+                    println!("--- {name}");
                 }
                 GroupEvent::StartOpened(name) => {
-                    println!("+++ {}", name);
+                    println!("+++ {name}");
                 }
                 GroupEvent::End => {}
             }
@@ -55,19 +55,19 @@ impl Log for BuildkiteLogger {
         // there is no support for log levels in Buildkite, so we print the level in the message
         match level {
             Level::Error => {
-                println!("[ERROR] {}", message);
+                println!("[ERROR] {message}");
             }
             Level::Warn => {
-                println!("[WARN] {}", message);
+                println!("[WARN] {message}");
             }
             Level::Info => {
-                println!("{}", message);
+                println!("{message}");
             }
             Level::Debug => {
-                println!("[DEBUG] {}", message);
+                println!("[DEBUG] {message}");
             }
             Level::Trace => {
-                println!("[TRACE] {}", message);
+                println!("[TRACE] {message}");
             }
         }
     }
