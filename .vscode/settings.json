@@ -1,5 +1,8 @@
 {
   "editor.formatOnSave": true,
   "rust-analyzer.checkOnSave": true,
-  "rust-analyzer.check.command": "clippy"
+  "rust-analyzer.check.command": "clippy",
+  "cSpell.words": [
+    "codspeed"
+  ]
 }
