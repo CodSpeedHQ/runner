@@ -1,5 +1,18 @@
 {
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "rust-analyzer.checkOnSave": true,
-  "rust-analyzer.check.command": "clippy"
+  "rust-analyzer.check.command": "clippy",
+  "[dotenv][ignore][properties][shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "[html][javascript][json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "files.watcherExclude": {
+    "**/target/**": true
+  }
 }
