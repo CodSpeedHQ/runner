@@ -155,6 +155,7 @@ impl CIProvider for BuildkiteProvider {
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
             gh_data: None,
+            gl_data: None,
         })
     }
 }

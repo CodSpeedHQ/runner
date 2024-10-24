@@ -15,7 +15,7 @@ mod tests {
 
     use crate::run::{
         check_system::SystemInfo,
-        ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
+        ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, GhSender},
         instruments::InstrumentName,
         runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
@@ -46,7 +46,7 @@ mod tests {
                 gh_data: Some(GhData {
                     run_id: 7044765741,
                     job: "codspeed".into(),
-                    sender: Some(Sender {
+                    sender: Some(GhSender {
                         id: 19605940,
                         login: "adriencaccia".into(),
                     }),
