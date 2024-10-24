@@ -1,9 +1,11 @@
+mod gitlab_ci;
 pub mod interfaces;
 pub mod logger;
 mod provider;
 
 use buildkite::BuildkiteProvider;
 use github_actions::GitHubActionsProvider;
+use gitlab_ci::GitLabCIProvider;
 use local::LocalProvider;
 use provider::CIProviderDetector;
 
@@ -25,6 +27,11 @@ pub fn get_provider(config: &Config) -> Result<Box<dyn CIProvider>> {
 
     if GitHubActionsProvider::detect() {
         let provider = GitHubActionsProvider::try_from(config)?;
+        return Ok(Box::new(provider));
+    }
+
+    if GitLabCIProvider::detect() {
+        let provider = GitLabCIProvider::try_from(config)?;
         return Ok(Box::new(provider));
     }
 

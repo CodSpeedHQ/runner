@@ -7,7 +7,7 @@ use std::{env, fs};
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
+        interfaces::{GhData, GhSender, ProviderMetadata, RunEvent},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -98,7 +98,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
                 run_id: get_env_variable("GITHUB_RUN_ID")?
                     .parse()
                     .context("Failed to parse GITHUB_RUN_ID into an integer")?,
-                sender: Some(Sender {
+                sender: Some(GhSender {
                     login: get_env_variable("GITHUB_ACTOR")?,
                     id: get_env_variable("GITHUB_ACTOR_ID")?
                         .parse()
@@ -137,6 +137,7 @@ impl CIProvider for GitHubActionsProvider {
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
             gh_data: Some(self.gh_data.clone()),
+            gl_data: None,
             owner: self.owner.clone(),
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),

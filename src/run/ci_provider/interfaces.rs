@@ -11,6 +11,7 @@ pub struct ProviderMetadata {
     pub repository: String,
     pub event: RunEvent,
     pub gh_data: Option<GhData>,
+    pub gl_data: Option<GlData>,
     pub repository_root_path: String,
 }
 
@@ -29,12 +30,27 @@ pub enum RunEvent {
 pub struct GhData {
     pub run_id: u64,
     pub job: String,
-    pub sender: Option<Sender>,
+    pub sender: Option<GhSender>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Sender {
+pub struct GhSender {
     pub id: u64,
+    pub login: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GlData {
+    pub run_id: String,
+    pub job: String,
+    pub sender: Option<GlSender>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GlSender {
+    pub id: String,
     pub login: String,
 }
