@@ -17,5 +17,6 @@ expression: provider_metadata
     "runId": "6957110437",
     "job": "log-env"
   },
+  "glData": null,
   "repositoryRootPath": "/home/runner/work/adrien-python-test/adrien-python-test/"
 }
