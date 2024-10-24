@@ -104,6 +104,7 @@ lazy_static! {
             ("Ubuntu", "22.04", "aarch64"),
             ("Debian", "11", "x86_64"),
             ("Debian", "12", "x86_64"),
+            ("Debian GNU/Linux", "12", "x86_64"),
         ])
     };
 }
