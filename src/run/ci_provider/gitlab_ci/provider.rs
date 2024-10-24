@@ -7,6 +7,8 @@ use crate::run::ci_provider::provider::CIProviderDetector;
 use crate::run::ci_provider::CIProvider;
 use crate::run::config::Config;
 
+use super::logger::GitLabCILogger;
+
 #[derive(Debug)]
 pub struct GitLabCIProvider {}
 
@@ -26,7 +28,7 @@ impl CIProviderDetector for GitLabCIProvider {
 
 impl CIProvider for GitLabCIProvider {
     fn get_logger(&self) -> Box<dyn SharedLogger> {
-        unimplemented!()
+        Box::new(GitLabCILogger::new())
     }
 
     fn get_provider_name(&self) -> &'static str {
