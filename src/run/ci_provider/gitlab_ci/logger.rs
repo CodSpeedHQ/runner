@@ -1,7 +1,11 @@
+use log::{Level, LevelFilter, Log};
+use simplelog::SharedLogger;
 use std::{env, io::Write};
 
-use log::{LevelFilter, Log};
-use simplelog::SharedLogger;
+use crate::{
+    logger::{get_group_event, GroupEvent},
+    run::ci_provider::logger::should_provider_logger_handle_record,
+};
 
 /// A logger that prints log in the format expected by GitLab CI
 ///
@@ -25,8 +29,41 @@ impl Log for GitLabCILogger {
         true
     }
 
-    fn log(&self, _record: &log::Record) {
-        unimplemented!()
+    fn log(&self, record: &log::Record) {
+        if !should_provider_logger_handle_record(record) {
+            return;
+        }
+
+        let level = record.level();
+        let message = record.args();
+
+        if let Some(group_event) = get_group_event(record) {
+            match group_event {
+                GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
+                    println!("section_start:`date +%s`:{}", name);
+                }
+                GroupEvent::End => {
+                    println!("section_end:`date +%s`");
+                }
+            }
+            return;
+        }
+
+        if level > self.log_level {
+            return;
+        }
+
+        let prefix = match level {
+            Level::Error => "::error::",
+            Level::Warn => "::warning::",
+            Level::Info => "",
+            Level::Debug => "::debug::",
+            Level::Trace => "::debug::[TRACE]",
+        };
+        let message_string = message.to_string();
+        let lines = message_string.lines();
+        // ensure that all the lines of the message have the prefix, otherwise GitHub Actions will not recognize the command for the whole string
+        lines.for_each(|line| println!("{}{}", prefix, line));
     }
 
     fn flush(&self) {
