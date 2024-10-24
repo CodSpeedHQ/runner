@@ -44,12 +44,12 @@ fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
         system_info.os_version.as_str(),
         system_info.arch.as_str(),
     ) {
-        ("Ubuntu", "20.04", "x86_64") | ("Debian", "11", "x86_64") | ("Debian", "12", "x86_64") => {
+        ("ubuntu", "20.04", "x86_64") | ("debian", "11", "x86_64") | ("debian", "12", "x86_64") => {
             ("20.04", "amd64")
         }
-        ("Ubuntu", "22.04", "x86_64") => ("22.04", "amd64"),
-        ("Ubuntu", "24.04", "x86_64") => ("24.04", "amd64"),
-        ("Ubuntu", "22.04", "aarch64") => ("22.04", "arm64"),
+        ("ubuntu", "22.04", "x86_64") => ("22.04", "amd64"),
+        ("ubuntu", "24.04", "x86_64") => ("24.04", "amd64"),
+        ("ubuntu", "22.04", "aarch64") => ("22.04", "arm64"),
         _ => bail!("Unsupported system"),
     };
 
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_system_info_to_codspeed_valgrind_version_ubuntu() {
         let system_info = SystemInfo {
-            os: "Ubuntu".to_string(),
+            os: "ubuntu".to_string(),
             os_version: "22.04".to_string(),
             arch: "x86_64".to_string(),
             ..SystemInfo::test()
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn test_system_info_to_codspeed_valgrind_version_ubuntu_24() {
         let system_info = SystemInfo {
-            os: "Ubuntu".to_string(),
+            os: "ubuntu".to_string(),
             os_version: "24.04".to_string(),
             arch: "x86_64".to_string(),
             ..SystemInfo::test()
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_system_info_to_codspeed_valgrind_version_debian() {
         let system_info = SystemInfo {
-            os: "Debian".to_string(),
+            os: "debian".to_string(),
             os_version: "11".to_string(),
             arch: "x86_64".to_string(),
             ..SystemInfo::test()
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_system_info_to_codspeed_valgrind_version_ubuntu_arm() {
         let system_info = SystemInfo {
-            os: "Ubuntu".to_string(),
+            os: "ubuntu".to_string(),
             os_version: "22.04".to_string(),
             arch: "aarch64".to_string(),
             ..SystemInfo::test()

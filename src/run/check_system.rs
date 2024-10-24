@@ -38,7 +38,7 @@ pub struct SystemInfo {
 impl SystemInfo {
     pub fn test() -> Self {
         SystemInfo {
-            os: "Ubuntu".to_string(),
+            os: "ubuntu".to_string(),
             os_version: "20.04".to_string(),
             arch: "x86_64".to_string(),
             host: "host".to_string(),
@@ -54,7 +54,7 @@ impl SystemInfo {
 
 impl SystemInfo {
     pub fn new() -> Result<Self> {
-        let os = System::name().ok_or(anyhow!("Failed to get OS name"))?;
+        let os = System::distribution_id();
         let os_version = System::os_version().ok_or(anyhow!("Failed to get OS version"))?;
         let arch = System::cpu_arch().ok_or(anyhow!("Failed to get CPU architecture"))?;
         let user = get_user()?;
@@ -98,12 +98,12 @@ impl SystemInfo {
 lazy_static! {
     static ref SUPPORTED_SYSTEMS: HashSet<(&'static str, &'static str, &'static str)> = {
         HashSet::from([
-            ("Ubuntu", "20.04", "x86_64"),
-            ("Ubuntu", "22.04", "x86_64"),
-            ("Ubuntu", "24.04", "x86_64"),
-            ("Ubuntu", "22.04", "aarch64"),
-            ("Debian", "11", "x86_64"),
-            ("Debian", "12", "x86_64"),
+            ("ubuntu", "20.04", "x86_64"),
+            ("ubuntu", "22.04", "x86_64"),
+            ("ubuntu", "24.04", "x86_64"),
+            ("ubuntu", "22.04", "aarch64"),
+            ("debian", "11", "x86_64"),
+            ("debian", "12", "x86_64"),
         ])
     };
 }

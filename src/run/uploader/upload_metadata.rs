@@ -58,7 +58,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "3fc8e6c1b3f4adfe00e027d148f308a34730f1f2fa053c19378ce3e97b5dbab1"
+            "4527a74101c6a91645a22ab2d6e787217274f464c5872cc1865270d0d1a078a4"
         );
         assert_json_snapshot!(upload_metadata);
     }
