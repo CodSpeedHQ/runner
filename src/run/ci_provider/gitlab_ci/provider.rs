@@ -12,9 +12,22 @@ use super::logger::GitLabCILogger;
 #[derive(Debug)]
 pub struct GitLabCIProvider {}
 
+impl GitLabCIProvider {
+    fn get_owner_and_repository() -> Result<(String, String)> {
+        // Print all environment variables.
+        for (key, value) in std::env::vars() {
+            println!("{key}: {value}");
+        }
+
+        todo!()
+    }
+}
+
 impl TryFrom<&Config> for GitLabCIProvider {
     type Error = Error;
     fn try_from(_config: &Config) -> Result<Self> {
+        let (_owner, _repository) = Self::get_owner_and_repository()?;
+
         Ok(Self {})
     }
 }
