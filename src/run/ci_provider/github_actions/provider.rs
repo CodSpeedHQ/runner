@@ -138,6 +138,7 @@ impl CIProvider for GitHubActionsProvider {
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
             gh_data: Some(self.gh_data.clone()),
+            gl_data: None,
             sender: self.sender.clone(),
             owner: self.owner.clone(),
             repository: self.repository.clone(),

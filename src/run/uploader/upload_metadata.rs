@@ -54,6 +54,7 @@ mod tests {
                     id: "19605940".into(),
                     login: "adriencaccia".into(),
                 }),
+                gl_data: None,
                 repository_root_path: "/home/runner/work/codspeed-node/codspeed-node/".into(),
             },
         };
@@ -61,7 +62,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "2d5a41200d3cca4ab9da4ee3e8f5197dbb071d37b738a2b26a37dc21e385f880"
+            "ca2526dbde5ea625567983175f0c19a162506ca6e435bfc2127cb8dd71e36882"
         );
         assert_json_snapshot!(upload_metadata);
     }

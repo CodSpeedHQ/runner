@@ -19,6 +19,7 @@ pub struct CIProviderMetadata {
     pub event: RunEvent,
     pub sender: Option<Sender>,
     pub gh_data: Option<GhData>,
+    pub gl_data: Option<GlData>,
     pub repository_root_path: String,
 }
 
@@ -35,6 +36,13 @@ pub enum RunEvent {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GhData {
+    pub run_id: String,
+    pub job: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GlData {
     pub run_id: String,
     pub job: String,
 }

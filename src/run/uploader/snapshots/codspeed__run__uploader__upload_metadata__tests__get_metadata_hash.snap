@@ -41,5 +41,6 @@ expression: upload_metadata
     "runId": "7044765741",
     "job": "codspeed"
   },
+  "glData": null,
   "repositoryRootPath": "/home/runner/work/codspeed-node/codspeed-node/"
 }

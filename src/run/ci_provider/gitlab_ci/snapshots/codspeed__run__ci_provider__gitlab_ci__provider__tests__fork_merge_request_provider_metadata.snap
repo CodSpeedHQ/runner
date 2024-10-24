@@ -1,0 +1,22 @@
+---
+source: src/run/ci_provider/gitlab_ci/provider.rs
+expression: provider_metadata
+---
+{
+  "ref": "refs/pull/5/merge",
+  "headRef": "fork-owner:feat/awesome-feature",
+  "baseRef": "main",
+  "owner": "owner",
+  "repository": "repository",
+  "event": "pull_request",
+  "sender": {
+    "id": "19605940",
+    "login": "actor"
+  },
+  "ghData": null,
+  "glData": {
+    "runId": "6957110437",
+    "job": "build-job"
+  },
+  "repositoryRootPath": "/builds/owner/repository"
+}

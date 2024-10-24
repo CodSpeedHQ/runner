@@ -136,6 +136,7 @@ impl CIProvider for LocalProvider {
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
             gh_data: None,
+            gl_data: None,
             sender: None,
             owner: self.owner.clone(),
             repository: self.repository.clone(),
