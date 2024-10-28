@@ -20,9 +20,9 @@ pub async fn poll_results(
     run_id: String,
 ) -> Result<()> {
     let start = Instant::now();
-    let provider_metadata = provider.get_provider_metadata()?;
-    let owner = provider_metadata.owner;
-    let name = provider_metadata.repository;
+    let ci_provider_metadata = provider.get_ci_provider_metadata()?;
+    let owner = ci_provider_metadata.owner;
+    let name = ci_provider_metadata.repository;
     let fetch_local_run_report_vars = FetchLocalRunReportVars {
         owner: owner.clone(),
         name: name.clone(),

@@ -7,7 +7,7 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::ProviderMetadata;
+use super::interfaces::CIProviderMetadata;
 
 pub trait CIProviderDetector {
     /// Detects if the current environment is running inside the CI provider.
@@ -55,7 +55,7 @@ pub trait CIProvider {
     fn get_provider_slug(&self) -> &'static str;
 
     /// Returns the metadata related to the CI provider.
-    fn get_provider_metadata(&self) -> Result<ProviderMetadata>;
+    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata>;
 
     /// Returns the metadata necessary for uploading results to CodSpeed.
     ///
@@ -80,14 +80,14 @@ pub trait CIProvider {
         archive_hash: &str,
         executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
-        let provider_metadata = self.get_provider_metadata()?;
+        let ci_provider_metadata = self.get_ci_provider_metadata()?;
 
-        let commit_hash = get_commit_hash(&provider_metadata.repository_root_path)?;
+        let commit_hash = get_commit_hash(&ci_provider_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
             version: Some(4),
             tokenless: config.token.is_none(),
-            provider_metadata,
+            ci_provider_metadata,
             profile_md5: archive_hash.into(),
             commit_hash,
             runner: Runner {

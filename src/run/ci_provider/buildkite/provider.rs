@@ -7,7 +7,7 @@ use simplelog::SharedLogger;
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{ProviderMetadata, RunEvent},
+        interfaces::{CIProviderMetadata, RunEvent},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -145,8 +145,8 @@ impl CIProvider for BuildkiteProvider {
         "buildkite"
     }
 
-    fn get_provider_metadata(&self) -> Result<ProviderMetadata> {
-        Ok(ProviderMetadata {
+    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
+        Ok(CIProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
@@ -300,7 +300,7 @@ mod tests {
                     ..Config::test()
                 };
                 let provider = BuildkiteProvider::try_from(&config).unwrap();
-                let provider_metadata = provider.get_provider_metadata().unwrap();
+                let provider_metadata = provider.get_ci_provider_metadata().unwrap();
 
                 assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {

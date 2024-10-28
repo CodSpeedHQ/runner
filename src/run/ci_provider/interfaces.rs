@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ProviderMetadata {
+pub struct CIProviderMetadata {
     #[serde(rename = "ref")]
     pub ref_: String,
     pub head_ref: Option<String>,
