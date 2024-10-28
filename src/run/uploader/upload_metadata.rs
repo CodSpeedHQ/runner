@@ -15,7 +15,7 @@ mod tests {
 
     use crate::run::{
         check_system::SystemInfo,
-        ci_provider::interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
+        ci_provider::interfaces::{CIProviderMetadata, GhData, RunEvent, Sender},
         instruments::InstrumentName,
         runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
@@ -36,7 +36,7 @@ mod tests {
             },
             platform: "github-actions".into(),
             commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
-            provider_metadata: ProviderMetadata {
+            ci_provider_metadata: CIProviderMetadata {
                 ref_: "refs/pull/29/merge".into(),
                 head_ref: Some("chore/native-action-runner".into()),
                 base_ref: Some("main".into()),

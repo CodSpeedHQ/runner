@@ -7,7 +7,7 @@ use std::{env, fs};
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{GhData, ProviderMetadata, RunEvent, Sender},
+        interfaces::{CIProviderMetadata, GhData, RunEvent, Sender},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -129,8 +129,8 @@ impl CIProvider for GitHubActionsProvider {
         "github-actions"
     }
 
-    fn get_provider_metadata(&self) -> Result<ProviderMetadata> {
-        Ok(ProviderMetadata {
+    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
+        Ok(CIProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
@@ -244,7 +244,7 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
-                let provider_metadata = github_actions_provider.get_provider_metadata().unwrap();
+                let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
 
                 assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
@@ -288,7 +288,7 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
-                let provider_metadata = github_actions_provider.get_provider_metadata().unwrap();
+                let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
 
                 assert_eq!(provider_metadata.owner, "my-org");
                 assert_eq!(provider_metadata.repository, "adrien-python-test");

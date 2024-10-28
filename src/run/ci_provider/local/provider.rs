@@ -6,7 +6,7 @@ use crate::local_logger::get_local_logger;
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{ProviderMetadata, RunEvent},
+        interfaces::{CIProviderMetadata, RunEvent},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -110,8 +110,8 @@ impl CIProvider for LocalProvider {
         "local"
     }
 
-    fn get_provider_metadata(&self) -> Result<ProviderMetadata> {
-        Ok(ProviderMetadata {
+    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
+        Ok(CIProviderMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),

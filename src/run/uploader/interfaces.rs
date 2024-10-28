@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::run::{
-    check_system::SystemInfo, ci_provider::interfaces::ProviderMetadata,
+    check_system::SystemInfo, ci_provider::interfaces::CIProviderMetadata,
     instruments::InstrumentName, runner::ExecutorName,
 };
 
@@ -15,7 +15,7 @@ pub struct UploadMetadata {
     pub platform: String,
     pub commit_hash: String,
     #[serde(flatten)]
-    pub provider_metadata: ProviderMetadata,
+    pub ci_provider_metadata: CIProviderMetadata,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

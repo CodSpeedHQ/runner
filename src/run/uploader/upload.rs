@@ -113,7 +113,8 @@ pub async fn upload(
         "Linked repository: {}\n",
         style(format!(
             "{}/{}",
-            upload_metadata.provider_metadata.owner, upload_metadata.provider_metadata.repository
+            upload_metadata.ci_provider_metadata.owner,
+            upload_metadata.ci_provider_metadata.repository
         ))
         .bold(),
     );
