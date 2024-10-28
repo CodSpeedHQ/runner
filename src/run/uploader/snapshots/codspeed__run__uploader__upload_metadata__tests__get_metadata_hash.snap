@@ -3,6 +3,7 @@ source: src/run/uploader/upload_metadata.rs
 expression: upload_metadata
 ---
 {
+  "repositoryProvider": "GITHUB",
   "version": 5,
   "tokenless": true,
   "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",

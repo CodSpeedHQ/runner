@@ -7,7 +7,7 @@ use std::{env, fs};
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{CIProviderMetadata, GhData, RunEvent, Sender},
+        interfaces::{CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -116,6 +116,10 @@ impl CIProviderDetector for GitHubActionsProvider {
 }
 
 impl CIProvider for GitHubActionsProvider {
+    fn get_repository_provider(&self) -> RepositoryProvider {
+        RepositoryProvider::GitHub
+    }
+
     fn get_logger(&self) -> Box<dyn SharedLogger> {
         Box::new(GithubActionLogger)
     }

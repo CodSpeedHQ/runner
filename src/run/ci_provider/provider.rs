@@ -7,7 +7,7 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::CIProviderMetadata;
+use super::interfaces::{CIProviderMetadata, RepositoryProvider};
 
 pub trait CIProviderDetector {
     /// Detects if the current environment is running inside the CI provider.
@@ -33,6 +33,9 @@ fn get_commit_hash(repository_root_path: &str) -> Result<String> {
 pub trait CIProvider {
     /// Returns the logger for the CI provider.
     fn get_logger(&self) -> Box<dyn SharedLogger>;
+
+    /// Returns the repository provider for this CI provider
+    fn get_repository_provider(&self) -> RepositoryProvider;
 
     /// Returns the name of the CI provider.
     ///
@@ -85,8 +88,9 @@ pub trait CIProvider {
         let commit_hash = get_commit_hash(&ci_provider_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(4),
+            version: Some(5),
             tokenless: config.token.is_none(),
+            repository_provider: self.get_repository_provider(),
             ci_provider_metadata,
             profile_md5: archive_hash.into(),
             commit_hash,
