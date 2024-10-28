@@ -1,13 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 use crate::run::{
-    check_system::SystemInfo, ci_provider::interfaces::CIProviderMetadata,
-    instruments::InstrumentName, runner::ExecutorName,
+    check_system::SystemInfo,
+    ci_provider::interfaces::{CIProviderMetadata, RepositoryProvider},
+    instruments::InstrumentName,
+    runner::ExecutorName,
 };
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMetadata {
+    pub repository_provider: RepositoryProvider,
     pub version: Option<u32>,
     pub tokenless: bool,
     pub profile_md5: String,

@@ -15,7 +15,9 @@ mod tests {
 
     use crate::run::{
         check_system::SystemInfo,
-        ci_provider::interfaces::{CIProviderMetadata, GhData, RunEvent, Sender},
+        ci_provider::interfaces::{
+            CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender,
+        },
         instruments::InstrumentName,
         runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
@@ -24,6 +26,7 @@ mod tests {
     #[test]
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
+            repository_provider: RepositoryProvider::GitHub,
             version: Some(5),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
@@ -58,7 +61,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "cd7779a9392b7da0a9ac6c1c83b490fa40cadc5e7937f50d1a71663bc20679f2"
+            "254024ed5eadbd4d1ece631a69e4f28f6f2837435f71e5a1994f37e31c138c2d"
         );
         assert_json_snapshot!(upload_metadata);
     }

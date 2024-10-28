@@ -7,7 +7,7 @@ use simplelog::SharedLogger;
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{CIProviderMetadata, RunEvent},
+        interfaces::{CIProviderMetadata, RepositoryProvider, RunEvent},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -133,6 +133,10 @@ impl CIProviderDetector for BuildkiteProvider {
 }
 
 impl CIProvider for BuildkiteProvider {
+    fn get_repository_provider(&self) -> RepositoryProvider {
+        RepositoryProvider::GitHub
+    }
+
     fn get_logger(&self) -> Box<dyn SharedLogger> {
         Box::new(BuildkiteLogger::new())
     }

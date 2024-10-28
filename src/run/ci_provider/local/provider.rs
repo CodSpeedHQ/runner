@@ -6,7 +6,7 @@ use crate::local_logger::get_local_logger;
 use crate::prelude::*;
 use crate::run::{
     ci_provider::{
-        interfaces::{CIProviderMetadata, RunEvent},
+        interfaces::{CIProviderMetadata, RepositoryProvider, RunEvent},
         provider::{CIProvider, CIProviderDetector},
     },
     config::Config,
@@ -15,6 +15,7 @@ use crate::run::{
 
 #[derive(Debug)]
 pub struct LocalProvider {
+    repository_provider: RepositoryProvider,
     pub ref_: String,
     pub owner: String,
     pub repository: String,
@@ -27,11 +28,15 @@ pub struct LocalProvider {
 impl LocalProvider {}
 
 lazy_static! {
-    static ref REMOTE_REGEX: regex::Regex =
-        regex::Regex::new(r"[:/](?P<owner>[^/]+)/(?P<repository>[^/]+)\.git").unwrap();
+    static ref REMOTE_REGEX: regex::Regex = regex::Regex::new(
+        r"(?P<domain>[^/@\.]+)\.\w+[:/](?P<owner>[^/]+)/(?P<repository>[^/]+)\.git"
+    )
+    .unwrap();
 }
 
-fn extract_owner_and_repository_from_remote_url(remote_url: &str) -> Result<(String, String)> {
+fn extract_provider_owner_and_repository_from_remote_url(
+    remote_url: &str,
+) -> Result<(RepositoryProvider, String, String)> {
     let captures = REMOTE_REGEX.captures(remote_url).ok_or_else(|| {
         anyhow!(
             "Could not extract owner and repository from remote url: {}",
@@ -39,10 +44,20 @@ fn extract_owner_and_repository_from_remote_url(remote_url: &str) -> Result<(Str
         )
     })?;
 
+    let domain = captures.name("domain").unwrap().as_str();
+    let repository_provider = serde_json::from_str(&format!("\"{}\"", domain.to_uppercase()))
+        .context(format!(
+            "Repository provider {} is not supported by CodSpeed",
+            domain
+        ))?;
     let owner = captures.name("owner").unwrap().as_str();
     let repository = captures.name("repository").unwrap().as_str();
 
-    Ok((owner.to_string(), repository.to_string()))
+    Ok((
+        repository_provider,
+        owner.to_string(),
+        repository.to_string(),
+    ))
 }
 
 impl TryFrom<&Config> for LocalProvider {
@@ -63,8 +78,8 @@ impl TryFrom<&Config> for LocalProvider {
         ))?;
 
         let remote = git_repository.find_remote("origin")?;
-        let (owner, repository) =
-            extract_owner_and_repository_from_remote_url(remote.url().unwrap())?;
+        let (repository_provider, owner, repository) =
+            extract_provider_owner_and_repository_from_remote_url(remote.url().unwrap())?;
 
         let head = git_repository.head().context("Failed to get HEAD")?;
         let ref_ = head
@@ -80,6 +95,7 @@ impl TryFrom<&Config> for LocalProvider {
         };
 
         Ok(Self {
+            repository_provider,
             ref_,
             head_ref,
             base_ref: None,
@@ -98,6 +114,10 @@ impl CIProviderDetector for LocalProvider {
 }
 
 impl CIProvider for LocalProvider {
+    fn get_repository_provider(&self) -> RepositoryProvider {
+        self.repository_provider.clone()
+    }
+
     fn get_logger(&self) -> Box<dyn SharedLogger> {
         get_local_logger()
     }
@@ -133,16 +153,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_owner_and_repository_from_remote_url() {
+    fn test_extract_provider_owner_and_repository_from_remote_url() {
         let remote_urls = [
-            "git@github.com:CodSpeedHQ/runner.git",
-            "https://github.com/CodSpeedHQ/runner.git",
+            (
+                "git@github.com:CodSpeedHQ/runner.git",
+                RepositoryProvider::GitHub,
+                "CodSpeedHQ",
+                "runner",
+            ),
+            (
+                "https://github.com/CodSpeedHQ/runner.git",
+                RepositoryProvider::GitHub,
+                "CodSpeedHQ",
+                "runner",
+            ),
+            (
+                "git@gitlab.com:codspeed/runner.git",
+                RepositoryProvider::GitLab,
+                "codspeed",
+                "runner",
+            ),
+            (
+                "https://gitlab.com/codspeed/runner.git",
+                RepositoryProvider::GitLab,
+                "codspeed",
+                "runner",
+            ),
         ];
-        for remote_url in remote_urls.iter() {
-            let (owner, repository) =
-                extract_owner_and_repository_from_remote_url(remote_url).unwrap();
-            assert_eq!(owner, "CodSpeedHQ");
-            assert_eq!(repository, "runner");
+        for (remote_url, expected_provider, expected_owner, expected_repository) in
+            remote_urls.into_iter()
+        {
+            let (repository_provider, owner, repository) =
+                extract_provider_owner_and_repository_from_remote_url(remote_url).unwrap();
+            assert_eq!(repository_provider, expected_provider);
+            assert_eq!(owner, expected_owner);
+            assert_eq!(repository, expected_repository);
         }
     }
 
