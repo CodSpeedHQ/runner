@@ -23,6 +23,7 @@ pub struct GitHubActionsProvider {
     pub ref_: String,
     pub head_ref: Option<String>,
     pub base_ref: Option<String>,
+    pub sender: Option<Sender>,
     pub gh_data: GhData,
     pub event: RunEvent,
     pub repository_root_path: String,
@@ -96,13 +97,11 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             gh_data: GhData {
                 job: get_env_variable("GITHUB_JOB")?,
                 run_id: get_env_variable("GITHUB_RUN_ID")?,
-                sender: Some(Sender {
-                    login: get_env_variable("GITHUB_ACTOR")?,
-                    id: get_env_variable("GITHUB_ACTOR_ID")?
-                        .parse()
-                        .context("Failed to parse GITHUB_ACTOR_ID into an integer")?,
-                }),
             },
+            sender: Some(Sender {
+                login: get_env_variable("GITHUB_ACTOR")?,
+                id: get_env_variable("GITHUB_ACTOR_ID")?,
+            }),
             base_ref: get_env_variable("GITHUB_BASE_REF").ok(),
             repository_root_path,
         })
@@ -135,6 +134,7 @@ impl CIProvider for GitHubActionsProvider {
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
             gh_data: Some(self.gh_data.clone()),
+            sender: self.sender.clone(),
             owner: self.owner.clone(),
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),
@@ -196,17 +196,12 @@ mod tests {
                 assert_eq!(github_actions_provider.gh_data.job, "job");
                 assert_eq!(github_actions_provider.gh_data.run_id, "1234567890");
                 assert_eq!(
-                    github_actions_provider
-                        .gh_data
-                        .sender
-                        .as_ref()
-                        .unwrap()
-                        .login,
+                    github_actions_provider.sender.as_ref().unwrap().login,
                     "actor"
                 );
                 assert_eq!(
-                    github_actions_provider.gh_data.sender.as_ref().unwrap().id,
-                    1234567890
+                    github_actions_provider.sender.as_ref().unwrap().id,
+                    "1234567890"
                 );
             },
         )

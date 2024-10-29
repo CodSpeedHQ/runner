@@ -3,7 +3,7 @@ source: src/run/uploader/upload_metadata.rs
 expression: upload_metadata
 ---
 {
-  "version": 4,
+  "version": 5,
   "tokenless": true,
   "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",
   "runner": {
@@ -32,13 +32,13 @@ expression: upload_metadata
   "owner": "CodSpeedHQ",
   "repository": "codspeed-node",
   "event": "pull_request",
+  "sender": {
+    "id": "19605940",
+    "login": "adriencaccia"
+  },
   "ghData": {
     "runId": "7044765741",
-    "job": "codspeed",
-    "sender": {
-      "id": 19605940,
-      "login": "adriencaccia"
-    }
+    "job": "codspeed"
   },
   "repositoryRootPath": "/home/runner/work/codspeed-node/codspeed-node/"
 }

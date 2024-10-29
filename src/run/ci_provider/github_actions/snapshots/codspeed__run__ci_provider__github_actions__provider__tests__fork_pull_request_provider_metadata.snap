@@ -9,13 +9,13 @@ expression: provider_metadata
   "owner": "my-org",
   "repository": "adrien-python-test",
   "event": "pull_request",
+  "sender": {
+    "id": "19605940",
+    "login": "adriencaccia"
+  },
   "ghData": {
     "runId": "6957110437",
-    "job": "log-env",
-    "sender": {
-      "id": 19605940,
-      "login": "adriencaccia"
-    }
+    "job": "log-env"
   },
   "repositoryRootPath": "/home/runner/work/adrien-python-test/adrien-python-test/"
 }

@@ -18,13 +18,13 @@ use super::logger::BuildkiteLogger;
 
 #[derive(Debug)]
 pub struct BuildkiteProvider {
-    pub owner: String,
-    pub repository: String,
-    pub ref_: String,
-    pub head_ref: Option<String>,
-    pub base_ref: Option<String>,
-    pub event: RunEvent,
-    pub repository_root_path: String,
+    owner: String,
+    repository: String,
+    ref_: String,
+    head_ref: Option<String>,
+    base_ref: Option<String>,
+    event: RunEvent,
+    repository_root_path: String,
 }
 
 lazy_static! {
@@ -155,6 +155,7 @@ impl CIProvider for BuildkiteProvider {
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
             gh_data: None,
+            sender: None,
         })
     }
 }

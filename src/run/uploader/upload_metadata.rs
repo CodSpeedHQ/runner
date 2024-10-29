@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
-            version: Some(4),
+            version: Some(5),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
             runner: Runner {
@@ -46,10 +46,10 @@ mod tests {
                 gh_data: Some(GhData {
                     run_id: "7044765741".into(),
                     job: "codspeed".into(),
-                    sender: Some(Sender {
-                        id: 19605940,
-                        login: "adriencaccia".into(),
-                    }),
+                }),
+                sender: Some(Sender {
+                    id: "19605940".into(),
+                    login: "adriencaccia".into(),
                 }),
                 repository_root_path: "/home/runner/work/codspeed-node/codspeed-node/".into(),
             },
@@ -58,7 +58,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "b85b85835e4fc5d222e35fa762353dfcfecbed157ee866323bffa4c11151f66d"
+            "3e62fc4623ac47bde9729e311ac78159b8fb190317c30e9409774302f9b263c3"
         );
         assert_json_snapshot!(upload_metadata);
     }
