@@ -27,7 +27,7 @@ pub enum RunEvent {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GhData {
-    pub run_id: u64,
+    pub run_id: String,
     pub job: String,
     pub sender: Option<Sender>,
 }

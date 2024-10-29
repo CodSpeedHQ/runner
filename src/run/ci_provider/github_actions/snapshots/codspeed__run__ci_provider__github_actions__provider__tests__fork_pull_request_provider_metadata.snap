@@ -10,7 +10,7 @@ expression: provider_metadata
   "repository": "adrien-python-test",
   "event": "pull_request",
   "ghData": {
-    "runId": 6957110437,
+    "runId": "6957110437",
     "job": "log-env",
     "sender": {
       "id": 19605940,

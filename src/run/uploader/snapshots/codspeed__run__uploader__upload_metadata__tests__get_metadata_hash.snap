@@ -33,7 +33,7 @@ expression: upload_metadata
   "repository": "codspeed-node",
   "event": "pull_request",
   "ghData": {
-    "runId": 7044765741,
+    "runId": "7044765741",
     "job": "codspeed",
     "sender": {
       "id": 19605940,

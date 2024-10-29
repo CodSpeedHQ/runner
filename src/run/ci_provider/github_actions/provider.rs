@@ -95,9 +95,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             event,
             gh_data: GhData {
                 job: get_env_variable("GITHUB_JOB")?,
-                run_id: get_env_variable("GITHUB_RUN_ID")?
-                    .parse()
-                    .context("Failed to parse GITHUB_RUN_ID into an integer")?,
+                run_id: get_env_variable("GITHUB_RUN_ID")?,
                 sender: Some(Sender {
                     login: get_env_variable("GITHUB_ACTOR")?,
                     id: get_env_variable("GITHUB_ACTOR_ID")?
@@ -196,7 +194,7 @@ mod tests {
                 assert_eq!(github_actions_provider.head_ref, None);
                 assert_eq!(github_actions_provider.event, RunEvent::Push);
                 assert_eq!(github_actions_provider.gh_data.job, "job");
-                assert_eq!(github_actions_provider.gh_data.run_id, 1234567890);
+                assert_eq!(github_actions_provider.gh_data.run_id, "1234567890");
                 assert_eq!(
                     github_actions_provider
                         .gh_data
