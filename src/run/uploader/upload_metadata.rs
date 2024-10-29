@@ -44,7 +44,7 @@ mod tests {
                 repository: "codspeed-node".into(),
                 event: RunEvent::PullRequest,
                 gh_data: Some(GhData {
-                    run_id: 7044765741,
+                    run_id: "7044765741".into(),
                     job: "codspeed".into(),
                     sender: Some(Sender {
                         id: 19605940,
@@ -58,7 +58,7 @@ mod tests {
         let hash = upload_metadata.get_hash();
         assert_eq!(
             hash,
-            "3fc8e6c1b3f4adfe00e027d148f308a34730f1f2fa053c19378ce3e97b5dbab1"
+            "b85b85835e4fc5d222e35fa762353dfcfecbed157ee866323bffa4c11151f66d"
         );
         assert_json_snapshot!(upload_metadata);
     }
