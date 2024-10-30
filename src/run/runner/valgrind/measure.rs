@@ -50,17 +50,20 @@ pub fn measure(
     let mut cmd = Command::new("setarch");
     cmd.arg(ARCH).arg("-R");
     // Configure the environment
-    cmd.envs(BASE_INJECTED_ENV.iter()).env(
-        "PATH",
-        format!(
-            "{}:{}",
-            setup_introspected_nodejs()
-                .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
-                .to_str()
-                .unwrap(),
-            env::var("PATH").unwrap_or_default(),
-        ),
-    );
+    cmd.envs(BASE_INJECTED_ENV.iter())
+        .env(
+            "PATH",
+            format!(
+                "{}:{}",
+                setup_introspected_nodejs()
+                    .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
+                    .to_str()
+                    .unwrap(),
+                env::var("PATH").unwrap_or_default(),
+            ),
+        )
+        .env("PYTHONMALLOC", "malloc");
+
     if let Some(cwd) = &config.working_directory {
         let abs_cwd = canonicalize(cwd)?;
         cmd.current_dir(abs_cwd);
