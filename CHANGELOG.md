@@ -5,6 +5,16 @@
 
 
 
+## [Unreleased]
+
+### <!-- 1 -->🐛 Bug Fixes
+- Git-cliff configuration for changelog generation by @art049
+
+### <!-- 7 -->⚙️ Internals
+- Bump pre-commit action by @art049
+- Fix changelog markdown template whitespaces by @art049
+
+
 ## [3.2.0] - 2024-11-22
 
 ### <!-- 0 -->🚀 Features
@@ -19,7 +29,7 @@
 - Improve string interpolation by @fargito
 
 ### <!-- 7 -->⚙️ Internals
-- Configure git-cliff for changelog generation
+- Configure git-cliff for changelog generation by @art049
 - Add rust settings by @fargito
 
 ## New Contributors
@@ -267,6 +277,7 @@
 * @art049 made their first contribution
 * @adriencaccia made their first contribution in [#6](https://github.com/CodSpeedHQ/runner/pull/6)
 
+[unreleased]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..HEAD
 [3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
 [3.1.0]: https://github.com/CodSpeedHQ/runner/compare/v3.0.0..v3.1.0
 [3.0.0]: https://github.com/CodSpeedHQ/runner/compare/v2.4.3..v3.0.0
