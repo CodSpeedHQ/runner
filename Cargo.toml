@@ -55,6 +55,7 @@ insta = { version = "1.29.0", features = ["json", "redactions"] }
 [workspace.metadata.release]
 sign-tag = true
 sign-commit = true
+pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "v{{version}}"]
 
 [profile.dist]
 inherits = "release"
