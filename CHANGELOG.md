@@ -5,7 +5,7 @@
 
 
 
-## [Unreleased]
+## [3.2.0] - 2024-11-22
 
 ### <!-- 0 -->🚀 Features
 - Implement gitlab ci provider by @fargito in [#47](https://github.com/CodSpeedHQ/runner/pull/47)
@@ -19,6 +19,7 @@
 - Improve string interpolation by @fargito
 
 ### <!-- 7 -->⚙️ Internals
+- Configure git-cliff for changelog generation
 - Add rust settings by @fargito
 
 ## New Contributors
@@ -249,7 +250,7 @@
 ## New Contributors
 * @art049 made their first contribution
 * @adriencaccia made their first contribution in [#6](https://github.com/CodSpeedHQ/runner/pull/6)
-[unreleased]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..HEAD
+[3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
 [3.1.0]: https://github.com/CodSpeedHQ/runner/compare/v3.0.0..v3.1.0
 [3.0.0]: https://github.com/CodSpeedHQ/runner/compare/v2.4.3..v3.0.0
 [2.4.3]: https://github.com/CodSpeedHQ/runner/compare/v2.4.2..v2.4.3
