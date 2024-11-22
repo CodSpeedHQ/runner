@@ -24,6 +24,7 @@
 
 ## New Contributors
 * @fargito made their first contribution in [#47](https://github.com/CodSpeedHQ/runner/pull/47)
+
 ## [3.1.0] - 2024-11-05
 
 ### <!-- 0 -->🚀 Features
@@ -46,6 +47,7 @@
 - Port ubuntu 24 compatibility (#44) by @art049
 - Add arm64 Linux musl target by @adriencaccia
 - Update cargo-dist to latest version by @adriencaccia
+
 
 ## [3.0.0] - 2024-07-26
 
@@ -90,30 +92,36 @@
 - Remove useless snapshots by @adriencaccia
 - Run ci on every pull request by @adriencaccia in [#23](https://github.com/CodSpeedHQ/runner/pull/23)
 
+
 ## [2.4.3] - 2024-07-12
 
 ### <!-- 7 -->⚙️ Internals
 - Add error chain debug by @adriencaccia in [#34](https://github.com/CodSpeedHQ/runner/pull/34)
+
 
 ## [2.4.2] - 2024-06-14
 
 ### <!-- 0 -->🚀 Features
 - Better upload endpoint error handling by @adriencaccia in [#29](https://github.com/CodSpeedHQ/runner/pull/29)
 
+
 ## [2.4.1] - 2024-04-29
 
 ### <!-- 1 -->🐛 Bug Fixes
 - Retrieve root_repository_path from git dir by @adriencaccia in [#20](https://github.com/CodSpeedHQ/runner/pull/20)
+
 
 ## [2.4.0] - 2024-04-26
 
 ### <!-- 0 -->🚀 Features
 - Use current checked out commit hash in UploadMetadata by @adriencaccia in [#18](https://github.com/CodSpeedHQ/runner/pull/18)
 
+
 ## [2.3.1] - 2024-04-24
 
 ### <!-- 1 -->🐛 Bug Fixes
 - Properly display stderr and stdout when a setup command fails by @art049 in [#19](https://github.com/CodSpeedHQ/runner/pull/19)
+
 
 ## [2.3.0] - 2024-03-21
 
@@ -123,6 +131,7 @@
 ### <!-- 1 -->🐛 Bug Fixes
 - Change bump-action job name by @art049
 
+
 ## [2.2.1] - 2024-02-22
 
 ### <!-- 0 -->🚀 Features
@@ -130,6 +139,7 @@
 
 ### <!-- 7 -->⚙️ Internals
 - Add a post anounce bump workflow by @art049 in [#15](https://github.com/CodSpeedHQ/runner/pull/15)
+
 
 ## [2.2.0] - 2024-02-22
 
@@ -142,6 +152,7 @@
 
 ### <!-- 7 -->⚙️ Internals
 - Enforce tag signing with cargo release by @art049
+
 
 ## [2.1.1] - 2024-01-30
 
@@ -160,6 +171,7 @@
 ### <!-- 7 -->⚙️ Internals
 - Add codspeed badge by @adriencaccia in [#13](https://github.com/CodSpeedHQ/runner/pull/13)
 
+
 ## [2.1.0] - 2024-01-17
 
 ### <!-- 0 -->🚀 Features
@@ -176,11 +188,13 @@
 ### <!-- 7 -->⚙️ Internals
 - Add comment on dump_log by @adriencaccia
 
+
 ## [2.0.3] - 2024-01-04
 
 ### <!-- 1 -->🐛 Bug Fixes
 - Bump cargo-dist to remove broken pipe logs by @adriencaccia in [#12](https://github.com/CodSpeedHQ/runner/pull/12)
 - Handle error response when retrieving upload data by @adriencaccia in [#11](https://github.com/CodSpeedHQ/runner/pull/11)
+
 
 ## [2.0.2] - 2023-12-04
 
@@ -190,11 +204,13 @@
 ### <!-- 6 -->🧪 Testing
 - Add Config::test() factory by @adriencaccia
 
+
 ## [2.0.1] - 2023-12-01
 
 ### <!-- 1 -->🐛 Bug Fixes
 - Print all lines with the github actions prefix when logging by @adriencaccia in [#7](https://github.com/CodSpeedHQ/runner/pull/7)
 - Better handle logging by @adriencaccia
+
 
 ## [2.0.0] - 2023-11-30
 
@@ -250,6 +266,7 @@
 ## New Contributors
 * @art049 made their first contribution
 * @adriencaccia made their first contribution in [#6](https://github.com/CodSpeedHQ/runner/pull/6)
+
 [3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
 [3.1.0]: https://github.com/CodSpeedHQ/runner/compare/v3.0.0..v3.1.0
 [3.0.0]: https://github.com/CodSpeedHQ/runner/compare/v2.4.3..v3.0.0
