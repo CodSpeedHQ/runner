@@ -13,8 +13,9 @@ The `codspeed` CLI is designed to be used both in **local** in **CI environments
 
 The following CI providers are supported:
 
-- [GitHub Actions](https://docs.codspeed.io/ci/github-actions): Usage with [`@CodSpeedHQ/action`](https://github.com/CodSpeedHQ/action) is recommended.
-- [Buildkite](https://docs.codspeed.io/ci/buildkite)
+- [GitHub Actions](https://docs.codspeed.io/integrations/ci/github-actions): Usage with [`@CodSpeedHQ/action`](https://github.com/CodSpeedHQ/action) is recommended.
+- [GitLab CI](https://docs.codspeed.io/integrations/ci/gitlab-ci)
+- [Buildkite](https://docs.codspeed.io/integrations/ci/buildkite)
 
 #### Other providers
 
