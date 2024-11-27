@@ -32,8 +32,15 @@ impl TryFrom<&Config> for GitLabCIProvider {
         let repository = get_env_variable("CI_PROJECT_NAME")?;
 
         let ci_pipeline_source = get_env_variable("CI_PIPELINE_SOURCE")?;
+
         let branch_name = get_env_variable("CI_COMMIT_REF_NAME")?;
-        let branch_ref = format!("refs/heads/{branch_name}");
+
+        // compute the branch or tag ref which mimics GitHub behavior
+        // CI_COMMIT_TAG is only present in pipelines for tags.
+        // See https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+        let branch_or_tag_ref = get_env_variable("CI_COMMIT_TAG")
+            .map(|tag_name| format!("refs/tags/{tag_name}"))
+            .unwrap_or(format!("refs/heads/{branch_name}"));
 
         // https://docs.gitlab.com/ee/ci/jobs/job_rules.html#ci_pipeline_source-predefined-variable
         let (event, ref_, base_ref, head_ref) = match ci_pipeline_source.as_str() {
@@ -72,15 +79,20 @@ impl TryFrom<&Config> for GitLabCIProvider {
             }
 
             // For pipelines triggered by a Git push event, including for branches and tags.
-            "push" => (RunEvent::Push, branch_ref, Some(branch_name), None),
+            "push" => (RunEvent::Push, branch_or_tag_ref, Some(branch_name), None),
 
             // For scheduled pipelines.
-            "schedule" => (RunEvent::Schedule, branch_ref, Some(branch_name), None),
+            "schedule" => (
+                RunEvent::Schedule,
+                branch_or_tag_ref,
+                Some(branch_name),
+                None,
+            ),
 
             // For pipelines created by using a trigger token or created via the GitLab UI.
             "trigger" | "web" => (
                 RunEvent::WorkflowDispatch,
-                branch_ref,
+                branch_or_tag_ref,
                 Some(branch_name),
                 None,
             ),
