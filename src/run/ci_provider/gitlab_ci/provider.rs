@@ -89,8 +89,8 @@ impl TryFrom<&Config> for GitLabCIProvider {
                 None,
             ),
 
-            // For pipelines created by using a trigger token or created via the GitLab UI.
-            "trigger" | "web" => (
+            // For pipelines created with the api, using a trigger token or via the GitLab UI.
+            "trigger" | "web" | "api" => (
                 RunEvent::WorkflowDispatch,
                 branch_or_tag_ref,
                 Some(branch_name),
