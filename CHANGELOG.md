@@ -7,10 +7,18 @@
 
 ## [Unreleased]
 
+### <!-- 0 -->🚀 Features
+- Add support for pipelines triggered through the api by @fargito in [#52](https://github.com/CodSpeedHQ/runner/pull/52)
+
 ### <!-- 1 -->🐛 Bug Fixes
+- Use correct ref for tag pipelines by @fargito
 - Git-cliff configuration for changelog generation by @art049
 
+### <!-- 3 -->📚 Documentation
+- Add link to GitLab CI docs by @fargito in [#51](https://github.com/CodSpeedHQ/runner/pull/51)
+
 ### <!-- 7 -->⚙️ Internals
+- Skip changelog generation for pre-releases
 - Bump pre-commit action by @art049
 - Fix changelog markdown template whitespaces by @art049
 
@@ -32,8 +40,6 @@
 - Configure git-cliff for changelog generation by @art049
 - Add rust settings by @fargito
 
-## New Contributors
-* @fargito made their first contribution in [#47](https://github.com/CodSpeedHQ/runner/pull/47)
 
 ## [3.1.0] - 2024-11-05
 
@@ -273,9 +279,6 @@
 - Setup cargo dist by @art049 in [#1](https://github.com/CodSpeedHQ/runner/pull/1)
 - Add linting components to the toolchain by @art049
 
-## New Contributors
-* @art049 made their first contribution
-* @adriencaccia made their first contribution in [#6](https://github.com/CodSpeedHQ/runner/pull/6)
 
 [unreleased]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..HEAD
 [3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
