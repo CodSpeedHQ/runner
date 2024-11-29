@@ -5,7 +5,7 @@
 
 
 
-## [Unreleased]
+## [3.2.1] - 2024-11-29
 
 ### <!-- 0 -->🚀 Features
 - Add support for pipelines triggered through the api by @fargito in [#52](https://github.com/CodSpeedHQ/runner/pull/52)
@@ -280,7 +280,7 @@
 - Add linting components to the toolchain by @art049
 
 
-[unreleased]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..HEAD
+[3.2.1]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..v3.2.1
 [3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
 [3.1.0]: https://github.com/CodSpeedHQ/runner/compare/v3.0.0..v3.1.0
 [3.0.0]: https://github.com/CodSpeedHQ/runner/compare/v2.4.3..v3.0.0
