@@ -1,9 +1,9 @@
 use git2::Repository;
-use lazy_static::lazy_static;
 use simplelog::SharedLogger;
 
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
+use crate::run::helpers::{parse_git_remote, GitRemote};
 use crate::run::{
     ci_provider::{
         interfaces::{CIProviderMetadata, RepositoryProvider, RunEvent},
@@ -27,31 +27,22 @@ pub struct LocalProvider {
 
 impl LocalProvider {}
 
-lazy_static! {
-    static ref REMOTE_REGEX: regex::Regex = regex::Regex::new(
-        r"(?P<domain>[^/@\.]+)\.\w+[:/](?P<owner>[^/]+)/(?P<repository>[^/]+)\.git"
-    )
-    .unwrap();
-}
-
 fn extract_provider_owner_and_repository_from_remote_url(
     remote_url: &str,
 ) -> Result<(RepositoryProvider, String, String)> {
-    let captures = REMOTE_REGEX.captures(remote_url).ok_or_else(|| {
-        anyhow!(
-            "Could not extract owner and repository from remote url: {}",
-            remote_url
-        )
-    })?;
-
-    let domain = captures.name("domain").unwrap().as_str();
-    let repository_provider = serde_json::from_str(&format!("\"{}\"", domain.to_uppercase()))
-        .context(format!(
+    let GitRemote {
+        domain,
+        owner,
+        repository,
+    } = parse_git_remote(remote_url)?;
+    let repository_provider = match domain.as_str() {
+        "github.com" => RepositoryProvider::GitHub,
+        "gitlab.com" => RepositoryProvider::GitLab,
+        domain => bail!(
             "Repository provider {} is not supported by CodSpeed",
             domain
-        ))?;
-    let owner = captures.name("owner").unwrap().as_str();
-    let repository = captures.name("repository").unwrap().as_str();
+        ),
+    };
 
     Ok((
         repository_provider,

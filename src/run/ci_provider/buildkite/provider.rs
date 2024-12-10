@@ -1,10 +1,9 @@
 use std::env;
 
-use lazy_static::lazy_static;
-use regex::Regex;
 use simplelog::SharedLogger;
 
 use crate::prelude::*;
+use crate::run::helpers::{parse_git_remote, GitRemote};
 use crate::run::{
     ci_provider::{
         interfaces::{CIProviderMetadata, RepositoryProvider, RunEvent},
@@ -25,16 +24,6 @@ pub struct BuildkiteProvider {
     base_ref: Option<String>,
     event: RunEvent,
     repository_root_path: String,
-}
-
-lazy_static! {
-    static ref GITHUB_URL_REGEX: Regex = Regex::new(
-        r"(?x)
-            (?:https://github.com/|git@github.com:)
-            (?P<owner>[^/]+)/(?P<repository>[^/.]+)\.git
-        "
-    )
-    .expect("Failed to compile GitHub URL regex");
 }
 
 pub fn get_pr_number() -> Result<Option<u64>> {
@@ -64,24 +53,6 @@ pub fn get_ref() -> Result<String> {
     }
 }
 
-pub fn get_owner_and_repository() -> Result<(String, String)> {
-    let repository_url = get_env_variable("BUILDKITE_REPO")?;
-    let captures = GITHUB_URL_REGEX
-        .captures(&repository_url)
-        .context("Failed to parse the GitHub repository URL")?;
-
-    let owner = captures
-        .name("owner")
-        .context("Failed to parse the GitHub repository URL")?
-        .as_str();
-    let repository = captures
-        .name("repository")
-        .context("Failed to parse the GitHub repository URL")?
-        .as_str();
-
-    Ok((owner.into(), repository.into()))
-}
-
 impl TryFrom<&Config> for BuildkiteProvider {
     type Error = Error;
     fn try_from(config: &Config) -> Result<Self> {
@@ -90,7 +61,18 @@ impl TryFrom<&Config> for BuildkiteProvider {
         }
 
         let is_pr = get_pr_number()?.is_some();
-        let (owner, repository) = get_owner_and_repository()?;
+        let repository_url = get_env_variable("BUILDKITE_REPO")?;
+        let GitRemote {
+            owner,
+            repository,
+            domain,
+        } = parse_git_remote(&repository_url)?;
+
+        if domain != "github.com" {
+            bail!(
+                "Only GitHub repositories are supported by CodSpeed BuildKite integration for now."
+            );
+        }
 
         let repository_root_path = match find_repository_root(&std::env::current_dir()?) {
             Some(mut path) => {
@@ -179,29 +161,6 @@ mod tests {
         with_var("BUILDKITE", Some("true"), || {
             assert!(BuildkiteProvider::detect());
         });
-    }
-
-    #[test]
-    fn test_get_owner_and_repository() {
-        with_var(
-            "BUILDKITE_REPO",
-            Some("https://github.com/my-org/adrien-python-test.git"),
-            || {
-                let (owner, repository) = get_owner_and_repository().unwrap();
-                assert_eq!(owner, "my-org");
-                assert_eq!(repository, "adrien-python-test");
-            },
-        );
-
-        with_var(
-            "BUILDKITE_REPO",
-            Some("git@github.com:my-org/adrien-python-test.git"),
-            || {
-                let (owner, repository) = get_owner_and_repository().unwrap();
-                assert_eq!(owner, "my-org");
-                assert_eq!(repository, "adrien-python-test");
-            },
-        );
     }
 
     #[test]
