@@ -5,6 +5,15 @@
 
 
 
+## [3.2.2] - 2025-01-14
+
+### <!-- 0 -->🚀 Features
+- Add cmd base env to all executors by @adriencaccia in [#56](https://github.com/CodSpeedHQ/runner/pull/56)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Support https repo uri not ending with .git by @art049 in [#54](https://github.com/CodSpeedHQ/runner/pull/54)
+
+
 ## [3.2.1] - 2024-11-29
 
 ### <!-- 0 -->🚀 Features
@@ -18,7 +27,7 @@
 - Add link to GitLab CI docs by @fargito in [#51](https://github.com/CodSpeedHQ/runner/pull/51)
 
 ### <!-- 7 -->⚙️ Internals
-- Skip changelog generation for pre-releases
+- Skip changelog generation for pre-releases by @art049
 - Bump pre-commit action by @art049
 - Fix changelog markdown template whitespaces by @art049
 
@@ -280,6 +289,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.2.2]: https://github.com/CodSpeedHQ/runner/compare/v3.2.1..v3.2.2
 [3.2.1]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..v3.2.1
 [3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
 [3.1.0]: https://github.com/CodSpeedHQ/runner/compare/v3.0.0..v3.1.0
