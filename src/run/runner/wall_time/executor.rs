@@ -2,7 +2,6 @@ use crate::prelude::*;
 
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
-use crate::run::runner::helpers::env::BASE_INJECTED_ENV;
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::{ExecutorName, RunData};
@@ -38,13 +37,7 @@ impl Executor for WallTimeExecutor {
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
         let mut cmd = Command::new("sh");
-
-        cmd.env("CODSPEED_RUNNER_MODE", &self.name().to_string())
-            .env(
-                "CODSPEED_PROFILE_FOLDER",
-                run_data.profile_folder.to_str().unwrap(),
-            )
-            .envs(BASE_INJECTED_ENV.iter());
+        cmd.envs(self.get_cmd_base_envs(&run_data.profile_folder));
 
         if let Some(cwd) = &config.working_directory {
             let abs_cwd = canonicalize(cwd)?;

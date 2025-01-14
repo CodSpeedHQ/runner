@@ -36,8 +36,10 @@ impl Executor for ValgrindExecutor {
         run_data: &RunData,
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
+        let base_env = self.get_cmd_base_envs(&run_data.profile_folder);
+
         //TODO: add valgrind version check
-        measure::measure(config, &run_data.profile_folder, mongo_tracer)?;
+        measure::measure(&base_env, config, &run_data.profile_folder, mongo_tracer)?;
 
         Ok(())
     }
