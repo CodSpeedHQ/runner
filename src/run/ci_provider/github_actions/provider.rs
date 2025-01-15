@@ -168,9 +168,13 @@ impl CIProvider for GitHubActionsProvider {
             .ok()
             .and_then(|v| serde_json::from_str::<Value>(&v).ok());
 
-        let run_part_id = if let (Some(Value::Object(matrix)), Some(Value::Object(strategy))) =
+        let run_part_id = if let (Some(Value::Object(matrix)), Some(Value::Object(mut strategy))) =
             (gh_matrix, gh_strategy)
         {
+            // remove useless values from the strategy
+            strategy.remove("fail-fast");
+            strategy.remove("max-parallel");
+
             // The re-serialization is on purpose here. We want to serialize it as a single line.
             let matrix_str = serde_json::to_string(&matrix).expect("Unable to re-serialize matrix");
             let strategy_str =
@@ -415,7 +419,7 @@ mod tests {
     "job-index":1,
     "job-total":2,
     "max-parallel":2
-    }"#,
+}"#,
                     ),
                 ),
             ],
@@ -519,7 +523,7 @@ mod tests {
                         r#"{
     "runner-version":"3.2.1",
     "numeric-value":123456789
-    }"#,
+}"#,
                     ),
                 ),
                 (
@@ -530,7 +534,7 @@ mod tests {
     "job-index":1,
     "job-total":2,
     "max-parallel":2
-    }"#,
+}"#,
                     ),
                 ),
             ],
@@ -554,13 +558,11 @@ mod tests {
 
                 assert_eq!(run_part.run_id, "123789");
                 assert_eq!(run_part.job_name, "my_job");
-                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"fail-fast\":true,\"job-index\":1,\"job-total\":2,\"max-parallel\":2}");
+                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"job-total\":2,\"job-index\":1}");
                 assert_json_snapshot!(run_part.metadata, @r#"
                 {
-                  "fail-fast": true,
                   "job-index": 1,
                   "job-total": 2,
-                  "max-parallel": 2,
                   "numeric-value": 123456789,
                   "runner-version": "3.2.1"
                 }
@@ -602,13 +604,11 @@ mod tests {
 
                 assert_eq!(run_part.run_id, "123789");
                 assert_eq!(run_part.job_name, "my_job");
-                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"fail-fast\":true,\"job-index\":1,\"job-total\":2,\"max-parallel\":2}");
+                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"job-total\":2,\"job-index\":1}");
                 assert_json_snapshot!(run_part.metadata, @r#"
                 {
-                  "fail-fast": true,
                   "job-index": 1,
                   "job-total": 2,
-                  "max-parallel": 2,
                   "numeric-value": 123456789,
                   "runner-version": "3.2.1"
                 }
