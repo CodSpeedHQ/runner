@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::run::{
     check_system::SystemInfo,
     instruments::InstrumentName,
-    run_environment::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata},
+    run_environment::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart},
     runner::ExecutorName,
 };
 
@@ -16,6 +16,7 @@ pub struct UploadMetadata {
     pub profile_md5: String,
     pub runner: Runner,
     pub run_environment: RunEnvironment,
+    pub run_part: Option<RunPart>,
     pub commit_hash: String,
     #[serde(flatten)]
     pub run_environment_metadata: RunEnvironmentMetadata,

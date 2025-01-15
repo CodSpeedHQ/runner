@@ -11,7 +11,7 @@ use provider::RunEnvironmentDetector;
 use crate::prelude::*;
 use crate::run::config::Config;
 
-pub use self::interfaces::RunEnvironment;
+pub use self::interfaces::*;
 pub use self::provider::RunEnvironmentProvider;
 
 // RunEnvironment Provider implementations

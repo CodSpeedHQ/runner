@@ -11,13 +11,16 @@ impl UploadMetadata {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use insta::{assert_json_snapshot, assert_snapshot};
 
     use crate::run::{
         check_system::SystemInfo,
         instruments::InstrumentName,
-        run_environment::interfaces::{
-            GhData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, Sender,
+        run_environment::{
+            GhData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, RunPart,
+            Sender,
         },
         runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
@@ -27,7 +30,7 @@ mod tests {
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
             repository_provider: RepositoryProvider::GitHub,
-            version: Some(5),
+            version: Some(6),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
             runner: Runner {
@@ -57,6 +60,15 @@ mod tests {
                 gl_data: None,
                 repository_root_path: "/home/runner/work/codspeed-node/codspeed-node/".into(),
             },
+            run_part: Some(RunPart {
+                run_id: "7044765741".into(),
+                run_part_id: "benchmarks_3.2.2".into(),
+                job_name: "codspeed".into(),
+                metadata: BTreeMap::from([
+                    ("someKey".into(), "someValue".into()),
+                    ("anotherKey".into(), "anotherValue".into()),
+                ]),
+            }),
         };
 
         let hash = upload_metadata.get_hash();
@@ -64,7 +76,7 @@ mod tests {
             hash,
             // Caution: when changing this value, we need to ensure that
             // the related backend snapshot remains the same
-            @"3f3d2b7c243445ae2e9c0931cee1f23662b1a544c841cf1ed4cbde388a1e56f7"
+            @"f827f6a834c26d39900c0a9e2dddfaaf22956494c8db911fc06fef72878b0c70"
         );
         assert_json_snapshot!(upload_metadata);
     }

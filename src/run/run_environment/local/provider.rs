@@ -4,7 +4,7 @@ use simplelog::SharedLogger;
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
 use crate::run::helpers::{parse_git_remote, GitRemote};
-use crate::run::run_environment::interfaces::RunEnvironment;
+use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::{
     config::Config,
     helpers::find_repository_root,
@@ -131,6 +131,11 @@ impl RunEnvironmentProvider for LocalProvider {
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
         })
+    }
+
+    /// For local runs have, we cannot really send anything here
+    fn get_run_provider_run_part(&self) -> Option<RunPart> {
+        None
     }
 }
 

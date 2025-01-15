@@ -1,0 +1,10 @@
+---
+source: src/run/run_environment/gitlab_ci/provider.rs
+expression: run_part
+---
+{
+  "runId": "6957110437",
+  "runPartId": "build-job",
+  "jobName": "build-job",
+  "metadata": {}
+}

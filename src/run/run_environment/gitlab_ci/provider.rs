@@ -1,4 +1,5 @@
 use simplelog::SharedLogger;
+use std::collections::BTreeMap;
 use std::env;
 
 use crate::prelude::*;
@@ -8,7 +9,7 @@ use crate::run::run_environment::interfaces::{
     GlData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, Sender,
 };
 use crate::run::run_environment::provider::RunEnvironmentDetector;
-use crate::run::run_environment::RunEnvironmentProvider;
+use crate::run::run_environment::{RunEnvironmentProvider, RunPart};
 
 use super::logger::GitLabCILogger;
 
@@ -162,6 +163,15 @@ impl RunEnvironmentProvider for GitLabCIProvider {
             repository_root_path: self.repository_root_path.clone(),
         })
     }
+
+    fn get_run_provider_run_part(&self) -> Option<RunPart> {
+        Some(RunPart {
+            run_id: self.gl_data.run_id.clone(),
+            run_part_id: self.gl_data.job.clone(),
+            job_name: self.gl_data.job.clone(),
+            metadata: BTreeMap::new(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -203,6 +213,7 @@ mod tests {
                 let gitlab_ci_provider = GitLabCIProvider::try_from(&config).unwrap();
                 let run_environment_metadata =
                     gitlab_ci_provider.get_run_environment_metadata().unwrap();
+                let run_part = gitlab_ci_provider.get_run_provider_run_part().unwrap();
 
                 assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
@@ -210,6 +221,7 @@ mod tests {
                         "[version]"
                     }),
                 });
+                assert_json_snapshot!(run_part);
             },
         )
     }
@@ -248,6 +260,7 @@ mod tests {
                 let gitlab_ci_provider = GitLabCIProvider::try_from(&config).unwrap();
                 let run_environment_metadata =
                     gitlab_ci_provider.get_run_environment_metadata().unwrap();
+                let run_part = gitlab_ci_provider.get_run_provider_run_part().unwrap();
 
                 assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
@@ -255,6 +268,7 @@ mod tests {
                         "[version]"
                     }),
                 });
+                assert_json_snapshot!(run_part);
             },
         );
     }
@@ -293,6 +307,7 @@ mod tests {
                 let gitlab_ci_provider = GitLabCIProvider::try_from(&config).unwrap();
                 let run_environment_metadata =
                     gitlab_ci_provider.get_run_environment_metadata().unwrap();
+                let run_part = gitlab_ci_provider.get_run_provider_run_part().unwrap();
 
                 assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
@@ -300,6 +315,7 @@ mod tests {
                         "[version]"
                     }),
                 });
+                assert_json_snapshot!(run_part);
             },
         );
     }

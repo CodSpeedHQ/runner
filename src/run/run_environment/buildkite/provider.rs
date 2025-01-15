@@ -4,7 +4,7 @@ use simplelog::SharedLogger;
 
 use crate::prelude::*;
 use crate::run::helpers::{parse_git_remote, GitRemote};
-use crate::run::run_environment::interfaces::RunEnvironment;
+use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::{
     config::Config,
     helpers::{find_repository_root, get_env_variable},
@@ -141,6 +141,11 @@ impl RunEnvironmentProvider for BuildkiteProvider {
             gl_data: None,
             sender: None,
         })
+    }
+
+    /// For Buildkite, we don't support multipart uploads
+    fn get_run_provider_run_part(&self) -> Option<RunPart> {
+        None
     }
 }
 

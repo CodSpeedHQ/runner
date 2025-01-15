@@ -7,7 +7,7 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata};
+use super::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart};
 
 pub trait RunEnvironmentDetector {
     /// Detects if the runner is currently executed within this run environment.
@@ -44,6 +44,9 @@ pub trait RunEnvironmentProvider {
     /// Returns the metadata related to the RunEnvironment.
     fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata>;
 
+    /// Return the metadata necessary to identify the `RunPart`
+    fn get_run_provider_run_part(&self) -> Option<RunPart>;
+
     /// Returns the metadata necessary for uploading results to CodSpeed.
     ///
     /// # Arguments
@@ -72,7 +75,7 @@ pub trait RunEnvironmentProvider {
         let commit_hash = get_commit_hash(&run_environment_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(5),
+            version: Some(6),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             run_environment_metadata,
@@ -86,6 +89,7 @@ pub trait RunEnvironmentProvider {
                 system_info: system_info.clone(),
             },
             run_environment: self.get_run_environment(),
+            run_part: self.get_run_provider_run_part(),
         })
     }
 }
