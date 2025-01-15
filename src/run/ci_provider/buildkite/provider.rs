@@ -3,7 +3,7 @@ use std::env;
 use simplelog::SharedLogger;
 
 use crate::prelude::*;
-use crate::run::ci_provider::interfaces::PlatformSlug;
+use crate::run::ci_provider::interfaces::{PlatformSlug, RunPart};
 use crate::run::helpers::{parse_git_remote, GitRemote};
 use crate::run::{
     ci_provider::{
@@ -134,6 +134,11 @@ impl CIProvider for BuildkiteProvider {
 
     fn get_platform_slug(&self) -> PlatformSlug {
         PlatformSlug::Buildkite
+    }
+
+    fn get_platform_run_part(&self) -> Option<RunPart> {
+        // TODO(COD-447): return correct values here
+        None
     }
 
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {

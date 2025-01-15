@@ -11,12 +11,14 @@ impl UploadMetadata {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use insta::{assert_json_snapshot, assert_snapshot};
 
     use crate::run::{
         check_system::SystemInfo,
         ci_provider::interfaces::{
-            CIProviderMetadata, GhData, PlatformSlug, RepositoryProvider, RunEvent, Sender,
+            CIProviderMetadata, GhData, PlatformSlug, RepositoryProvider, RunEvent, RunPart, Sender,
         },
         instruments::InstrumentName,
         runner::ExecutorName,
@@ -58,12 +60,21 @@ mod tests {
                 gl_data: None,
                 repository_root_path: "/home/runner/work/codspeed-node/codspeed-node/".into(),
             },
+            run_part: Some(RunPart {
+                run_id: "7044765741".into(),
+                run_part_id: "benchmarks_3.2.2".into(),
+                job_name: "codspeed".into(),
+                metadata: BTreeMap::from([
+                    ("someKey".into(), "someValue".into()),
+                    ("anotherKey".into(), "anotherValue".into()),
+                ]),
+            }),
         };
 
         let hash = upload_metadata.get_hash();
         assert_snapshot!(
             hash,
-            @"b672792aac09f4331b387bf66a5e9225b6649e1e3bedacc6fa20e83ceb9956d6"
+            @"372e74d39a49760c989d600020681bf100d403fffa0b56675ff7069cad023b64"
         );
         assert_json_snapshot!(upload_metadata);
     }

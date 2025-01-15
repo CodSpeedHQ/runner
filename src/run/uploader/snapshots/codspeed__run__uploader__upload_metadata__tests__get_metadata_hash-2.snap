@@ -27,6 +27,15 @@ expression: upload_metadata
   },
   "platform": "github-actions",
   "platformSlug": "GITHUB_ACTIONS",
+  "runPart": {
+    "runId": "7044765741",
+    "runPartId": "benchmarks_3.2.2",
+    "jobName": "codspeed",
+    "metadata": {
+      "anotherKey": "anotherValue",
+      "someKey": "someValue"
+    }
+  },
   "commitHash": "5bd77cb0da72bef094893ed45fb793ff16ecfbe3",
   "ref": "refs/pull/29/merge",
   "headRef": "chore/native-action-runner",
