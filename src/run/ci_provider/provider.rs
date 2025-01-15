@@ -7,7 +7,7 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::{CIProviderMetadata, RepositoryProvider};
+use super::interfaces::{CIProviderMetadata, PlatformRunPart, PlatformSlug, RepositoryProvider};
 
 pub trait CIProviderDetector {
     /// Detects if the current environment is running inside the CI provider.
@@ -30,6 +30,8 @@ fn get_commit_hash(repository_root_path: &str) -> Result<String> {
 }
 
 /// `CIProvider` is a trait that defines the necessary methods for a continuous integration provider.
+///
+/// In other parts of the application, this may also be referred as `Platform`.
 pub trait CIProvider {
     /// Returns the logger for the CI provider.
     fn get_logger(&self) -> Box<dyn SharedLogger>;
@@ -55,7 +57,13 @@ pub trait CIProvider {
     /// let provider = MyCIProvider::new();
     /// assert_eq!(provider.get_provider_slug(), "my-ci-provider");
     /// ```
-    fn get_provider_slug(&self) -> &'static str;
+    fn get_platform(&self) -> &'static str;
+
+    /// Returns the slug of the CI Provider (also called platform)
+    fn get_platform_slug(&self) -> PlatformSlug;
+
+    /// Return the metadata necessary to identify the `RunPart`
+    fn get_platform_run_part(&self) -> Option<PlatformRunPart>;
 
     /// Returns the metadata related to the CI provider.
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata>;
@@ -101,7 +109,9 @@ pub trait CIProvider {
                 executor: executor_name,
                 system_info: system_info.clone(),
             },
-            platform: self.get_provider_slug().into(),
+            platform: self.get_platform().into(),
+            platform_slug: self.get_platform_slug(),
+            platform_run_part: self.get_platform_run_part(),
         })
     }
 }

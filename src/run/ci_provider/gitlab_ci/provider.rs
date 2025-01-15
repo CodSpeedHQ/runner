@@ -3,7 +3,7 @@ use std::env;
 
 use crate::prelude::*;
 use crate::run::ci_provider::interfaces::{
-    CIProviderMetadata, GlData, RepositoryProvider, RunEvent, Sender,
+    CIProviderMetadata, GlData, PlatformRunPart, PlatformSlug, RepositoryProvider, RunEvent, Sender,
 };
 use crate::run::ci_provider::provider::CIProviderDetector;
 use crate::run::ci_provider::CIProvider;
@@ -148,8 +148,17 @@ impl CIProvider for GitLabCIProvider {
         "GitLab CI"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
+    fn get_platform(&self) -> &'static str {
         "gitlab-ci"
+    }
+
+    fn get_platform_slug(&self) -> PlatformSlug {
+        PlatformSlug::GitlabCi
+    }
+
+    fn get_platform_run_part(&self) -> Option<PlatformRunPart> {
+        // TODO(COD-447): return correct values here
+        None
     }
 
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {

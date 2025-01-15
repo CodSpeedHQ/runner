@@ -6,6 +6,8 @@
   "[dotenv][ignore][properties][shellscript]": {
     "editor.defaultFormatter": "foxundermoon.shell-format"
   },
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
   "[html][javascript][json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
