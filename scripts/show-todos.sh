@@ -12,6 +12,14 @@ if [ "$LINEAR_ISSUE" = "" ]; then
     exit 0
 fi
 
-echo "Searching todos for $LINEAR_ISSUE"
+# Locally, simply search and display
+if [ "$CI" != "true" ]; then
+    echo "Searching todos for $LINEAR_ISSUE"
+    grep "TODO($LINEAR_ISSUE)" . -Rni --color --exclude-dir=".git"
 
-grep "TODO($LINEAR_ISSUE)" . -Rni --color --exclude-dir=".git"
+    exit 0
+fi
+
+# On the CI, annotate files
+# https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions#setting-a-notice-message
+grep "TODO($LINEAR_ISSUE)" . -Rni --exclude-dir=".git" | awk -F":" {'print "::notice file="$1",line="$2",title=TODO::"$4'}
