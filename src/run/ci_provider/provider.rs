@@ -7,7 +7,7 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::{CIProviderMetadata, PlatformSlug, RepositoryProvider};
+use super::interfaces::{CIProviderMetadata, PlatformRunPart, PlatformSlug, RepositoryProvider};
 
 pub trait CIProviderDetector {
     /// Detects if the current environment is running inside the CI provider.
@@ -62,6 +62,9 @@ pub trait CIProvider {
     /// Returns the slug of the CI Provider (also called platform)
     fn get_platform_slug(&self) -> PlatformSlug;
 
+    /// Return the metadata necessary to identify the `RunPart`
+    fn get_platform_run_part(&self) -> Option<PlatformRunPart>;
+
     /// Returns the metadata related to the CI provider.
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata>;
 
@@ -108,6 +111,7 @@ pub trait CIProvider {
             },
             platform: self.get_platform().into(),
             platform_slug: self.get_platform_slug(),
+            platform_run_part: self.get_platform_run_part(),
         })
     }
 }
