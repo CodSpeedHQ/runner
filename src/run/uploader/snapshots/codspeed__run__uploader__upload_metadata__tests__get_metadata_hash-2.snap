@@ -26,6 +26,7 @@ expression: upload_metadata
     "totalMemoryGb": 8
   },
   "platform": "github-actions",
+  "platformSlug": "GITHUBACTIONS",
   "commitHash": "5bd77cb0da72bef094893ed45fb793ff16ecfbe3",
   "ref": "refs/pull/29/merge",
   "headRef": "chore/native-action-runner",

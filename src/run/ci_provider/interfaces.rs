@@ -7,6 +7,15 @@ pub enum RepositoryProvider {
     GitHub,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PlatformSlug {
+    GithubActions,
+    GitlabCi,
+    Buildkite,
+    Local,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CIProviderMetadata {
