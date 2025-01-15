@@ -11,12 +11,12 @@ impl UploadMetadata {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
+    use insta::{assert_json_snapshot, assert_snapshot};
 
     use crate::run::{
         check_system::SystemInfo,
         ci_provider::interfaces::{
-            CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender,
+            CIProviderMetadata, GhData, PlatformSlug, RepositoryProvider, RunEvent, Sender,
         },
         instruments::InstrumentName,
         runner::ExecutorName,
@@ -38,6 +38,7 @@ mod tests {
                 system_info: SystemInfo::test(),
             },
             platform: "github-actions".into(),
+            platform_slug: PlatformSlug::GithubActions,
             commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
             ci_provider_metadata: CIProviderMetadata {
                 ref_: "refs/pull/29/merge".into(),
@@ -60,9 +61,9 @@ mod tests {
         };
 
         let hash = upload_metadata.get_hash();
-        assert_eq!(
+        assert_snapshot!(
             hash,
-            "161a1a3eeea6d988909142e1e7bae3339b3698aaeb025641aa63809895336ae7"
+            @"b672792aac09f4331b387bf66a5e9225b6649e1e3bedacc6fa20e83ceb9956d6"
         );
         assert_json_snapshot!(upload_metadata);
     }
