@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
 use check_system::SystemInfo;
+use ci_provider::interfaces::Platform;
 use clap::Args;
 use instruments::mongo_tracer::MongoTracer;
 use runner::get_run_data;
@@ -100,12 +101,12 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let codspeed_config = CodSpeedConfig::load()?;
     let logger = Logger::new(&provider)?;
 
-    if provider.get_provider_slug() != "local" {
+    if provider.get_platform() != Platform::Local {
         show_banner();
     }
     debug!("config: {:#?}", config);
 
-    if provider.get_provider_slug() == "local" {
+    if provider.get_platform() == Platform::Local {
         if codspeed_config.auth.token.is_none() {
             bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
         }
@@ -157,7 +158,7 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
             uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
         end_group!();
 
-        if provider.get_provider_slug() == "local" {
+        if provider.get_platform() == Platform::Local {
             start_group!("Fetching the results");
             poll_results::poll_results(api_client, &provider, upload_result.run_id).await?;
             end_group!();

@@ -5,6 +5,7 @@ use simplelog::SharedLogger;
 use std::{env, fs};
 
 use crate::prelude::*;
+use crate::run::ci_provider::interfaces::Platform;
 use crate::run::{
     ci_provider::{
         interfaces::{CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender},
@@ -128,8 +129,8 @@ impl CIProvider for GitHubActionsProvider {
         "GitHub Actions"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
-        "github-actions"
+    fn get_platform(&self) -> Platform {
+        Platform::GithubActions
     }
 
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
