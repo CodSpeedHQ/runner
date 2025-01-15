@@ -1,6 +1,9 @@
-use crate::run::runner::ExecutorName;
 use crate::run::{
-    check_system::SystemInfo, ci_provider::CIProvider, config::Config, runner::RunData,
+    check_system::SystemInfo,
+    config::Config,
+    run_environment::{RunEnvironment, RunEnvironmentProvider},
+    runner::ExecutorName,
+    runner::RunData,
     uploader::UploadError,
 };
 use crate::{prelude::*, request_client::REQUEST_CLIENT};
@@ -51,11 +54,12 @@ async fn retrieve_upload_data(
                     .map(|body| body.error)
                     .unwrap_or(text);
                 if status == StatusCode::UNAUTHORIZED {
-                    let additional_message = if upload_metadata.platform == "local" {
-                        "Run `codspeed auth login` to authenticate the CLI"
-                    } else {
-                        "Check that CODSPEED_TOKEN is set and has the correct value"
-                    };
+                    let additional_message =
+                        if upload_metadata.run_environment == RunEnvironment::Local {
+                            "Run `codspeed auth login` to authenticate the CLI"
+                        } else {
+                            "Check that CODSPEED_TOKEN is set and has the correct value"
+                        };
                     error_message.push_str(&format!("\n\n{}", additional_message));
                 }
                 bail!(
@@ -109,13 +113,16 @@ pub struct UploadResult {
 pub async fn upload(
     config: &Config,
     system_info: &SystemInfo,
-    provider: &Box<dyn CIProvider>,
+    provider: &Box<dyn RunEnvironmentProvider>,
     run_data: &RunData,
     executor_name: ExecutorName,
 ) -> Result<UploadResult> {
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
-    debug!("CI provider detected: {:#?}", provider.get_provider_name());
+    debug!(
+        "Run Environment provider detected: {:#?}",
+        provider.get_run_environment_name()
+    );
 
     let upload_metadata =
         provider.get_upload_metadata(config, system_info, &archive_hash, executor_name)?;
@@ -124,8 +131,8 @@ pub async fn upload(
         "Linked repository: {}\n",
         style(format!(
             "{}/{}",
-            upload_metadata.ci_provider_metadata.owner,
-            upload_metadata.ci_provider_metadata.repository
+            upload_metadata.run_environment_metadata.owner,
+            upload_metadata.run_environment_metadata.repository
         ))
         .bold(),
     );
@@ -202,7 +209,7 @@ mod tests {
                 ("VERSION", Some("0.1.0")),
             ],
             async {
-                let provider = crate::run::ci_provider::get_provider(&config).unwrap();
+                let provider = crate::run::run_environment::get_provider(&config).unwrap();
                 upload(
                     &config,
                     &system_info,

@@ -5,13 +5,14 @@ use simplelog::SharedLogger;
 use std::{env, fs};
 
 use crate::prelude::*;
+use crate::run::run_environment::interfaces::RunEnvironment;
 use crate::run::{
-    ci_provider::{
-        interfaces::{CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender},
-        provider::{CIProvider, CIProviderDetector},
-    },
     config::Config,
     helpers::{find_repository_root, get_env_variable},
+    run_environment::{
+        interfaces::{GhData, RepositoryProvider, RunEnvironmentMetadata, RunEvent, Sender},
+        provider::{RunEnvironmentDetector, RunEnvironmentProvider},
+    },
 };
 
 use super::logger::GithubActionLogger;
@@ -108,14 +109,14 @@ impl TryFrom<&Config> for GitHubActionsProvider {
     }
 }
 
-impl CIProviderDetector for GitHubActionsProvider {
+impl RunEnvironmentDetector for GitHubActionsProvider {
     fn detect() -> bool {
         // check if the GITHUB_ACTIONS environment variable is set and the value is truthy
         env::var("GITHUB_ACTIONS") == Ok("true".into())
     }
 }
 
-impl CIProvider for GitHubActionsProvider {
+impl RunEnvironmentProvider for GitHubActionsProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         RepositoryProvider::GitHub
     }
@@ -124,16 +125,16 @@ impl CIProvider for GitHubActionsProvider {
         Box::new(GithubActionLogger)
     }
 
-    fn get_provider_name(&self) -> &'static str {
+    fn get_run_environment_name(&self) -> &'static str {
         "GitHub Actions"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
-        "github-actions"
+    fn get_run_environment(&self) -> RunEnvironment {
+        RunEnvironment::GithubActions
     }
 
-    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
-        Ok(CIProviderMetadata {
+    fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
+        Ok(RunEnvironmentMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
@@ -213,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pull_request_provider_metadata() {
+    fn test_pull_request_run_environment_metadata() {
         with_vars(
             [
                 ("GITHUB_ACTIONS", Some("true")),
@@ -225,7 +226,7 @@ mod tests {
                     "GITHUB_EVENT_PATH",
                     Some(
                         format!(
-                            "{}/src/run/ci_provider/github_actions/samples/pr-event.json",
+                            "{}/src/run/run_environment/github_actions/samples/pr-event.json",
                             env!("CARGO_MANIFEST_DIR")
                         )
                         .as_str(),
@@ -244,9 +245,11 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
-                let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
+                let run_environment_metadata = github_actions_provider
+                    .get_run_environment_metadata()
+                    .unwrap();
 
-                assert_json_snapshot!(provider_metadata, {
+                assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"
@@ -257,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fork_pull_request_provider_metadata() {
+    fn test_fork_pull_request_run_environment_metadata() {
         with_vars(
             [
                 ("GITHUB_ACTIONS", Some("true")),
@@ -269,7 +272,7 @@ mod tests {
                     "GITHUB_EVENT_PATH",
                     Some(
                         format!(
-                            "{}/src/run/ci_provider/github_actions/samples/fork-pr-event.json",
+                            "{}/src/run/run_environment/github_actions/samples/fork-pr-event.json",
                             env!("CARGO_MANIFEST_DIR")
                         )
                         .as_str(),
@@ -288,16 +291,18 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
-                let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
+                let run_environment_metadata = github_actions_provider
+                    .get_run_environment_metadata()
+                    .unwrap();
 
-                assert_eq!(provider_metadata.owner, "my-org");
-                assert_eq!(provider_metadata.repository, "adrien-python-test");
-                assert_eq!(provider_metadata.base_ref, Some("main".into()));
+                assert_eq!(run_environment_metadata.owner, "my-org");
+                assert_eq!(run_environment_metadata.repository, "adrien-python-test");
+                assert_eq!(run_environment_metadata.base_ref, Some("main".into()));
                 assert_eq!(
-                    provider_metadata.head_ref,
+                    run_environment_metadata.head_ref,
                     Some("fork-owner:feat/codspeed-runner".into())
                 );
-                assert_json_snapshot!(provider_metadata, {
+                assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"

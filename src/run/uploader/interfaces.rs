@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::run::{
     check_system::SystemInfo,
-    ci_provider::interfaces::{CIProviderMetadata, RepositoryProvider},
     instruments::InstrumentName,
+    run_environment::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata},
     runner::ExecutorName,
 };
 
@@ -15,10 +15,10 @@ pub struct UploadMetadata {
     pub tokenless: bool,
     pub profile_md5: String,
     pub runner: Runner,
-    pub platform: String,
+    pub run_environment: RunEnvironment,
     pub commit_hash: String,
     #[serde(flatten)]
-    pub ci_provider_metadata: CIProviderMetadata,
+    pub run_environment_metadata: RunEnvironmentMetadata,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

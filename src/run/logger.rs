@@ -1,6 +1,6 @@
 use crate::logger::{GROUP_TARGET, OPENED_GROUP_TARGET};
 use crate::prelude::*;
-use crate::run::{ci_provider::CIProvider, runner::RunData};
+use crate::run::{run_environment::RunEnvironmentProvider, runner::RunData};
 use log::LevelFilter;
 use simplelog::{CombinedLogger, WriteLogger};
 use std::fs::copy;
@@ -13,7 +13,7 @@ pub struct Logger {
 
 impl Logger {
     #[allow(clippy::borrowed_box)]
-    pub fn new(provider: &Box<dyn CIProvider>) -> Result<Self> {
+    pub fn new(provider: &Box<dyn RunEnvironmentProvider>) -> Result<Self> {
         let provider_logger = provider.get_logger();
         let log_file = NamedTempFile::new().context("Failed to create log file")?;
         let log_file_path = log_file.path().to_path_buf();

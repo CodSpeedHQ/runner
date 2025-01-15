@@ -7,10 +7,10 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::{CIProviderMetadata, RepositoryProvider};
+use super::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata};
 
-pub trait CIProviderDetector {
-    /// Detects if the current environment is running inside the CI provider.
+pub trait RunEnvironmentDetector {
+    /// Detects if the runner is currently executed within this run environment.
     fn detect() -> bool;
 }
 
@@ -29,12 +29,13 @@ fn get_commit_hash(repository_root_path: &str) -> Result<String> {
     Ok(commit_hash)
 }
 
-/// `CIProvider` is a trait that defines the necessary methods for a continuous integration provider.
-pub trait CIProvider {
-    /// Returns the logger for the CI provider.
+/// `RunEnvironmentProvider` is a trait that defines the necessary methods
+/// for a continuous integration provider.
+pub trait RunEnvironmentProvider {
+    /// Returns the logger for the RunEnvironment.
     fn get_logger(&self) -> Box<dyn SharedLogger>;
 
-    /// Returns the repository provider for this CI provider
+    /// Returns the repository provider for this RunEnvironment
     fn get_repository_provider(&self) -> RepositoryProvider;
 
     /// Returns the name of the CI provider.
@@ -43,22 +44,15 @@ pub trait CIProvider {
     ///
     /// ```
     /// let provider = MyCIProvider::new();
-    /// assert_eq!(provider.get_provider_name(), "MyCIProvider");
+    /// assert_eq!(provider.get_run_environment_name(), "MyCIProvider");
     /// ```
-    fn get_provider_name(&self) -> &'static str;
+    fn get_run_environment_name(&self) -> &'static str;
 
-    /// Returns the slug of the CI provider.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// let provider = MyCIProvider::new();
-    /// assert_eq!(provider.get_provider_slug(), "my-ci-provider");
-    /// ```
-    fn get_provider_slug(&self) -> &'static str;
+    /// Returns the run environment of the current provider.
+    fn get_run_environment(&self) -> RunEnvironment;
 
-    /// Returns the metadata related to the CI provider.
-    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata>;
+    /// Returns the metadata related to the RunEnvironment.
+    fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata>;
 
     /// Returns the metadata necessary for uploading results to CodSpeed.
     ///
@@ -83,15 +77,15 @@ pub trait CIProvider {
         archive_hash: &str,
         executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
-        let ci_provider_metadata = self.get_ci_provider_metadata()?;
+        let run_environment_metadata = self.get_run_environment_metadata()?;
 
-        let commit_hash = get_commit_hash(&ci_provider_metadata.repository_root_path)?;
+        let commit_hash = get_commit_hash(&run_environment_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
             version: Some(5),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
-            ci_provider_metadata,
+            run_environment_metadata,
             profile_md5: archive_hash.into(),
             commit_hash,
             runner: Runner {
@@ -101,7 +95,7 @@ pub trait CIProvider {
                 executor: executor_name,
                 system_info: system_info.clone(),
             },
-            platform: self.get_provider_slug().into(),
+            run_environment: self.get_run_environment(),
         })
     }
 }

@@ -21,7 +21,7 @@ The following CI providers are supported:
 
 If you want to use the CLI with another provider, you can open an issue or chat with us on [Discord](https://discord.com/invite/MxpaCfKSqF) 🚀
 
-You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/runner/tree/main/src/run/ci_provider) for reference.
+You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/runner/tree/main/src/run/run_environment) for reference.
 
 ## Installation
 

@@ -4,13 +4,14 @@ use simplelog::SharedLogger;
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
 use crate::run::helpers::{parse_git_remote, GitRemote};
+use crate::run::run_environment::interfaces::RunEnvironment;
 use crate::run::{
-    ci_provider::{
-        interfaces::{CIProviderMetadata, RepositoryProvider, RunEvent},
-        provider::{CIProvider, CIProviderDetector},
-    },
     config::Config,
     helpers::find_repository_root,
+    run_environment::{
+        interfaces::{RepositoryProvider, RunEnvironmentMetadata, RunEvent},
+        provider::{RunEnvironmentDetector, RunEnvironmentProvider},
+    },
 };
 
 #[derive(Debug)]
@@ -98,13 +99,13 @@ impl TryFrom<&Config> for LocalProvider {
     }
 }
 
-impl CIProviderDetector for LocalProvider {
+impl RunEnvironmentDetector for LocalProvider {
     fn detect() -> bool {
         true
     }
 }
 
-impl CIProvider for LocalProvider {
+impl RunEnvironmentProvider for LocalProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         self.repository_provider.clone()
     }
@@ -113,16 +114,16 @@ impl CIProvider for LocalProvider {
         get_local_logger()
     }
 
-    fn get_provider_name(&self) -> &'static str {
+    fn get_run_environment_name(&self) -> &'static str {
         "Local"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
-        "local"
+    fn get_run_environment(&self) -> RunEnvironment {
+        RunEnvironment::Local
     }
 
-    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
-        Ok(CIProviderMetadata {
+    fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
+        Ok(RunEnvironmentMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),

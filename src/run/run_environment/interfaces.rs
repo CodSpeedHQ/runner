@@ -7,9 +7,18 @@ pub enum RepositoryProvider {
     GitHub,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RunEnvironment {
+    GithubActions,
+    GitlabCi,
+    Buildkite,
+    Local,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CIProviderMetadata {
+pub struct RunEnvironmentMetadata {
     #[serde(rename = "ref")]
     pub ref_: String,
     pub head_ref: Option<String>,

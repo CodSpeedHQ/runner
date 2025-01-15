@@ -6,13 +6,14 @@ use crate::VERSION;
 use check_system::SystemInfo;
 use clap::Args;
 use instruments::mongo_tracer::MongoTracer;
+use run_environment::interfaces::RunEnvironment;
 use runner::get_run_data;
 
 mod check_system;
-pub mod ci_provider;
 mod helpers;
 mod instruments;
 mod poll_results;
+pub mod run_environment;
 mod runner;
 mod uploader;
 
@@ -96,16 +97,16 @@ impl RunArgs {
 
 pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let mut config = Config::try_from(args)?;
-    let provider = ci_provider::get_provider(&config)?;
+    let provider = run_environment::get_provider(&config)?;
     let codspeed_config = CodSpeedConfig::load()?;
     let logger = Logger::new(&provider)?;
 
-    if provider.get_provider_slug() != "local" {
+    if provider.get_run_environment() != RunEnvironment::Local {
         show_banner();
     }
     debug!("config: {:#?}", config);
 
-    if provider.get_provider_slug() == "local" {
+    if provider.get_run_environment() == RunEnvironment::Local {
         if codspeed_config.auth.token.is_none() {
             bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
         }
@@ -158,7 +159,7 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
             uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
         end_group!();
 
-        if provider.get_provider_slug() == "local" {
+        if provider.get_run_environment() == RunEnvironment::Local {
             start_group!("Fetching the results");
             poll_results::poll_results(api_client, &provider, upload_result.run_id).await?;
             end_group!();

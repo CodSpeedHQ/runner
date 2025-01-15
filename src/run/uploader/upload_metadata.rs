@@ -11,14 +11,14 @@ impl UploadMetadata {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
+    use insta::{assert_json_snapshot, assert_snapshot};
 
     use crate::run::{
         check_system::SystemInfo,
-        ci_provider::interfaces::{
-            CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender,
-        },
         instruments::InstrumentName,
+        run_environment::interfaces::{
+            GhData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, Sender,
+        },
         runner::ExecutorName,
         uploader::{Runner, UploadMetadata},
     };
@@ -37,9 +37,9 @@ mod tests {
                 executor: ExecutorName::Valgrind,
                 system_info: SystemInfo::test(),
             },
-            platform: "github-actions".into(),
+            run_environment: RunEnvironment::GithubActions,
             commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
-            ci_provider_metadata: CIProviderMetadata {
+            run_environment_metadata: RunEnvironmentMetadata {
                 ref_: "refs/pull/29/merge".into(),
                 head_ref: Some("chore/native-action-runner".into()),
                 base_ref: Some("main".into()),
@@ -60,9 +60,11 @@ mod tests {
         };
 
         let hash = upload_metadata.get_hash();
-        assert_eq!(
+        assert_snapshot!(
             hash,
-            "161a1a3eeea6d988909142e1e7bae3339b3698aaeb025641aa63809895336ae7"
+            // Caution: when changing this value, we need to ensure that
+            // the related backend snapshot remains the same
+            @"3f3d2b7c243445ae2e9c0931cee1f23662b1a544c841cf1ed4cbde388a1e56f7"
         );
         assert_json_snapshot!(upload_metadata);
     }

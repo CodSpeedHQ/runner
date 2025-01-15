@@ -4,13 +4,14 @@ use simplelog::SharedLogger;
 
 use crate::prelude::*;
 use crate::run::helpers::{parse_git_remote, GitRemote};
+use crate::run::run_environment::interfaces::RunEnvironment;
 use crate::run::{
-    ci_provider::{
-        interfaces::{CIProviderMetadata, RepositoryProvider, RunEvent},
-        provider::{CIProvider, CIProviderDetector},
-    },
     config::Config,
     helpers::{find_repository_root, get_env_variable},
+    run_environment::{
+        interfaces::{RepositoryProvider, RunEnvironmentMetadata, RunEvent},
+        provider::{RunEnvironmentDetector, RunEnvironmentProvider},
+    },
 };
 
 use super::logger::BuildkiteLogger;
@@ -108,13 +109,13 @@ impl TryFrom<&Config> for BuildkiteProvider {
     }
 }
 
-impl CIProviderDetector for BuildkiteProvider {
+impl RunEnvironmentDetector for BuildkiteProvider {
     fn detect() -> bool {
         env::var("BUILDKITE") == Ok("true".into())
     }
 }
 
-impl CIProvider for BuildkiteProvider {
+impl RunEnvironmentProvider for BuildkiteProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         RepositoryProvider::GitHub
     }
@@ -123,16 +124,16 @@ impl CIProvider for BuildkiteProvider {
         Box::new(BuildkiteLogger::new())
     }
 
-    fn get_provider_name(&self) -> &'static str {
+    fn get_run_environment_name(&self) -> &'static str {
         "Buildkite"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
-        "buildkite"
+    fn get_run_environment(&self) -> RunEnvironment {
+        RunEnvironment::Buildkite
     }
 
-    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
-        Ok(CIProviderMetadata {
+    fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
+        Ok(RunEnvironmentMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
@@ -242,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pull_request_provider_metadata() {
+    fn test_pull_request_run_environment_metadata() {
         with_vars(
             [
                 ("BUILDKITE_AGENT_NAME", Some("7b10eca7600b-1")),
@@ -265,9 +266,9 @@ mod tests {
                     ..Config::test()
                 };
                 let provider = BuildkiteProvider::try_from(&config).unwrap();
-                let provider_metadata = provider.get_ci_provider_metadata().unwrap();
+                let run_environment_metadata = provider.get_run_environment_metadata().unwrap();
 
-                assert_json_snapshot!(provider_metadata, {
+                assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"

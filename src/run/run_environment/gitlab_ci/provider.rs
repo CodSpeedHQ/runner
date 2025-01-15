@@ -2,13 +2,13 @@ use simplelog::SharedLogger;
 use std::env;
 
 use crate::prelude::*;
-use crate::run::ci_provider::interfaces::{
-    CIProviderMetadata, GlData, RepositoryProvider, RunEvent, Sender,
-};
-use crate::run::ci_provider::provider::CIProviderDetector;
-use crate::run::ci_provider::CIProvider;
 use crate::run::config::Config;
 use crate::run::helpers::get_env_variable;
+use crate::run::run_environment::interfaces::{
+    GlData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, Sender,
+};
+use crate::run::run_environment::provider::RunEnvironmentDetector;
+use crate::run::run_environment::RunEnvironmentProvider;
 
 use super::logger::GitLabCILogger;
 
@@ -128,14 +128,14 @@ impl TryFrom<&Config> for GitLabCIProvider {
     }
 }
 
-impl CIProviderDetector for GitLabCIProvider {
+impl RunEnvironmentDetector for GitLabCIProvider {
     fn detect() -> bool {
         // check if the GITLAB_CI environment variable is set and the value is truthy
         env::var("GITLAB_CI") == Ok("true".into())
     }
 }
 
-impl CIProvider for GitLabCIProvider {
+impl RunEnvironmentProvider for GitLabCIProvider {
     fn get_logger(&self) -> Box<dyn SharedLogger> {
         Box::new(GitLabCILogger::new())
     }
@@ -144,16 +144,16 @@ impl CIProvider for GitLabCIProvider {
         RepositoryProvider::GitLab
     }
 
-    fn get_provider_name(&self) -> &'static str {
+    fn get_run_environment_name(&self) -> &'static str {
         "GitLab CI"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
-        "gitlab-ci"
+    fn get_run_environment(&self) -> RunEnvironment {
+        RunEnvironment::GitlabCi
     }
 
-    fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
-        Ok(CIProviderMetadata {
+    fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
+        Ok(RunEnvironmentMetadata {
             base_ref: self.base_ref.clone(),
             head_ref: self.head_ref.clone(),
             event: self.event.clone(),
@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn test_push_main_provider_metadata() {
+    fn test_push_main_run_environment_metadata() {
         with_vars(
             [
                 ("GITLAB_CI", Some("true")),
@@ -205,9 +205,10 @@ mod tests {
                     ..Config::test()
                 };
                 let gitlab_ci_provider = GitLabCIProvider::try_from(&config).unwrap();
-                let provider_metadata = gitlab_ci_provider.get_ci_provider_metadata().unwrap();
+                let run_environment_metadata =
+                    gitlab_ci_provider.get_run_environment_metadata().unwrap();
 
-                assert_json_snapshot!(provider_metadata, {
+                assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"
@@ -218,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn test_merge_request_provider_metadata() {
+    fn test_merge_request_run_environment_metadata() {
         with_vars(
             [
                 ("GITLAB_CI", Some("true")),
@@ -249,9 +250,10 @@ mod tests {
                     ..Config::test()
                 };
                 let gitlab_ci_provider = GitLabCIProvider::try_from(&config).unwrap();
-                let provider_metadata = gitlab_ci_provider.get_ci_provider_metadata().unwrap();
+                let run_environment_metadata =
+                    gitlab_ci_provider.get_run_environment_metadata().unwrap();
 
-                assert_json_snapshot!(provider_metadata, {
+                assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"
@@ -262,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fork_merge_request_provider_metadata() {
+    fn test_fork_merge_request_run_environment_metadata() {
         with_vars(
             [
                 ("GITLAB_CI", Some("true")),
@@ -293,9 +295,10 @@ mod tests {
                     ..Config::test()
                 };
                 let gitlab_ci_provider = GitLabCIProvider::try_from(&config).unwrap();
-                let provider_metadata = gitlab_ci_provider.get_ci_provider_metadata().unwrap();
+                let run_environment_metadata =
+                    gitlab_ci_provider.get_run_environment_metadata().unwrap();
 
-                assert_json_snapshot!(provider_metadata, {
+                assert_json_snapshot!(run_environment_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"

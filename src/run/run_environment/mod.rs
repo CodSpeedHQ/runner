@@ -1,4 +1,3 @@
-mod gitlab_ci;
 pub mod interfaces;
 pub mod logger;
 mod provider;
@@ -7,19 +6,21 @@ use buildkite::BuildkiteProvider;
 use github_actions::GitHubActionsProvider;
 use gitlab_ci::GitLabCIProvider;
 use local::LocalProvider;
-use provider::CIProviderDetector;
+use provider::RunEnvironmentDetector;
 
 use crate::prelude::*;
 use crate::run::config::Config;
 
-pub use self::provider::CIProvider;
+pub use self::interfaces::RunEnvironment;
+pub use self::provider::RunEnvironmentProvider;
 
-// Provider implementations
+// RunEnvironment Provider implementations
 mod buildkite;
 mod github_actions;
+mod gitlab_ci;
 mod local;
 
-pub fn get_provider(config: &Config) -> Result<Box<dyn CIProvider>> {
+pub fn get_provider(config: &Config) -> Result<Box<dyn RunEnvironmentProvider>> {
     if BuildkiteProvider::detect() {
         let provider = BuildkiteProvider::try_from(config)?;
         return Ok(Box::new(provider));
@@ -40,5 +41,6 @@ pub fn get_provider(config: &Config) -> Result<Box<dyn CIProvider>> {
         return Ok(Box::new(provider));
     }
 
-    bail!("No CI provider detected")
+    // By design, this should not happen as the `LocalProvider` is a fallback
+    bail!("No RunEnvironment provider detected")
 }

@@ -8,7 +8,7 @@ use crate::api_client::{
 };
 use crate::prelude::*;
 
-use super::ci_provider::CIProvider;
+use super::run_environment::RunEnvironmentProvider;
 
 const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
 const POLLING_INTERVAL: Duration = Duration::from_secs(1);
@@ -16,13 +16,13 @@ const POLLING_INTERVAL: Duration = Duration::from_secs(1);
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
     api_client: &CodSpeedAPIClient,
-    provider: &Box<dyn CIProvider>,
+    provider: &Box<dyn RunEnvironmentProvider>,
     run_id: String,
 ) -> Result<()> {
     let start = Instant::now();
-    let ci_provider_metadata = provider.get_ci_provider_metadata()?;
-    let owner = ci_provider_metadata.owner;
-    let name = ci_provider_metadata.repository;
+    let run_environment_metadata = provider.get_run_environment_metadata()?;
+    let owner = run_environment_metadata.owner;
+    let name = run_environment_metadata.repository;
     let fetch_local_run_report_vars = FetchLocalRunReportVars {
         owner: owner.clone(),
         name: name.clone(),

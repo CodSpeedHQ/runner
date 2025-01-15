@@ -1,6 +1,6 @@
 ---
-source: src/run/ci_provider/gitlab_ci/provider.rs
-expression: provider_metadata
+source: src/run/run_environment/gitlab_ci/provider.rs
+expression: run_environment_metadata
 ---
 {
   "ref": "refs/pull/5/merge",
