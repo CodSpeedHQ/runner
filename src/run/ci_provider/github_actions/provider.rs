@@ -2,10 +2,11 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
 use simplelog::SharedLogger;
+use std::collections::BTreeMap;
 use std::{env, fs};
 
 use crate::prelude::*;
-use crate::run::ci_provider::interfaces::Platform;
+use crate::run::ci_provider::interfaces::{Platform, RunPart};
 use crate::run::{
     ci_provider::{
         interfaces::{CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender},
@@ -133,6 +134,64 @@ impl CIProvider for GitHubActionsProvider {
         Platform::GithubActions
     }
 
+    /// For Github, the platform run part is the most complicated
+    /// since we support matrix jobs.
+    ///
+    /// Computing the `run_part_id`:
+    /// - not in a matrix:
+    ///   - simply take the job name
+    /// - in a matrix:
+    ///   - take the job name
+    ///   - concatenate it with key-values from `matrix` and `strategy`
+    ///
+    /// `GH_MATRIX` and `GH_STRATEGY` are environment variables computed by
+    /// https://github.com/CodSpeedHQ/action:
+    /// - `GH_MATRIX`: ${{ toJson(matrix) }}
+    /// - `GH_STRATEGY`: ${{ toJson(strategy) }}
+    ///
+    /// A note on parsing:
+    ///
+    /// The issue is these variables from Github Actions are multiline.
+    /// As we need to use them compute an identifier, we need them as a single line.
+    /// Plus we are interested in the content of these objects,
+    /// so it makes sense to parse and re-serialize them.
+    fn get_platform_run_part(&self) -> Option<RunPart> {
+        let job_name = self.gh_data.job.clone();
+
+        let mut metadata = BTreeMap::new();
+
+        let gh_matrix = get_env_variable("GH_MATRIX")
+            .ok()
+            .and_then(|v| serde_json::from_str::<Value>(&v).ok());
+
+        let gh_strategy = get_env_variable("GH_STRATEGY")
+            .ok()
+            .and_then(|v| serde_json::from_str::<Value>(&v).ok());
+
+        let run_part_id = if let (Some(Value::Object(matrix)), Some(Value::Object(strategy))) =
+            (gh_matrix, gh_strategy)
+        {
+            // The re-serialization is on purpose here. We want to serialize it as a single line.
+            let matrix_str = serde_json::to_string(&matrix).expect("Unable to re-serialize matrix");
+            let strategy_str =
+                serde_json::to_string(&strategy).expect("Unable to re-serialize strategy");
+
+            metadata.extend(matrix);
+            metadata.extend(strategy);
+
+            format!("{job_name}-{matrix_str}-{strategy_str}")
+        } else {
+            job_name
+        };
+
+        Some(RunPart {
+            run_id: self.gh_data.run_id.clone(),
+            run_part_id,
+            job_name: self.gh_data.job.clone(),
+            metadata,
+        })
+    }
+
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
         Ok(CIProviderMetadata {
             base_ref: self.base_ref.clone(),
@@ -246,6 +305,7 @@ mod tests {
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
                 let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
+                let run_part = github_actions_provider.get_platform_run_part().unwrap();
 
                 assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
@@ -253,6 +313,7 @@ mod tests {
                         "[version]"
                     }),
                 });
+                assert_json_snapshot!(run_part);
             },
         );
     }
@@ -282,6 +343,7 @@ mod tests {
                 ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
                 ("GITHUB_RUN_ID", Some("6957110437")),
                 ("VERSION", Some("0.1.0")),
+                ("GH_MATRIX", Some("null")),
             ],
             || {
                 let config = Config {
@@ -290,6 +352,7 @@ mod tests {
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
                 let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
+                let run_part = github_actions_provider.get_platform_run_part().unwrap();
 
                 assert_eq!(provider_metadata.owner, "my-org");
                 assert_eq!(provider_metadata.repository, "adrien-python-test");
@@ -298,13 +361,259 @@ mod tests {
                     provider_metadata.head_ref,
                     Some("fork-owner:feat/codspeed-runner".into())
                 );
+
                 assert_json_snapshot!(provider_metadata, {
                     ".runner.version" => insta::dynamic_redaction(|value,_path| {
                         assert_eq!(value.as_str().unwrap(), VERSION.to_string());
                         "[version]"
                     }),
                 });
+                assert_json_snapshot!(run_part);
             },
         );
+    }
+
+    #[test]
+    fn test_matrix_job_provider_metadata() {
+        with_vars(
+            [
+                ("GITHUB_ACTIONS", Some("true")),
+                ("GITHUB_ACTOR_ID", Some("19605940")),
+                ("GITHUB_ACTOR", Some("adriencaccia")),
+                ("GITHUB_BASE_REF", Some("main")),
+                ("GITHUB_EVENT_NAME", Some("pull_request")),
+                (
+                    "GITHUB_EVENT_PATH",
+                    Some(
+                        format!(
+                            "{}/src/run/ci_provider/github_actions/samples/pr-event.json",
+                            env!("CARGO_MANIFEST_DIR")
+                        )
+                        .as_str(),
+                    ),
+                ),
+                ("GITHUB_HEAD_REF", Some("feat/codspeed-runner")),
+                ("GITHUB_JOB", Some("log-env")),
+                ("GITHUB_REF", Some("refs/pull/22/merge")),
+                ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
+                ("GITHUB_RUN_ID", Some("6957110437")),
+                ("VERSION", Some("0.1.0")),
+                (
+                    "GH_MATRIX",
+                    Some(
+                        r#"{
+    "runner-version":"3.2.1",
+    "numeric-value":123456789
+}"#,
+                    ),
+                ),
+                (
+                    "GH_STRATEGY",
+                    Some(
+                        r#"{
+    "fail-fast":true,
+    "job-index":1,
+    "job-total":2,
+    "max-parallel":2
+    }"#,
+                    ),
+                ),
+            ],
+            || {
+                let config = Config {
+                    token: Some("token".into()),
+                    ..Config::test()
+                };
+                let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
+                let provider_metadata = github_actions_provider.get_ci_provider_metadata().unwrap();
+                let run_part = github_actions_provider.get_platform_run_part().unwrap();
+
+                assert_json_snapshot!(provider_metadata, {
+                    ".runner.version" => insta::dynamic_redaction(|value,_path| {
+                        assert_eq!(value.as_str().unwrap(), VERSION.to_string());
+                        "[version]"
+                    }),
+                });
+                assert_json_snapshot!(run_part);
+            },
+        );
+    }
+
+    #[test]
+    fn test_get_run_part_no_matrix() {
+        with_vars([("GITHUB_ACTIONS", Some("true"))], || {
+            let github_actions_provider = GitHubActionsProvider {
+                owner: "owner".into(),
+                repository: "repository".into(),
+                ref_: "refs/head/my-branch".into(),
+                head_ref: Some("my-branch".into()),
+                base_ref: None,
+                sender: None,
+                gh_data: GhData {
+                    job: "my_job".into(),
+                    run_id: "123789".into(),
+                },
+                event: RunEvent::Push,
+                repository_root_path: "/home/work/my-repo".into(),
+            };
+
+            let run_part = github_actions_provider.get_platform_run_part().unwrap();
+
+            assert_eq!(run_part.run_id, "123789");
+            assert_eq!(run_part.job_name, "my_job");
+            assert_eq!(run_part.run_part_id, "my_job");
+            assert_json_snapshot!(run_part.metadata, @"{}");
+        })
+    }
+
+    #[test]
+    fn test_get_run_part_null_matrix() {
+        with_vars(
+            [
+                ("GH_MATRIX", Some("null")),
+                (
+                    "GH_STRATEGY",
+                    Some(
+                        r#"{
+    "fail-fast":true,
+    "job-index":0,
+    "job-total":1,
+    "max-parallel":1
+}"#,
+                    ),
+                ),
+            ],
+            || {
+                let github_actions_provider = GitHubActionsProvider {
+                    owner: "owner".into(),
+                    repository: "repository".into(),
+                    ref_: "refs/head/my-branch".into(),
+                    head_ref: Some("my-branch".into()),
+                    base_ref: None,
+                    sender: None,
+                    gh_data: GhData {
+                        job: "my_job".into(),
+                        run_id: "123789".into(),
+                    },
+                    event: RunEvent::Push,
+                    repository_root_path: "/home/work/my-repo".into(),
+                };
+
+                let run_part = github_actions_provider.get_platform_run_part().unwrap();
+
+                assert_eq!(run_part.run_id, "123789");
+                assert_eq!(run_part.job_name, "my_job");
+                assert_eq!(run_part.run_part_id, "my_job");
+                assert_json_snapshot!(run_part.metadata, @"{}");
+            },
+        )
+    }
+
+    #[test]
+    fn test_get_matrix_run_part() {
+        with_vars(
+            [
+                (
+                    "GH_MATRIX",
+                    Some(
+                        r#"{
+    "runner-version":"3.2.1",
+    "numeric-value":123456789
+    }"#,
+                    ),
+                ),
+                (
+                    "GH_STRATEGY",
+                    Some(
+                        r#"{
+    "fail-fast":true,
+    "job-index":1,
+    "job-total":2,
+    "max-parallel":2
+    }"#,
+                    ),
+                ),
+            ],
+            || {
+                let github_actions_provider = GitHubActionsProvider {
+                    owner: "owner".into(),
+                    repository: "repository".into(),
+                    ref_: "refs/head/my-branch".into(),
+                    head_ref: Some("my-branch".into()),
+                    base_ref: None,
+                    sender: None,
+                    gh_data: GhData {
+                        job: "my_job".into(),
+                        run_id: "123789".into(),
+                    },
+                    event: RunEvent::Push,
+                    repository_root_path: "/home/work/my-repo".into(),
+                };
+
+                let run_part = github_actions_provider.get_platform_run_part().unwrap();
+
+                assert_eq!(run_part.run_id, "123789");
+                assert_eq!(run_part.job_name, "my_job");
+                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"fail-fast\":true,\"job-index\":1,\"job-total\":2,\"max-parallel\":2}");
+                assert_json_snapshot!(run_part.metadata, @r#"
+                {
+                  "fail-fast": true,
+                  "job-index": 1,
+                  "job-total": 2,
+                  "max-parallel": 2,
+                  "numeric-value": 123456789,
+                  "runner-version": "3.2.1"
+                }
+                "#);
+            },
+        )
+    }
+
+    #[test]
+    fn test_get_inline_matrix_run_part() {
+        with_vars(
+            [
+                (
+                    "GH_MATRIX",
+                    Some("{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}"),
+                ),
+                (
+                    "GH_STRATEGY",
+                    Some("{\"fail-fast\":true,\"job-index\":1,\"job-total\":2,\"max-parallel\":2}"),
+                ),
+            ],
+            || {
+                let github_actions_provider = GitHubActionsProvider {
+                    owner: "owner".into(),
+                    repository: "repository".into(),
+                    ref_: "refs/head/my-branch".into(),
+                    head_ref: Some("my-branch".into()),
+                    base_ref: None,
+                    sender: None,
+                    gh_data: GhData {
+                        job: "my_job".into(),
+                        run_id: "123789".into(),
+                    },
+                    event: RunEvent::Push,
+                    repository_root_path: "/home/work/my-repo".into(),
+                };
+
+                let run_part = github_actions_provider.get_platform_run_part().unwrap();
+
+                assert_eq!(run_part.run_id, "123789");
+                assert_eq!(run_part.job_name, "my_job");
+                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"fail-fast\":true,\"job-index\":1,\"job-total\":2,\"max-parallel\":2}");
+                assert_json_snapshot!(run_part.metadata, @r#"
+                {
+                  "fail-fast": true,
+                  "job-index": 1,
+                  "job-total": 2,
+                  "max-parallel": 2,
+                  "numeric-value": 123456789,
+                  "runner-version": "3.2.1"
+                }
+                "#);
+            },
+        )
     }
 }

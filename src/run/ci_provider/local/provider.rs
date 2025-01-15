@@ -3,7 +3,7 @@ use simplelog::SharedLogger;
 
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
-use crate::run::ci_provider::interfaces::Platform;
+use crate::run::ci_provider::interfaces::{Platform, RunPart};
 use crate::run::helpers::{parse_git_remote, GitRemote};
 use crate::run::{
     ci_provider::{
@@ -120,6 +120,11 @@ impl CIProvider for LocalProvider {
 
     fn get_platform(&self) -> Platform {
         Platform::Local
+    }
+
+    /// For local runs have, we cannot really send anything here
+    fn get_platform_run_part(&self) -> Option<RunPart> {
+        None
     }
 
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {

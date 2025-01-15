@@ -4,7 +4,7 @@ expression: upload_metadata
 ---
 {
   "repositoryProvider": "GITHUB",
-  "version": 5,
+  "version": 6,
   "tokenless": true,
   "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",
   "runner": {
@@ -26,6 +26,15 @@ expression: upload_metadata
     "totalMemoryGb": 8
   },
   "platformSlug": "GITHUB_ACTIONS",
+  "runPart": {
+    "runId": "7044765741",
+    "runPartId": "benchmarks_3.2.2",
+    "jobName": "codspeed",
+    "metadata": {
+      "anotherKey": "anotherValue",
+      "someKey": "someValue"
+    }
+  },
   "commitHash": "5bd77cb0da72bef094893ed45fb793ff16ecfbe3",
   "ref": "refs/pull/29/merge",
   "headRef": "chore/native-action-runner",

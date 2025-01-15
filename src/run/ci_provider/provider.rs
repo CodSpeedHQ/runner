@@ -7,7 +7,7 @@ use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
 use crate::run::uploader::{Runner, UploadMetadata};
 
-use super::interfaces::{CIProviderMetadata, Platform, RepositoryProvider};
+use super::interfaces::{CIProviderMetadata, Platform, RepositoryProvider, RunPart};
 
 pub trait CIProviderDetector {
     /// Detects if the current environment is running inside the CI provider.
@@ -52,6 +52,9 @@ pub trait CIProvider {
     /// Returns the platform of the CI Provider
     fn get_platform(&self) -> Platform;
 
+    /// Return the metadata necessary to identify the `RunPart`
+    fn get_platform_run_part(&self) -> Option<RunPart>;
+
     /// Returns the metadata related to the CI provider.
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata>;
 
@@ -83,7 +86,7 @@ pub trait CIProvider {
         let commit_hash = get_commit_hash(&ci_provider_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(5),
+            version: Some(6),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             ci_provider_metadata,
@@ -97,6 +100,7 @@ pub trait CIProvider {
                 system_info: system_info.clone(),
             },
             platform: self.get_platform(),
+            run_part: self.get_platform_run_part(),
         })
     }
 }

@@ -1,0 +1,17 @@
+---
+source: src/run/ci_provider/github_actions/provider.rs
+expression: run_part
+---
+{
+  "runId": "6957110437",
+  "runPartId": "log-env-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"fail-fast\":true,\"job-index\":1,\"job-total\":2,\"max-parallel\":2}",
+  "jobName": "log-env",
+  "metadata": {
+    "fail-fast": true,
+    "job-index": 1,
+    "job-total": 2,
+    "max-parallel": 2,
+    "numeric-value": 123456789,
+    "runner-version": "3.2.1"
+  }
+}

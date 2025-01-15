@@ -1,0 +1,22 @@
+---
+source: src/run/ci_provider/github_actions/provider.rs
+expression: provider_metadata
+---
+{
+  "ref": "refs/pull/22/merge",
+  "headRef": "feat/codspeed-runner",
+  "baseRef": "main",
+  "owner": "my-org",
+  "repository": "adrien-python-test",
+  "event": "pull_request",
+  "sender": {
+    "id": "19605940",
+    "login": "adriencaccia"
+  },
+  "ghData": {
+    "runId": "6957110437",
+    "job": "log-env"
+  },
+  "glData": null,
+  "repositoryRootPath": "/home/runner/work/adrien-python-test/adrien-python-test/"
+}
