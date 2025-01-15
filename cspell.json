@@ -5,6 +5,12 @@
     "language": "en",
     // words - list of words to be always considered correct
     "words": [
-        "codspeed"
+        "adrien",
+        "adriencaccia",
+        "codspeed",
+        "insta",
+        "simplelog",
+        "tokenless",
+        "valgrind"
     ]
 }
