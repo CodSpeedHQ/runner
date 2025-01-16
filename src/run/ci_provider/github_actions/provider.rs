@@ -139,6 +139,22 @@ impl CIProvider for GitHubActionsProvider {
     }
 
     fn get_platform_run_part(&self) -> Option<RunPart> {
+        let custom_job = get_env_variable("CUSTOM_JOB").ok();
+        let custom_steps = get_env_variable("CUSTOM_STEPS").ok();
+        let custom_matrix = get_env_variable("CUSTOM_MATRIX").ok();
+        let custom_env = get_env_variable("CUSTOM_ENV").ok();
+        let custom_github = get_env_variable("CUSTOM_GITHUB").ok();
+        let custom_strategy = get_env_variable("CUSTOM_STRATEGY").ok();
+
+        info!("------- Job context -----------");
+        info!("{custom_job:?}");
+        info!("{custom_steps:?}");
+        info!("{custom_matrix:?}");
+        info!("{custom_env:?}");
+        info!("{custom_github:?}");
+        info!("{custom_strategy:?}");
+        info!("------- Job context -----------");
+
         info!("Wowowowowowow, everybody calm down!");
 
         Some(RunPart {
