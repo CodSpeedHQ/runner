@@ -11,12 +11,14 @@ impl UploadMetadata {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
+    use std::collections::BTreeMap;
+
+    use insta::{assert_json_snapshot, assert_snapshot};
 
     use crate::run::{
         check_system::SystemInfo,
         ci_provider::interfaces::{
-            CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender,
+            CIProviderMetadata, GhData, PlatformSlug, RepositoryProvider, RunEvent, RunPart, Sender,
         },
         instruments::InstrumentName,
         runner::ExecutorName,
@@ -38,6 +40,7 @@ mod tests {
                 system_info: SystemInfo::test(),
             },
             platform: "github-actions".into(),
+            platform_slug: PlatformSlug::GithubActions,
             commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
             ci_provider_metadata: CIProviderMetadata {
                 ref_: "refs/pull/29/merge".into(),
@@ -57,12 +60,21 @@ mod tests {
                 gl_data: None,
                 repository_root_path: "/home/runner/work/codspeed-node/codspeed-node/".into(),
             },
+            run_part: Some(RunPart {
+                run_id: "7044765741".into(),
+                run_part_id: "benchmarks_3.2.2".into(),
+                job_name: "codspeed".into(),
+                metadata: BTreeMap::from([
+                    ("someKey".into(), "someValue".into()),
+                    ("anotherKey".into(), "anotherValue".into()),
+                ]),
+            }),
         };
 
         let hash = upload_metadata.get_hash();
-        assert_eq!(
+        assert_snapshot!(
             hash,
-            "161a1a3eeea6d988909142e1e7bae3339b3698aaeb025641aa63809895336ae7"
+            @"372e74d39a49760c989d600020681bf100d403fffa0b56675ff7069cad023b64"
         );
         assert_json_snapshot!(upload_metadata);
     }

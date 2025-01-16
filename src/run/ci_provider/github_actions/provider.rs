@@ -2,9 +2,11 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
 use simplelog::SharedLogger;
+use std::collections::BTreeMap;
 use std::{env, fs};
 
 use crate::prelude::*;
+use crate::run::ci_provider::interfaces::{PlatformSlug, RunPart};
 use crate::run::{
     ci_provider::{
         interfaces::{CIProviderMetadata, GhData, RepositoryProvider, RunEvent, Sender},
@@ -128,8 +130,40 @@ impl CIProvider for GitHubActionsProvider {
         "GitHub Actions"
     }
 
-    fn get_provider_slug(&self) -> &'static str {
+    fn get_platform(&self) -> &'static str {
         "github-actions"
+    }
+
+    fn get_platform_slug(&self) -> PlatformSlug {
+        PlatformSlug::GithubActions
+    }
+
+    fn get_platform_run_part(&self) -> Option<RunPart> {
+        let custom_job = get_env_variable("CUSTOM_JOB").ok();
+        let custom_steps = get_env_variable("CUSTOM_STEPS").ok();
+        let custom_matrix = get_env_variable("CUSTOM_MATRIX").ok();
+        let custom_env = get_env_variable("CUSTOM_ENV").ok();
+        let custom_github = get_env_variable("CUSTOM_GITHUB").ok();
+        let custom_strategy = get_env_variable("CUSTOM_STRATEGY").ok();
+
+        info!("------- Job context -----------");
+        info!("{custom_job:?}");
+        info!("{custom_steps:?}");
+        info!("{custom_matrix:?}");
+        info!("{custom_env:?}");
+        info!("{custom_github:?}");
+        info!("{custom_strategy:?}");
+        info!("------- Job context -----------");
+
+        info!("Wowowowowowow, everybody calm down!");
+
+        Some(RunPart {
+            run_id: self.gh_data.run_id.clone(),
+            // TODO(COD-447): handle matrix jobs here
+            run_part_id: self.gh_data.job.clone(),
+            job_name: self.gh_data.job.clone(),
+            metadata: BTreeMap::new(),
+        })
     }
 
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
