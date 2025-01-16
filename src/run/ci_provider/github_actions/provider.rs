@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
 use simplelog::SharedLogger;
+use std::collections::BTreeMap;
 use std::{env, fs};
 
 use crate::prelude::*;
@@ -138,8 +139,15 @@ impl CIProvider for GitHubActionsProvider {
     }
 
     fn get_platform_run_part(&self) -> Option<RunPart> {
-        // TODO(COD-447): return correct values here
-        None
+        info!("Wowowowowowow, everybody calm down!");
+
+        Some(RunPart {
+            run_id: self.gh_data.run_id.clone(),
+            // TODO(COD-447): handle matrix jobs here
+            run_part_id: self.gh_data.job.clone(),
+            job_name: self.gh_data.job.clone(),
+            metadata: BTreeMap::new(),
+        })
     }
 
     fn get_ci_provider_metadata(&self) -> Result<CIProviderMetadata> {
