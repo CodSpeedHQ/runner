@@ -1,13 +1,19 @@
-use std::{collections::HashMap, env::consts::ARCH};
+use std::{collections::HashMap, env::consts::ARCH, path::Path};
 
-use lazy_static::lazy_static;
+use crate::run::runner::RunnerMode;
 
-lazy_static! {
-    pub static ref BASE_INJECTED_ENV: HashMap<&'static str, String> = {
-        HashMap::from([
-            ("PYTHONHASHSEED", "0".into()),
-            ("ARCH", ARCH.into()),
-            ("CODSPEED_ENV", "runner".into()),
-        ])
-    };
+pub fn get_base_injected_env(
+    mode: RunnerMode,
+    profile_folder: &Path,
+) -> HashMap<&'static str, String> {
+    HashMap::from([
+        ("PYTHONHASHSEED", "0".into()),
+        ("ARCH", ARCH.into()),
+        ("CODSPEED_ENV", "runner".into()),
+        ("CODSPEED_RUNNER_MODE", mode.to_string()),
+        (
+            "CODSPEED_PROFILE_FOLDER",
+            profile_folder.to_string_lossy().to_string(),
+        ),
+    ])
 }

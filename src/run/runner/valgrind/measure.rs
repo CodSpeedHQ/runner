@@ -1,11 +1,12 @@
 use crate::prelude::*;
+use crate::run::runner::helpers::env::get_base_injected_env;
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::introspected_nodejs::setup_introspected_nodejs;
+use crate::run::runner::RunnerMode;
 use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use std::env;
 use std::fs::canonicalize;
 use std::path::Path;
@@ -42,17 +43,20 @@ lazy_static! {
 }
 
 pub fn measure(
-    base_env: &HashMap<&str, String>,
     config: &Config,
     profile_folder: &Path,
     mongo_tracer: &Option<MongoTracer>,
 ) -> Result<()> {
     // Create the command
     let mut cmd = Command::new("setarch");
-    cmd.envs(base_env);
     cmd.arg(ARCH).arg("-R");
     // Configure the environment
-    cmd.env(
+    cmd.envs(get_base_injected_env(
+        RunnerMode::Instrumentation,
+        profile_folder,
+    ))
+    .env("PYTHONMALLOC", "malloc")
+    .env(
         "PATH",
         format!(
             "{}:{}",
@@ -62,8 +66,7 @@ pub fn measure(
                 .unwrap(),
             env::var("PATH").unwrap_or_default(),
         ),
-    )
-    .env("PYTHONMALLOC", "malloc");
+    );
 
     if let Some(cwd) = &config.working_directory {
         let abs_cwd = canonicalize(cwd)?;

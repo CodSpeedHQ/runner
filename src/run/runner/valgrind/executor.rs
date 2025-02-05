@@ -8,8 +8,6 @@ use crate::run::{check_system::SystemInfo, config::Config};
 
 use super::{helpers::perf_maps::harvest_perf_maps, measure, setup::setup};
 
-pub const INSTRUMENTATION_RUNNER_MODE: &str = "instrumentation";
-
 pub struct ValgrindExecutor;
 
 #[async_trait(?Send)]
@@ -36,10 +34,8 @@ impl Executor for ValgrindExecutor {
         run_data: &RunData,
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let base_env = self.get_cmd_base_envs(&run_data.profile_folder);
-
         //TODO: add valgrind version check
-        measure::measure(&base_env, config, &run_data.profile_folder, mongo_tracer)?;
+        measure::measure(config, &run_data.profile_folder, mongo_tracer)?;
 
         Ok(())
     }

@@ -116,7 +116,8 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let executor = runner::get_executor()?;
+    let mode = runner::get_mode()?;
+    let executor = runner::get_executor_from_mode(mode);
 
     let run_data = get_run_data()?;
 
