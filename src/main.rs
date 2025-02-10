@@ -9,6 +9,7 @@ mod request_client;
 mod run;
 
 use console::style;
+use lazy_static::lazy_static;
 use local_logger::clean_logger;
 use prelude::*;
 
@@ -16,7 +17,14 @@ use log::log_enabled;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
-pub const VALGRIND_CODSPEED_VERSION: &str = "3.21.0-0codspeed3";
+pub const VALGRIND_CODSPEED_VERSION: &str = "3.24.0-0codspeed";
+const VALGRIND_CODSPEED_VERSION_DEB_POST_REV: u32 = 1;
+lazy_static! {
+    pub static ref VALGRIND_CODSPEED_DEB_VERSION: String = format!(
+        "{}{}",
+        VALGRIND_CODSPEED_VERSION, VALGRIND_CODSPEED_VERSION_DEB_POST_REV
+    );
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
