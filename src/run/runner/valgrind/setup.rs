@@ -44,11 +44,9 @@ fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
         system_info.os_version.as_str(),
         system_info.arch.as_str(),
     ) {
-        ("debian", "11", "x86_64") | ("debian", "12", "x86_64") | ("ubuntu", "22.04", "x86_64") => {
-            ("22.04", "amd64")
-        }
+        ("ubuntu", "22.04", "x86_64") | ("debian", "12", "x86_64") => ("22.04", "amd64"),
         ("ubuntu", "24.04", "x86_64") => ("24.04", "amd64"),
-        ("ubuntu", "22.04", "aarch64") => ("22.04", "arm64"),
+        ("ubuntu", "22.04", "aarch64") | ("debian", "12", "aarch64") => ("22.04", "arm64"),
         ("ubuntu", "24.04", "aarch64") => ("24.04", "arm64"),
         _ => bail!("Unsupported system"),
     };
