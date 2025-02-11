@@ -6,8 +6,11 @@ use std::{
 use url::Url;
 
 use super::helpers::download_file::download_file;
-use crate::run::{check_system::SystemInfo, config::Config};
 use crate::{prelude::*, MONGODB_TRACER_VERSION, VALGRIND_CODSPEED_VERSION};
+use crate::{
+    run::{check_system::SystemInfo, config::Config},
+    VALGRIND_CODSPEED_DEB_VERSION,
+};
 
 /// Run a command with sudo if available
 fn run_with_sudo(command_args: &[&str]) -> Result<()> {
@@ -53,7 +56,9 @@ fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
 
     Ok(format!(
         "valgrind_{}_ubuntu-{}_{}.deb",
-        VALGRIND_CODSPEED_VERSION, version, architecture
+        VALGRIND_CODSPEED_DEB_VERSION.as_str(),
+        version,
+        architecture
     ))
 }
 
@@ -72,8 +77,7 @@ fn is_valgrind_installed() -> bool {
         }
 
         let version = String::from_utf8_lossy(&version_output.stdout);
-        // TODO: use only VALGRIND_CODSPEED_VERSION here, the other value is when valgrind has been built locally
-        version.contains("valgrind-3.21.0.codspeed") || version.contains(VALGRIND_CODSPEED_VERSION)
+        version.contains(VALGRIND_CODSPEED_VERSION)
     } else {
         false
     }
