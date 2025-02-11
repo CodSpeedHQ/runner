@@ -98,10 +98,10 @@ impl SystemInfo {
 lazy_static! {
     static ref SUPPORTED_SYSTEMS: HashSet<(&'static str, &'static str, &'static str)> = {
         HashSet::from([
-            ("ubuntu", "20.04", "x86_64"),
             ("ubuntu", "22.04", "x86_64"),
             ("ubuntu", "24.04", "x86_64"),
             ("ubuntu", "22.04", "aarch64"),
+            ("ubuntu", "24.04", "aarch64"),
             ("debian", "11", "x86_64"),
             ("debian", "12", "x86_64"),
         ])
