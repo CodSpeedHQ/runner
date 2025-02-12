@@ -10,7 +10,7 @@ use runner::get_run_data;
 
 mod check_system;
 pub mod ci_provider;
-mod helpers;
+pub mod helpers;
 mod instruments;
 mod poll_results;
 mod runner;
@@ -119,13 +119,14 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let mode = runner::get_mode()?;
     let executor = runner::get_executor_from_mode(mode);
 
-    let run_data = get_run_data()?;
-
     if !config.skip_setup {
         start_group!("Preparing the environment");
-        executor.setup(&config, &system_info, &run_data).await?;
+        executor.setup(&system_info).await?;
+        info!("Environment ready");
         end_group!();
     }
+
+    let run_data = get_run_data()?;
 
     start_opened_group!("Running the benchmarks");
 

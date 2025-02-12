@@ -78,6 +78,10 @@ impl Instruments {
     }
 }
 
+trait Instrument {
+    async fn setup(&self) -> Result<()>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
