@@ -5,6 +5,19 @@
 
 
 
+## [3.3.0] - 2025-02-12
+
+### <!-- 0 -->🚀 Features
+- Allow downgrades while installing valgrind-codspeed by @art049
+- Update sysinfo crate by @adriencaccia in [#62](https://github.com/CodSpeedHQ/runner/pull/62)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Unify environments between the two modes by @art049 in [#59](https://github.com/CodSpeedHQ/runner/pull/59)
+
+### <!-- 7 -->⚙️ Internals
+- Bump valgrind-codspeed version to 3.24.0-0codspeed1 and change supported systems by @art049
+
+
 ## [3.2.2] - 2025-01-14
 
 ### <!-- 0 -->🚀 Features
@@ -289,6 +302,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.3.0]: https://github.com/CodSpeedHQ/runner/compare/v3.2.2..v3.3.0
 [3.2.2]: https://github.com/CodSpeedHQ/runner/compare/v3.2.1..v3.2.2
 [3.2.1]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..v3.2.1
 [3.2.0]: https://github.com/CodSpeedHQ/runner/compare/v3.1.0..v3.2.0
