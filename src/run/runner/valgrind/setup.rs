@@ -98,7 +98,13 @@ async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
     download_file(&Url::parse(valgrind_deb_url.as_str()).unwrap(), &deb_path).await?;
 
     run_with_sudo(&["apt-get", "update"])?;
-    run_with_sudo(&["apt-get", "install", "-y", deb_path.to_str().unwrap()])?;
+    run_with_sudo(&[
+        "apt-get",
+        "install",
+        "--allow-downgrades",
+        "-y",
+        deb_path.to_str().unwrap(),
+    ])?;
 
     Ok(())
 }
