@@ -56,12 +56,12 @@ impl SystemInfo {
     pub fn new() -> Result<Self> {
         let os = System::distribution_id();
         let os_version = System::os_version().ok_or(anyhow!("Failed to get OS version"))?;
-        let arch = System::cpu_arch().ok_or(anyhow!("Failed to get CPU architecture"))?;
+        let arch = System::cpu_arch();
         let user = get_user()?;
         let host = System::host_name().ok_or(anyhow!("Failed to get host name"))?;
 
         let s = System::new_with_specifics(
-            RefreshKind::new()
+            RefreshKind::nothing()
                 .with_cpu(CpuRefreshKind::everything())
                 .with_memory(MemoryRefreshKind::everything()),
         );
