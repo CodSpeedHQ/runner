@@ -8,12 +8,9 @@ use async_trait::async_trait;
 pub trait Executor {
     fn name(&self) -> ExecutorName;
 
-    async fn setup(
-        &self,
-        config: &Config,
-        system_info: &SystemInfo,
-        run_data: &RunData,
-    ) -> Result<()>;
+    async fn setup(&self, _system_info: &SystemInfo) -> Result<()> {
+        Ok(())
+    }
 
     /// Runs the executor
     async fn run(
