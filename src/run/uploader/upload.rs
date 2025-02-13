@@ -78,7 +78,7 @@ async fn upload_archive_buffer(
     archive_buffer: Vec<u8>,
     archive_hash: &String,
 ) -> Result<()> {
-    REQUEST_CLIENT
+    let response = REQUEST_CLIENT
         .put(upload_data.upload_url.clone())
         .header("Content-Type", "application/gzip")
         .header("Content-Length", archive_buffer.len())
@@ -86,6 +86,17 @@ async fn upload_archive_buffer(
         .body(archive_buffer)
         .send()
         .await?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await?;
+        bail!(
+            "Failed to upload performance report: {}\n  -> {} {}",
+            status,
+            style("Reason:").bold(),
+            style(error_text).red()
+        );
+    }
 
     Ok(())
 }
