@@ -44,7 +44,7 @@ async fn retrieve_upload_data(
 
     match response {
         Ok(response) => {
-            if response.status().is_client_error() {
+            if !response.status().is_success() {
                 let status = response.status();
                 let text = response.text().await?;
                 let mut error_message = serde_json::from_str::<UploadError>(&text)
