@@ -8,12 +8,16 @@ fn get_python_objects() -> Vec<String> {
         .output();
 
     if output.is_err() {
-        debug!("Failed to get python shared objects: {:?}", output.err());
+        let err = output.err().unwrap().to_string();
+        debug!("Failed to get python shared objects: {}", err);
         return vec![];
     }
     let output = output.unwrap();
     if !output.status.success() {
-        debug!("Failed to get python shared objects: {:?}", output.stderr);
+        debug!(
+            "Failed to get python shared objects: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         return vec![];
     }
 
@@ -33,7 +37,10 @@ fn get_node_objects() -> Vec<String> {
     }
     let output = output.unwrap();
     if !output.status.success() {
-        debug!("Failed to get node shared objects: {:?}", output.stderr);
+        debug!(
+            "Failed to get node shared objects: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         return vec![];
     }
     let so_output = String::from_utf8_lossy(&output.stdout).trim().to_string();
