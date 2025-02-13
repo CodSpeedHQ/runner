@@ -5,6 +5,15 @@
 
 
 
+## [3.3.1] - 2025-02-13
+
+### <!-- 0 -->🚀 Features
+- Bail when performance report s3 upload does not work by @adriencaccia
+
+### <!-- 1 -->🐛 Bug Fixes
+- Catch server error as well as client in upload error handling by @adriencaccia in [#64](https://github.com/CodSpeedHQ/runner/pull/64)
+
+
 ## [3.3.0] - 2025-02-12
 
 ### <!-- 0 -->🚀 Features
@@ -302,6 +311,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.3.1]: https://github.com/CodSpeedHQ/runner/compare/v3.3.0..v3.3.1
 [3.3.0]: https://github.com/CodSpeedHQ/runner/compare/v3.2.2..v3.3.0
 [3.2.2]: https://github.com/CodSpeedHQ/runner/compare/v3.2.1..v3.2.2
 [3.2.1]: https://github.com/CodSpeedHQ/runner/compare/v3.2.0..v3.2.1
