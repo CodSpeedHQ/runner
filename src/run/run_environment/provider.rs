@@ -38,16 +38,6 @@ pub trait RunEnvironmentProvider {
     /// Returns the repository provider for this RunEnvironment
     fn get_repository_provider(&self) -> RepositoryProvider;
 
-    /// Returns the name of the CI provider.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// let provider = MyCIProvider::new();
-    /// assert_eq!(provider.get_run_environment_name(), "MyCIProvider");
-    /// ```
-    fn get_run_environment_name(&self) -> &'static str;
-
     /// Returns the run environment of the current provider.
     fn get_run_environment(&self) -> RunEnvironment;
 

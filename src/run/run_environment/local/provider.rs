@@ -114,10 +114,6 @@ impl RunEnvironmentProvider for LocalProvider {
         get_local_logger()
     }
 
-    fn get_run_environment_name(&self) -> &'static str {
-        "Local"
-    }
-
     fn get_run_environment(&self) -> RunEnvironment {
         RunEnvironment::Local
     }

@@ -120,8 +120,8 @@ pub async fn upload(
     let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
 
     debug!(
-        "Run Environment provider detected: {:#?}",
-        provider.get_run_environment_name()
+        "Run Environment provider detected: {:?}",
+        provider.get_run_environment()
     );
 
     let upload_metadata =

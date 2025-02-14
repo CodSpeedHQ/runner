@@ -144,10 +144,6 @@ impl RunEnvironmentProvider for GitLabCIProvider {
         RepositoryProvider::GitLab
     }
 
-    fn get_run_environment_name(&self) -> &'static str {
-        "GitLab CI"
-    }
-
     fn get_run_environment(&self) -> RunEnvironment {
         RunEnvironment::GitlabCi
     }

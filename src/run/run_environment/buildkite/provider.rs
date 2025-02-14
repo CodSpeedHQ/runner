@@ -124,10 +124,6 @@ impl RunEnvironmentProvider for BuildkiteProvider {
         Box::new(BuildkiteLogger::new())
     }
 
-    fn get_run_environment_name(&self) -> &'static str {
-        "Buildkite"
-    }
-
     fn get_run_environment(&self) -> RunEnvironment {
         RunEnvironment::Buildkite
     }

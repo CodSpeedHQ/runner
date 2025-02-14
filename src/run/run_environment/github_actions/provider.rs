@@ -125,10 +125,6 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
         Box::new(GithubActionLogger)
     }
 
-    fn get_run_environment_name(&self) -> &'static str {
-        "GitHub Actions"
-    }
-
     fn get_run_environment(&self) -> RunEnvironment {
         RunEnvironment::GithubActions
     }
