@@ -128,5 +128,14 @@ pub fn check_system(system_info: &SystemInfo) -> Result<()> {
         return Ok(());
     }
 
+    match system_info.arch.as_str() {
+        "x86_64" | "aarch64" => {
+            warn!("Unsupported system: {:?}", system_info);
+            warn!("Continuing with best effort support");
+            return Ok(());
+        }
+        _ => {}
+    }
+
     bail!("Unsupported system: {:?}", system_info);
 }
