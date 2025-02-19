@@ -77,7 +77,7 @@ fn is_valgrind_installed() -> bool {
         }
 
         let version = String::from_utf8_lossy(&version_output.stdout);
-        version.contains(VALGRIND_CODSPEED_VERSION)
+        version.contains(VALGRIND_CODSPEED_VERSION.as_str())
     } else {
         false
     }
