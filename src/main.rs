@@ -17,7 +17,7 @@ use log::log_enabled;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
-pub const VALGRIND_CODSPEED_VERSION: &str = "3.24.0-0codspeed";
+pub const VALGRIND_CODSPEED_VERSION: &str = "3.24.0.codspeed";
 const VALGRIND_CODSPEED_VERSION_DEB_POST_REV: u32 = 1;
 lazy_static! {
     pub static ref VALGRIND_CODSPEED_DEB_VERSION: String = format!(
