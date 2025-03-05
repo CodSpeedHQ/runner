@@ -83,7 +83,7 @@ pub fn measure(
                 .map(|x| format!("--obj-skip={}", x)),
         )
         .arg(format!("--callgrind-out-file={}", profile_path.to_str().unwrap()).as_str())
-        .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
+        .arg(format!("--log-file={}", log_path.as_path().to_str().unwrap()).as_str());
 
     // Set the command to execute
     cmd.args(["sh", "-c", get_bench_command(config)?.as_str()]);
@@ -97,6 +97,9 @@ pub fn measure(
     let status = run_command_with_log_pipe(cmd)
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
     if !status.success() {
+        let log_content = std::fs::read_to_string(&log_path)
+            .unwrap_or_else(|_| "failed to read the valgrind log".to_string());
+        warn!("Valgrind logs:\n{}", log_content);
         bail!("failed to execute the benchmark process");
     }
 
