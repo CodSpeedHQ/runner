@@ -9,8 +9,12 @@ use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
 use std::env;
 use std::fs::canonicalize;
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::{env::consts::ARCH, process::Command};
+use tempfile::TempPath;
 
 lazy_static! {
     static ref VALGRIND_BASE_ARGS: Vec<String> = {
@@ -40,6 +44,33 @@ lazy_static! {
         ));
         args
     };
+}
+
+/// Creates the shell script on disk and returns the path to it.
+fn create_run_script() -> anyhow::Result<TempPath> {
+    // The command is wrapped in a shell script, which executes it in a
+    // subprocess and then writes the exit code to a file. The process will
+    // always exit with status code 0, unless valgrind fails.
+    //
+    // Args:
+    // 1. The command to execute
+    // 2. The path to the file where the exit code will be written
+    const WRAPPER_SCRIPT: &str = r#"#!/bin/sh
+           (eval $1)
+           status=$?
+           echo -n "$status" > "$2"
+            "#;
+
+    let rwx = std::fs::Permissions::from_mode(0o777);
+    let mut script_file = tempfile::Builder::new()
+        .suffix(".sh")
+        .permissions(rwx)
+        .tempfile()?;
+    script_file.write_all(WRAPPER_SCRIPT.as_bytes())?;
+
+    // Note: We have to convert the file to a path to be able to execute it.
+    // Otherwise this will fail with 'File is busy' error.
+    Ok(script_file.into_temp_path())
 }
 
 pub fn measure(
@@ -85,8 +116,14 @@ pub fn measure(
         .arg(format!("--callgrind-out-file={}", profile_path.to_str().unwrap()).as_str())
         .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
 
-    // Set the command to execute
-    cmd.args(["sh", "-c", get_bench_command(config)?.as_str()]);
+    // Set the command to execute:
+    let script_path = create_run_script()?;
+    let cmd_status_path = tempfile::NamedTempFile::new().unwrap().into_temp_path();
+    cmd.args([
+        script_path.to_str().unwrap(),
+        get_bench_command(config)?.as_str(),
+        cmd_status_path.to_str().unwrap(),
+    ]);
 
     // TODO: refactor and move this to the `Instruments` struct
     if let Some(mongo_tracer) = mongo_tracer {
@@ -96,9 +133,63 @@ pub fn measure(
     debug!("cmd: {:?}", cmd);
     let status = run_command_with_log_pipe(cmd)
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
+    let cmd_status = {
+        let content = std::fs::read_to_string(&cmd_status_path)?;
+        content.parse::<u32>()?
+    };
+
+    debug!(
+        "Valgrind exit code = {:?}, Valgrind signal = {:?}, Program exit code = {}",
+        status.code(),
+        status.signal(),
+        cmd_status
+    );
+
+    // Check the valgrind exit code
     if !status.success() {
-        bail!("failed to execute the benchmark process");
+        let valgrind_log = profile_folder.join("valgrind.log");
+        let valgrind_log = std::fs::read_to_string(&valgrind_log).unwrap_or_default();
+        debug!("valgrind.log: {}", valgrind_log);
+
+        bail!("failed to execute valgrind");
+    }
+
+    // Check the exit code which was written to the file by the wrapper script.
+    if cmd_status != 0 {
+        bail!(
+            "failed to execute the benchmark process, exit code: {}",
+            cmd_status
+        );
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn safe_run(to_execute: &str) -> (u32, u32) {
+        let script_path = create_run_script().unwrap();
+        let out_status = tempfile::NamedTempFile::new().unwrap().into_temp_path();
+
+        let mut cmd = Command::new(script_path.to_str().unwrap());
+        cmd.args([to_execute, out_status.to_str().unwrap()]);
+
+        let script_status = cmd.status().unwrap().code().unwrap() as u32;
+        let out_status = std::fs::read_to_string(out_status)
+            .unwrap()
+            .parse::<u32>()
+            .unwrap();
+
+        (script_status, out_status)
+    }
+
+    #[test]
+    fn test_run_wrapper_script() {
+        assert_eq!(safe_run("ls"), (0, 0));
+        assert_eq!(safe_run("exit 0"), (0, 0));
+        assert_eq!(safe_run("exit 1"), (0, 1));
+        assert_eq!(safe_run("exit 255"), (0, 255));
+    }
 }
