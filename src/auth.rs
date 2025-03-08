@@ -1,10 +1,8 @@
 use std::time::Duration;
 
-use crate::local_logger::get_local_logger;
 use crate::{api_client::CodSpeedAPIClient, config::CodSpeedConfig, prelude::*};
 use clap::{Args, Subcommand};
 use console::style;
-use simplelog::CombinedLogger;
 use tokio::time::{sleep, Instant};
 
 #[derive(Debug, Args)]
@@ -19,15 +17,7 @@ enum AuthCommands {
     Login,
 }
 
-fn init_logger() -> Result<()> {
-    let logger = get_local_logger();
-    CombinedLogger::init(vec![logger])?;
-    Ok(())
-}
-
 pub async fn run(args: AuthArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
-    init_logger()?;
-
     match args.command {
         AuthCommands::Login => login(api_client).await?,
     }

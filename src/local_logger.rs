@@ -4,17 +4,17 @@ use std::{
     time::Duration,
 };
 
+use crate::prelude::*;
 use console::{style, Style};
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use log::Log;
-use simplelog::SharedLogger;
+use simplelog::{CombinedLogger, SharedLogger};
 use std::io::Write;
 
 use crate::logger::{get_group_event, GroupEvent};
 
 pub const CODSPEED_U8_COLOR_CODE: u8 = 208; // #FF8700
-const BLACK_U8_COLOR_CODE: u8 = 16; // #000
 
 lazy_static! {
     pub static ref SPINNER: Arc<Mutex<Option<ProgressBar>>> = Arc::new(Mutex::new(None));
@@ -67,13 +67,11 @@ impl Log for LocalLogger {
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
                     println!(
-                        "  {}",
-                        style(format!(" {} ", name.to_uppercase()))
+                        "\n{}",
+                        style(format!("►►► {} ", name))
                             .bold()
-                            .color256(BLACK_U8_COLOR_CODE)
-                            .on_color256(CODSPEED_U8_COLOR_CODE)
+                            .color256(CODSPEED_U8_COLOR_CODE)
                     );
-                    println!();
 
                     if *IS_TTY {
                         let spinner = ProgressBar::new_spinner();
@@ -156,6 +154,12 @@ impl SharedLogger for LocalLogger {
 
 pub fn get_local_logger() -> Box<dyn SharedLogger> {
     Box::new(LocalLogger::new())
+}
+
+pub fn init_local_logger() -> Result<()> {
+    let logger = get_local_logger();
+    CombinedLogger::init(vec![logger])?;
+    Ok(())
 }
 
 pub fn clean_logger() {

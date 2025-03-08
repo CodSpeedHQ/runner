@@ -5,7 +5,7 @@ use crate::run::runner::get_all_executors;
 pub async fn setup() -> Result<()> {
     let system_info = SystemInfo::new()?;
     let executors = get_all_executors();
-    info!("Setting up the environment for all executors");
+    start_group!("Setting up the environment for all executors");
     for executor in executors {
         info!(
             "Setting up the environment for the executor: {}",
@@ -13,5 +13,7 @@ pub async fn setup() -> Result<()> {
         );
         executor.setup(&system_info).await?;
     }
+    info!("Environment setup completed");
+    end_group!();
     Ok(())
 }

@@ -1,6 +1,9 @@
 use crate::{
-    api_client::CodSpeedAPIClient, auth, local_logger::CODSPEED_U8_COLOR_CODE, prelude::*, run,
-    setup,
+    api_client::CodSpeedAPIClient,
+    auth,
+    local_logger::{init_local_logger, CODSPEED_U8_COLOR_CODE},
+    prelude::*,
+    run, setup,
 };
 use clap::{
     builder::{styling, Styles},
@@ -47,6 +50,13 @@ enum Commands {
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
     let api_client = CodSpeedAPIClient::try_from(&cli)?;
+
+    match cli.command {
+        Commands::Run(_) => {} // Run is responsible for its own logger initialization
+        _ => {
+            init_local_logger()?;
+        }
+    }
 
     match cli.command {
         Commands::Run(args) => run::run(args, &api_client).await?,

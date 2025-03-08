@@ -73,7 +73,15 @@ fn is_valgrind_installed() -> bool {
         }
 
         let version = String::from_utf8_lossy(&version_output.stdout);
-        version.contains(VALGRIND_CODSPEED_VERSION.as_str())
+        let result = version.contains(VALGRIND_CODSPEED_VERSION.as_str());
+        if !result {
+            warn!(
+                "Valgrind is installed but the version is not the expected one. expecting {} but found installed: {}",
+                VALGRIND_CODSPEED_VERSION.as_str(),
+                version
+            );
+        }
+        result
     } else {
         false
     }
