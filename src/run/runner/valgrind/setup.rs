@@ -5,12 +5,8 @@ use std::{
 
 use url::Url;
 
-use super::helpers::download_file::download_file;
-use crate::{prelude::*, MONGODB_TRACER_VERSION, VALGRIND_CODSPEED_VERSION};
-use crate::{
-    run::{check_system::SystemInfo, config::Config},
-    VALGRIND_CODSPEED_DEB_VERSION,
-};
+use crate::{prelude::*, run::helpers::download_file, VALGRIND_CODSPEED_VERSION};
+use crate::{run::check_system::SystemInfo, VALGRIND_CODSPEED_DEB_VERSION};
 
 /// Run a command with sudo if available
 fn run_with_sudo(command_args: &[&str]) -> Result<()> {
@@ -83,9 +79,9 @@ fn is_valgrind_installed() -> bool {
     }
 }
 
-async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
+pub async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
     if is_valgrind_installed() {
-        debug!("Valgrind is already installed with the correct version, skipping installation");
+        info!("Valgrind is already installed with the correct version, skipping installation");
         return Ok(());
     }
     debug!("Installing valgrind");
@@ -106,44 +102,8 @@ async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
         deb_path.to_str().unwrap(),
     ])?;
 
-    Ok(())
-}
+    info!("Valgrind installation completed successfully");
 
-async fn install_mongodb_tracer() -> Result<()> {
-    debug!("Installing mongodb-tracer");
-    // TODO: release the tracer and update this url
-    let installer_url = format!("https://codspeed-public-assets.s3.eu-west-1.amazonaws.com/mongo-tracer/{MONGODB_TRACER_VERSION}/cs-mongo-tracer-installer.sh");
-    let installer_path = env::temp_dir().join("cs-mongo-tracer-installer.sh");
-    download_file(
-        &Url::parse(installer_url.as_str()).unwrap(),
-        &installer_path,
-    )
-    .await?;
-
-    let output = Command::new("bash")
-        .arg(installer_path.to_str().unwrap())
-        .stdout(Stdio::piped())
-        .output()
-        .map_err(|_| anyhow!("Failed to install mongo-tracer"))?;
-
-    if !output.status.success() {
-        info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-        error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-        bail!("Failed to install mongo-tracer");
-    }
-
-    Ok(())
-}
-
-pub async fn setup(system_info: &SystemInfo, config: &Config) -> Result<()> {
-    install_valgrind(system_info).await?;
-
-    // TODO: move into setup of the Instruments struct
-    if config.instruments.is_mongodb_enabled() {
-        install_mongodb_tracer().await?;
-    }
-
-    info!("Environment ready");
     Ok(())
 }
 

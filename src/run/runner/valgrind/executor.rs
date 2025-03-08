@@ -6,7 +6,8 @@ use crate::run::runner::executor::Executor;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 
-use super::{helpers::perf_maps::harvest_perf_maps, measure, setup::setup};
+use super::setup::install_valgrind;
+use super::{helpers::perf_maps::harvest_perf_maps, measure};
 
 pub struct ValgrindExecutor;
 
@@ -16,14 +17,8 @@ impl Executor for ValgrindExecutor {
         ExecutorName::Valgrind
     }
 
-    async fn setup(
-        &self,
-        config: &Config,
-        system_info: &SystemInfo,
-        _run_data: &RunData,
-    ) -> Result<()> {
-        setup(system_info, config).await?;
-
+    async fn setup(&self, system_info: &SystemInfo) -> Result<()> {
+        install_valgrind(system_info).await?;
         Ok(())
     }
 

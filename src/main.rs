@@ -7,6 +7,7 @@ mod logger;
 mod prelude;
 mod request_client;
 mod run;
+mod setup;
 
 use console::style;
 use lazy_static::lazy_static;

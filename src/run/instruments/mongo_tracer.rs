@@ -1,4 +1,5 @@
 use std::{
+    env,
     io::Read,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -10,8 +11,8 @@ use reqwest::Client;
 use tokio::fs;
 use url::Url;
 
-use crate::prelude::*;
-use crate::run::helpers::get_env_variable;
+use crate::{prelude::*, run::helpers::download_file};
+use crate::{run::helpers::get_env_variable, MONGODB_TRACER_VERSION};
 
 use super::MongoDBConfig;
 
@@ -226,6 +227,31 @@ impl MongoTracer {
 
         Ok(())
     }
+}
+
+pub async fn install_mongodb_tracer() -> Result<()> {
+    debug!("Installing mongodb-tracer");
+    // TODO: release the tracer and update this url
+    let installer_url = format!("https://codspeed-public-assets.s3.eu-west-1.amazonaws.com/mongo-tracer/{MONGODB_TRACER_VERSION}/cs-mongo-tracer-installer.sh");
+    let installer_path = env::temp_dir().join("cs-mongo-tracer-installer.sh");
+    download_file(
+        &Url::parse(installer_url.as_str()).unwrap(),
+        &installer_path,
+    )
+    .await?;
+
+    let output = Command::new("bash")
+        .arg(installer_path.to_str().unwrap())
+        .stdout(Stdio::piped())
+        .output()
+        .map_err(|_| anyhow!("Failed to install mongo-tracer"))?;
+
+    if !output.status.success() {
+        info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+        error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        bail!("Failed to install mongo-tracer");
+    }
+    Ok(())
 }
 
 #[cfg(test)]

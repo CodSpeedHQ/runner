@@ -19,15 +19,6 @@ impl Executor for WallTimeExecutor {
         ExecutorName::WallTime
     }
 
-    async fn setup(
-        &self,
-        _config: &Config,
-        _system_info: &SystemInfo,
-        _run_data: &RunData,
-    ) -> Result<()> {
-        Ok(())
-    }
-
     async fn run(
         &self,
         config: &Config,
