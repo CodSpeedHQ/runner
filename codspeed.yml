@@ -1,0 +1,4 @@
+benchmarks:
+  - name: random bench
+    command: echo "hello world"
+    harnessed: false

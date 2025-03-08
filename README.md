@@ -38,13 +38,17 @@ Refer to the [releases page](https://github.com/CodSpeedHQ/runner/releases) to s
 > [!NOTE]
 > For now, the CLI only supports Ubuntu 20.04, 22.04, 24.04 and Debian 11, 12.
 
+### Authentication
+
 First, authenticate with your CodSpeed account:
 
 ```bash
 codspeed auth login
 ```
 
-Then, run benchmarks with the following command:
+### Running benchmarks
+
+Run benchmarks with the following command (with a benchmark harness of your choice):
 
 ```bash
 codspeed run <my-benchmark-command>
@@ -59,7 +63,12 @@ codspeed run pytest ./tests --codspeed
 codspeed run pnpm vitest bench
 ```
 
+It's also possible to run standalone benchmark processes:
+
+```bash
+codspeed run --standalone curl https://example.com
 ```
+
 Usage: codspeed run [OPTIONS] [COMMAND]...
 
 Arguments:
@@ -82,4 +91,4 @@ Use the `CODSPEED_LOG` environment variable to set the logging level:
 
 ```bash
 CODSPEED_LOG=debug codspeed run ...
-```
+````

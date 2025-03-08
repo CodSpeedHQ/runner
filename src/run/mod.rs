@@ -38,6 +38,10 @@ fn show_banner() {
 
 #[derive(Args, Debug)]
 pub struct RunArgs {
+    /// Is the benchmark command a standalone command (i.e. not using a benchmarking framework)
+    #[arg(long, default_value = "false")]
+    pub standalone: bool,
+
     /// The upload URL to use for uploading the results, useful for on-premises installations
     #[arg(long)]
     pub upload_url: Option<String>,
@@ -83,6 +87,7 @@ impl RunArgs {
     /// Constructs a new `RunArgs` with default values for testing purposes
     pub fn test() -> Self {
         Self {
+            standalone: false,
             upload_url: None,
             token: None,
             working_directory: None,
