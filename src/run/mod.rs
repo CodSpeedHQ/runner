@@ -5,16 +5,16 @@ use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
 use check_system::SystemInfo;
 use clap::Args;
-use instruments::mongo_tracer::MongoTracer;
+use instruments::mongo_tracer::{install_mongodb_tracer, MongoTracer};
 use run_environment::interfaces::RunEnvironment;
 use runner::get_run_data;
 
-mod check_system;
-mod helpers;
+pub mod check_system;
+pub mod helpers;
 mod instruments;
 mod poll_results;
 pub mod run_environment;
-mod runner;
+pub mod runner;
 mod uploader;
 
 pub mod config;
@@ -38,6 +38,10 @@ fn show_banner() {
 
 #[derive(Args, Debug)]
 pub struct RunArgs {
+    /// Is the benchmark command a standalone command (i.e. not using a benchmarking framework)
+    #[arg(long, default_value = "false")]
+    pub standalone: bool,
+
     /// The upload URL to use for uploading the results, useful for on-premises installations
     #[arg(long)]
     pub upload_url: Option<String>,
@@ -83,6 +87,7 @@ impl RunArgs {
     /// Constructs a new `RunArgs` with default values for testing purposes
     pub fn test() -> Self {
         Self {
+            standalone: false,
             upload_url: None,
             token: None,
             working_directory: None,
@@ -120,13 +125,18 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let mode = runner::get_mode()?;
     let executor = runner::get_executor_from_mode(mode);
 
-    let run_data = get_run_data()?;
-
     if !config.skip_setup {
         start_group!("Preparing the environment");
-        executor.setup(&config, &system_info, &run_data).await?;
+        executor.setup(&system_info).await?;
+        // TODO: refactor and move directly in the Instruments struct as a `setup` method
+        if config.instruments.is_mongodb_enabled() {
+            install_mongodb_tracer().await?;
+        }
+        info!("Environment ready");
         end_group!();
     }
+
+    let run_data = get_run_data()?;
 
     start_opened_group!("Running the benchmarks");
 

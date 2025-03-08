@@ -9,6 +9,8 @@ pub struct Config {
     pub upload_url: Url,
     pub token: Option<String>,
     pub working_directory: Option<String>,
+
+    pub standalone: bool,
     pub command: String,
 
     pub instruments: Instruments,
@@ -35,6 +37,7 @@ impl Config {
             instruments: Instruments::test(),
             skip_upload: false,
             skip_setup: false,
+            standalone: false,
         }
     }
 }
@@ -50,6 +53,7 @@ impl TryFrom<RunArgs> for Config {
             .map_err(|e| anyhow!("Invalid upload URL: {}, {}", raw_upload_url, e))?;
         Ok(Self {
             upload_url,
+            standalone: args.standalone,
             token: args.token,
             working_directory: args.working_directory,
             instruments,
@@ -77,6 +81,7 @@ mod tests {
             skip_upload: false,
             skip_setup: false,
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
+            standalone: false,
         })
         .unwrap();
         assert_eq!(config.upload_url, Url::parse(DEFAULT_UPLOAD_URL).unwrap());
@@ -86,6 +91,7 @@ mod tests {
         assert!(!config.skip_upload);
         assert!(!config.skip_setup);
         assert_eq!(config.command, "cargo codspeed bench");
+        assert!(!config.standalone);
     }
 
     #[test]
@@ -99,6 +105,7 @@ mod tests {
             skip_upload: true,
             skip_setup: true,
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
+            standalone: true,
         })
         .unwrap();
 

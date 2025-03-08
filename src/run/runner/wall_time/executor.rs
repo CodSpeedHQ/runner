@@ -8,6 +8,7 @@ use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log
 use crate::run::runner::{ExecutorName, RunData, RunnerMode};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
+use std::env::consts::ARCH;
 use std::fs::canonicalize;
 use std::process::Command;
 
@@ -19,15 +20,6 @@ impl Executor for WallTimeExecutor {
         ExecutorName::WallTime
     }
 
-    async fn setup(
-        &self,
-        _config: &Config,
-        _system_info: &SystemInfo,
-        _run_data: &RunData,
-    ) -> Result<()> {
-        Ok(())
-    }
-
     async fn run(
         &self,
         config: &Config,
@@ -35,7 +27,8 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = Command::new("sh");
+        let mut cmd = Command::new("setarch");
+        cmd.arg(ARCH).arg("-R");
 
         cmd.envs(get_base_injected_env(
             RunnerMode::WallTime,
@@ -47,7 +40,8 @@ impl Executor for WallTimeExecutor {
             cmd.current_dir(abs_cwd);
         }
 
-        cmd.args(["-c", get_bench_command(config)?.as_str()]);
+        // Configure perf
+        cmd.args(["sh", "-c", get_bench_command(config)?.as_str()]);
 
         debug!("cmd: {:?}", cmd);
         let status = run_command_with_log_pipe(cmd)
