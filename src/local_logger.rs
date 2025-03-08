@@ -97,10 +97,8 @@ impl Log for LocalLogger {
                         let mut spinner = SPINNER.lock().unwrap();
                         if let Some(spinner) = spinner.as_mut() {
                             spinner.finish_and_clear();
-                            println!();
                         }
                     }
-                    println!();
                 }
             }
 
