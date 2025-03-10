@@ -59,22 +59,17 @@ codspeed run pytest ./tests --codspeed
 codspeed run pnpm vitest bench
 ```
 
-```
-Usage: codspeed run [OPTIONS] [COMMAND]...
+## Advanced usage
 
-Arguments:
-  [COMMAND]...  The bench command to run
+### Installing tools before running
 
-Options:
-      --upload-url <UPLOAD_URL>
-          The upload URL to use for uploading the results, useful for on-premises installations
-      --token <TOKEN>
-          The token to use for uploading the results, if not provided it will be read from the CODSPEED_TOKEN environment variable
-      --working-directory <WORKING_DIRECTORY>
-          The directory where the command will be executed
-  -h, --help
-          Print help
+You can install executors and instruments before running the benchmark with the `setup` command:
+
+```bash
+codspeed setup
 ```
+
+This is especially useful when configuring environments with tools such as docker.
 
 ### Logging level
 
