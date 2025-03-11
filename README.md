@@ -78,3 +78,20 @@ Use the `CODSPEED_LOG` environment variable to set the logging level:
 ```bash
 CODSPEED_LOG=debug codspeed run ...
 ```
+
+### Changing the mode of the runner
+
+By default, the runner will run the benchmark in the `instrumentation` mode. You can specify the mode with the `--mode` flag of the `run` command:
+
+```bash
+# Run in the `instrumentation` mode
+codspeed run --mode instrumentation <my-benchmark-command>
+
+# Run in the `walltime` mode
+codspeed run --mode walltime <my-benchmark-command>
+```
+
+> [!WARNING]
+> We strongly recommend not changing this mode unless you know what you are doing.
+> Using the `walltime` mode on traditional VMs/Hosted Runners will lead to inconsistent data. For the best results, we recommend using CodSpeed Hosted Macro Runners, which are fine-tuned for performance measurement consistency.
+> Check out the [Walltime Instrument Documentation](https://docs.codspeed.io/instruments/walltime/) for more details.

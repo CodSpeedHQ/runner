@@ -29,7 +29,7 @@ impl Executor for WallTimeExecutor {
         let mut cmd = Command::new("sh");
 
         cmd.envs(get_base_injected_env(
-            RunnerMode::WallTime,
+            RunnerMode::Walltime,
             &run_data.profile_folder,
         ));
 

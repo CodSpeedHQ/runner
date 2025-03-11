@@ -4,6 +4,8 @@ use url::Url;
 
 use crate::run::RunArgs;
 
+use super::RunnerMode;
+
 #[derive(Debug)]
 pub struct Config {
     pub upload_url: Url,
@@ -11,6 +13,7 @@ pub struct Config {
     pub working_directory: Option<String>,
     pub command: String,
 
+    pub mode: RunnerMode,
     pub instruments: Instruments,
 
     pub skip_upload: bool,
@@ -32,6 +35,7 @@ impl Config {
             token: None,
             working_directory: None,
             command: "".into(),
+            mode: RunnerMode::Instrumentation,
             instruments: Instruments::test(),
             skip_upload: false,
             skip_setup: false,
@@ -52,6 +56,7 @@ impl TryFrom<RunArgs> for Config {
             upload_url,
             token: args.token,
             working_directory: args.working_directory,
+            mode: args.mode,
             instruments,
             command: args.command.join(" "),
             skip_upload: args.skip_upload,
@@ -72,6 +77,7 @@ mod tests {
             upload_url: None,
             token: None,
             working_directory: None,
+            mode: RunnerMode::Instrumentation,
             instruments: vec![],
             mongo_uri_env_name: None,
             skip_upload: false,
@@ -94,6 +100,7 @@ mod tests {
             upload_url: Some("https://example.com/upload".into()),
             token: Some("token".into()),
             working_directory: Some("/tmp".into()),
+            mode: RunnerMode::Instrumentation,
             instruments: vec!["mongodb".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
             skip_upload: true,

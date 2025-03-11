@@ -4,10 +4,11 @@ use crate::prelude::*;
 use crate::run::{config::Config, logger::Logger};
 use crate::VERSION;
 use check_system::SystemInfo;
-use clap::Args;
+use clap::{Args, ValueEnum};
 use instruments::mongo_tracer::{install_mongodb_tracer, MongoTracer};
 use run_environment::interfaces::RunEnvironment;
 use runner::get_run_data;
+use serde::Serialize;
 
 pub mod check_system;
 pub mod helpers;
@@ -36,6 +37,14 @@ fn show_banner() {
     debug!("codspeed v{}", VERSION);
 }
 
+#[derive(ValueEnum, Clone, Default, Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RunnerMode {
+    #[default]
+    Instrumentation,
+    Walltime,
+}
+
 #[derive(Args, Debug)]
 pub struct RunArgs {
     /// The upload URL to use for uploading the results, useful for on-premises installations
@@ -49,6 +58,10 @@ pub struct RunArgs {
     /// The directory where the command will be executed.
     #[arg(long)]
     pub working_directory: Option<String>,
+
+    /// The mode to run the benchmarks in.
+    #[arg(long, default_value_t, value_enum, env = "CODSPEED_RUNNER_MODE")]
+    pub mode: RunnerMode,
 
     /// Comma-separated list of instruments to enable. Possible values: mongodb.
     #[arg(long, value_delimiter = ',')]
@@ -86,6 +99,7 @@ impl RunArgs {
             upload_url: None,
             token: None,
             working_directory: None,
+            mode: RunnerMode::Instrumentation,
             instruments: vec![],
             mongo_uri_env_name: None,
             skip_upload: false,
@@ -117,8 +131,7 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let mode = runner::get_mode()?;
-    let executor = runner::get_executor_from_mode(mode);
+    let executor = runner::get_executor_from_mode(&config.mode);
 
     if !config.skip_setup {
         start_group!("Preparing the environment");
