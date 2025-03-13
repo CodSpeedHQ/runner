@@ -5,6 +5,22 @@
 
 
 
+## [3.5.0] - 2025-03-13
+
+### <!-- 0 -->🚀 Features
+- Add mode command arg by @adriencaccia in [#69](https://github.com/CodSpeedHQ/runner/pull/69)
+- Reduce spacing between groups by @art049
+- Improve log messages verbosity and style by @art049
+- Add a global setup command to preinstall executors by @art049
+- Allow usage on any x86 or arm os with a warning by @GuillaumeLagrange in [#66](https://github.com/CodSpeedHQ/runner/pull/66)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Fix valgrind version checks (#65) by @art049 in [#65](https://github.com/CodSpeedHQ/runner/pull/65)
+
+### <!-- 3 -->📚 Documentation
+- Add a setup command to the README by @art049 in [#61](https://github.com/CodSpeedHQ/runner/pull/61)
+
+
 ## [3.4.0] - 2025-02-19
 
 ### <!-- 0 -->🚀 Features
@@ -326,6 +342,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.5.0]: https://github.com/CodSpeedHQ/runner/compare/v3.4.0..v3.5.0
 [3.4.0]: https://github.com/CodSpeedHQ/runner/compare/v3.3.1..v3.4.0
 [3.3.1]: https://github.com/CodSpeedHQ/runner/compare/v3.3.0..v3.3.1
 [3.3.0]: https://github.com/CodSpeedHQ/runner/compare/v3.2.2..v3.3.0
