@@ -39,7 +39,9 @@ pub async fn poll_results(
             .fetch_local_run_report(fetch_local_run_report_vars.clone())
             .await?
         {
-            FetchLocalRunReportResponse { run, .. } if run.status != RunStatus::Completed => {
+            FetchLocalRunReportResponse { run, .. }
+                if run.status == RunStatus::Pending || run.status == RunStatus::Processing =>
+            {
                 sleep(POLLING_INTERVAL).await;
             }
             response_from_api => {
@@ -47,6 +49,10 @@ pub async fn poll_results(
                 break;
             }
         }
+    }
+
+    if response.run.status == RunStatus::Failure {
+        bail!("Run failed to be processed, try again in a few minutes");
     }
 
     let report = response

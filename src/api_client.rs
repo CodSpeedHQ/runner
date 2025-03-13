@@ -118,9 +118,10 @@ pub struct FetchLocalRunReportHeadReport {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RunStatus {
+    Completed,
+    Failure,
     Pending,
     Processing,
-    Completed,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
