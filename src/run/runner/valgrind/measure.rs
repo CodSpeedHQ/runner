@@ -133,16 +133,10 @@ pub fn measure(
     debug!("cmd: {:?}", cmd);
     let status = run_command_with_log_pipe(cmd)
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
-    let cmd_status = {
-        let content = std::fs::read_to_string(&cmd_status_path)?;
-        content.parse::<u32>()?
-    };
-
     debug!(
-        "Valgrind exit code = {:?}, Valgrind signal = {:?}, Program exit code = {}",
+        "Valgrind exit code = {:?}, Valgrind signal = {:?}",
         status.code(),
         status.signal(),
-        cmd_status
     );
 
     // Check the valgrind exit code
@@ -155,6 +149,13 @@ pub fn measure(
     }
 
     // Check the exit code which was written to the file by the wrapper script.
+    let cmd_status = {
+        let content = std::fs::read_to_string(&cmd_status_path)?;
+        content
+            .parse::<u32>()
+            .map_err(|e| anyhow!("unable to retrieve the program exit code. {}", e))?
+    };
+    debug!("Program exit code = {}", cmd_status);
     if cmd_status != 0 {
         bail!(
             "failed to execute the benchmark process, exit code: {}",
@@ -191,5 +192,13 @@ mod tests {
         assert_eq!(safe_run("exit 0"), (0, 0));
         assert_eq!(safe_run("exit 1"), (0, 1));
         assert_eq!(safe_run("exit 255"), (0, 255));
+
+        assert_eq!(safe_run("ls; exit 1"), (0, 1));
+        assert_eq!(safe_run("exit 1; ls"), (0, 1));
+
+        assert_eq!(safe_run("test 1 = 1 && exit 42"), (0, 42));
+        assert_eq!(safe_run("test 1 = 2 && exit 42"), (0, 1));
+        assert_eq!(safe_run("test 1 = 1 || exit 42"), (0, 0));
+        assert_eq!(safe_run("test 1 = 2 || exit 42"), (0, 42));
     }
 }
