@@ -47,7 +47,10 @@ lazy_static! {
 
 impl TryFrom<&Config> for GitHubActionsProvider {
     type Error = Error;
-    fn try_from(_config: &Config) -> Result<Self> {
+    fn try_from(config: &Config) -> Result<Self> {
+        if config.repository_override.is_some() {
+            bail!("Specifying owner and repository from CLI is not supported for Github Actions");
+        }
         let (owner, repository) = Self::get_owner_and_repository()?;
         let ref_ = get_env_variable("GITHUB_REF")?;
         let is_pr = PR_REF_REGEX.is_match(&ref_);

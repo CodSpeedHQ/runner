@@ -3,6 +3,7 @@ use simplelog::SharedLogger;
 
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
+use crate::run::config::RepositoryOverride;
 use crate::run::helpers::{parse_git_remote, GitRemote};
 use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::{
@@ -14,54 +15,52 @@ use crate::run::{
     },
 };
 
+static FAKE_COMMIT_REF: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
 #[derive(Debug)]
 pub struct LocalProvider {
     repository_provider: RepositoryProvider,
+    owner: String,
+    repository: String,
     pub ref_: String,
-    pub owner: String,
-    pub repository: String,
     pub head_ref: Option<String>,
     pub base_ref: Option<String>,
     pub event: RunEvent,
     pub repository_root_path: String,
 }
 
-impl LocalProvider {}
-
-fn extract_provider_owner_and_repository_from_remote_url(
-    remote_url: &str,
-) -> Result<(RepositoryProvider, String, String)> {
-    let GitRemote {
-        domain,
-        owner,
-        repository,
-    } = parse_git_remote(remote_url)?;
-    let repository_provider = match domain.as_str() {
-        "github.com" => RepositoryProvider::GitHub,
-        "gitlab.com" => RepositoryProvider::GitLab,
-        domain => bail!(
-            "Repository provider {} is not supported by CodSpeed",
-            domain
-        ),
-    };
-
-    Ok((
-        repository_provider,
-        owner.to_string(),
-        repository.to_string(),
-    ))
-}
-
 impl TryFrom<&Config> for LocalProvider {
     type Error = Error;
-    fn try_from(_config: &Config) -> Result<Self> {
-        let repository_root_path = match find_repository_root(&std::env::current_dir()?) {
-            Some(mut path) => {
-                // Add a trailing slash to the path
-                path.push("");
-                path.to_string_lossy().to_string()
-            },
-            None => bail!("Could not find repository root, please make sure you are running the command from inside a git repository"),
+    fn try_from(config: &Config) -> Result<Self> {
+        let current_dir = std::env::current_dir()?;
+
+        let repository_root_path = {
+            let Some(mut path) = find_repository_root(&current_dir) else {
+                // We are not in a git repository, use the repository_override with very minimal information
+                let RepositoryOverride {
+                    owner,
+                    repository,
+                    repository_provider,
+                } = config.repository_override.clone().context(
+                    "Could not find repository root and no repository was provided, \
+                    please make sure you are running the command from inside a git repository or provide repository with --repository flag",
+                )?;
+
+                return Ok(Self {
+                    repository_provider,
+                    ref_: FAKE_COMMIT_REF.to_string(),
+                    head_ref: None,
+                    base_ref: None,
+                    owner,
+                    repository,
+                    repository_root_path: current_dir.to_string_lossy().to_string(),
+                    event: RunEvent::Local,
+                });
+            };
+
+            // Add a trailing slash to the path
+            path.push("");
+            path.to_string_lossy().to_string()
         };
 
         let git_repository = Repository::open(repository_root_path.clone()).context(format!(
@@ -70,8 +69,17 @@ impl TryFrom<&Config> for LocalProvider {
         ))?;
 
         let remote = git_repository.find_remote("origin")?;
+
         let (repository_provider, owner, repository) =
-            extract_provider_owner_and_repository_from_remote_url(remote.url().unwrap())?;
+            if let Some(repo_override) = config.repository_override.clone() {
+                (
+                    repo_override.repository_provider,
+                    repo_override.owner,
+                    repo_override.repository,
+                )
+            } else {
+                extract_provider_owner_and_repository_from_remote_url(remote.url().unwrap())?
+            };
 
         let head = git_repository.head().context("Failed to get HEAD")?;
         let ref_ = head
@@ -139,6 +147,30 @@ impl RunEnvironmentProvider for LocalProvider {
     }
 }
 
+fn extract_provider_owner_and_repository_from_remote_url(
+    remote_url: &str,
+) -> Result<(RepositoryProvider, String, String)> {
+    let GitRemote {
+        domain,
+        owner,
+        repository,
+    } = parse_git_remote(remote_url)?;
+    let repository_provider = match domain.as_str() {
+        "github.com" => RepositoryProvider::GitHub,
+        "gitlab.com" => RepositoryProvider::GitLab,
+        domain => bail!(
+            "Repository provider {} is not supported by CodSpeed",
+            domain
+        ),
+    };
+
+    Ok((
+        repository_provider,
+        owner.to_string(),
+        repository.to_string(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     // use crate::VERSION;
@@ -183,6 +215,11 @@ mod tests {
             assert_eq!(owner, expected_owner);
             assert_eq!(repository, expected_repository);
         }
+    }
+
+    #[test]
+    fn fake_commit_hash_ref() {
+        assert_eq!(FAKE_COMMIT_REF.len(), 40);
     }
 
     // TODO: uncomment later when we have a way to mock git repository

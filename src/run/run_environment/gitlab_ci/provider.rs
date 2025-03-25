@@ -28,7 +28,10 @@ pub struct GitLabCIProvider {
 
 impl TryFrom<&Config> for GitLabCIProvider {
     type Error = Error;
-    fn try_from(_config: &Config) -> Result<Self> {
+    fn try_from(config: &Config) -> Result<Self> {
+        if config.repository_override.is_some() {
+            bail!("Specifying owner and repository from CLI is not supported for GitLab CI");
+        }
         let owner = get_env_variable("CI_PROJECT_NAMESPACE")?;
         let repository = get_env_variable("CI_PROJECT_NAME")?;
 

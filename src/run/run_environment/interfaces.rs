@@ -2,11 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RepositoryProvider {
-    GitLab,
+    #[default]
     GitHub,
+    GitLab,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]

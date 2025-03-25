@@ -61,6 +61,10 @@ impl TryFrom<&Config> for BuildkiteProvider {
             bail!("Token authentication is required for Buildkite");
         }
 
+        if config.repository_override.is_some() {
+            bail!("Specifying owner and repository from CLI is not supported for Buildkite");
+        }
+
         let is_pr = get_pr_number()?.is_some();
         let repository_url = get_env_variable("BUILDKITE_REPO")?;
         let GitRemote {

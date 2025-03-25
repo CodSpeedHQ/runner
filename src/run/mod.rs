@@ -6,7 +6,7 @@ use crate::VERSION;
 use check_system::SystemInfo;
 use clap::{Args, ValueEnum};
 use instruments::mongo_tracer::{install_mongodb_tracer, MongoTracer};
-use run_environment::interfaces::RunEnvironment;
+use run_environment::interfaces::{RepositoryProvider, RunEnvironment};
 use runner::get_run_data;
 use serde::Serialize;
 
@@ -55,6 +55,19 @@ pub struct RunArgs {
     #[arg(long, env = "CODSPEED_TOKEN")]
     pub token: Option<String>,
 
+    /// The repository the benchmark is associated with, under the format `owner/repo`.
+    #[arg(short, long, env = "CODSPEED_REPOSITORY")]
+    pub repository: Option<String>,
+
+    /// The repository provider to use in case --repository is used. Defaults to github
+    #[arg(
+        long,
+        env = "CODSPEED_PROVIDER",
+        requires = "repository",
+        ignore_case = true
+    )]
+    pub provider: Option<RepositoryProvider>,
+
     /// The directory where the command will be executed.
     #[arg(long)]
     pub working_directory: Option<String>,
@@ -98,6 +111,8 @@ impl RunArgs {
         Self {
             upload_url: None,
             token: None,
+            repository: None,
+            provider: None,
             working_directory: None,
             mode: RunnerMode::Instrumentation,
             instruments: vec![],
@@ -185,4 +200,18 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
     }
 
     Ok(())
+}
+
+// We have to implement this manually, because deriving the trait makes the CLI values `git-hub`
+// and `git-lab`
+impl clap::ValueEnum for RepositoryProvider {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::GitLab, Self::GitHub]
+    }
+    fn to_possible_value<'a>(&self) -> ::std::option::Option<clap::builder::PossibleValue> {
+        match self {
+            Self::GitLab => Some(clap::builder::PossibleValue::new("gitlab").aliases(["gl"])),
+            Self::GitHub => Some(clap::builder::PossibleValue::new("github").aliases(["gh"])),
+        }
+    }
 }
