@@ -6,7 +6,10 @@ use std::process::Command;
 use std::process::ExitStatus;
 use std::thread;
 
-pub fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
+pub fn run_command_with_log_pipe_and_callback<F: FnOnce(u32)>(
+    mut cmd: Command,
+    cb: F,
+) -> Result<ExitStatus> {
     fn log_tee(
         mut reader: impl Read,
         mut writer: impl Write,
@@ -46,5 +49,13 @@ pub fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
     thread::spawn(move || {
         log_tee(stderr, std::io::stderr(), Some("[stderr]")).unwrap();
     });
+
+    let perf_pid = process.id();
+    cb(perf_pid);
+
     process.wait().context("failed to wait for the process")
+}
+
+pub fn run_command_with_log_pipe(cmd: Command) -> Result<ExitStatus> {
+    run_command_with_log_pipe_and_callback(cmd, |_| {})
 }

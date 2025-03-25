@@ -5,7 +5,7 @@ use crate::prelude::*;
 use super::RunnerMode;
 
 mod executor;
-mod helpers;
+pub(crate) mod helpers;
 mod interfaces;
 mod valgrind;
 mod wall_time;

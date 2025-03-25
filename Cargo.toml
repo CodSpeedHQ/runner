@@ -46,6 +46,8 @@ sysinfo = { version = "0.33.1", features = ["serde"] }
 indicatif = "0.17.8"
 console = "0.15.8"
 async-trait = "0.1.82"
+codspeed = { git = "https://github.com/CodspeedHQ/codspeed-rust", branch = "cod-674-collect-profiles-while-benchmarks-are-running", version = "=2.9.1" }
+libc = "0.2.171"
 
 [dev-dependencies]
 temp-env = { version = "0.3.6", features = ["async_closure"] }
