@@ -55,9 +55,32 @@ impl PerfFifo {
 }
 
 pub fn setup_environment() {
+    // sysctl kernel.kptr_restrict=0
+
+    let sysctl_read = |name: &str| -> Option<u64> {
+        let output = std::process::Command::new("sysctl")
+            .arg(name)
+            .output()
+            .unwrap();
+        let output = String::from_utf8(output.stdout).unwrap();
+        output
+            .split(" = ")
+            .last()
+            .unwrap()
+            .trim()
+            .parse::<u64>()
+            .ok()
+    };
+
     // Allow access to kernel symbols
-    run_with_sudo(&["sysctl", "-w", "kernel.kptr_restrict=0"]).unwrap();
+    let kptr_restrict = sysctl_read("kernel.kptr_restrict");
+    if kptr_restrict != Some(0) {
+        run_with_sudo(&["sysctl", "-w", "kernel.kptr_restrict=0"]).unwrap();
+    }
 
     // Allow non-root profiling
-    run_with_sudo(&["sysctl", "-w", "kernel.perf_event_paranoid=1"]).unwrap();
+    let perf_event_paranoid = sysctl_read("kernel.perf_event_paranoid");
+    if perf_event_paranoid != Some(1) {
+        run_with_sudo(&["sysctl", "-w", "kernel.perf_event_paranoid=1"]).unwrap();
+    }
 }
