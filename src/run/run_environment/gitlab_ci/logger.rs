@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    logger::{get_group_event, GroupEvent},
+    logger::{get_group_event, get_json_event, GroupEvent},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 
@@ -105,6 +105,10 @@ impl Log for GitLabCILogger {
                     *section_id = None;
                 }
             }
+            return;
+        }
+
+        if get_json_event(record).is_some() {
             return;
         }
 

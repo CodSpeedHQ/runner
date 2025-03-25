@@ -12,7 +12,7 @@ use log::Log;
 use simplelog::{CombinedLogger, SharedLogger};
 use std::io::Write;
 
-use crate::logger::{get_group_event, GroupEvent};
+use crate::logger::{get_group_event, get_json_event, GroupEvent, JsonEvent};
 
 pub const CODSPEED_U8_COLOR_CODE: u8 = 208; // #FF8700
 
@@ -66,7 +66,7 @@ impl Log for LocalLogger {
         if let Some(group_event) = get_group_event(record) {
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
-                    println!(
+                    eprintln!(
                         "\n{}",
                         style(format!("►►► {} ", name))
                             .bold()
@@ -89,7 +89,7 @@ impl Log for LocalLogger {
                         spinner.enable_steady_tick(Duration::from_millis(100));
                         SPINNER.lock().unwrap().replace(spinner);
                     } else {
-                        println!("{}...", name);
+                        eprintln!("{}...", name);
                     }
                 }
                 GroupEvent::End => {
@@ -102,6 +102,11 @@ impl Log for LocalLogger {
                 }
             }
 
+            return;
+        }
+
+        if let Some(JsonEvent(json_string)) = get_json_event(record) {
+            println!("{json_string}");
             return;
         }
 
@@ -124,12 +129,12 @@ fn print_record(record: &log::Record) {
     match record.level() {
         log::Level::Error => eprintln!("{}", error_style.apply_to(record.args())),
         log::Level::Warn => eprintln!("{}", warn_style.apply_to(record.args())),
-        log::Level::Info => println!("{}", info_style.apply_to(record.args())),
-        log::Level::Debug => println!(
+        log::Level::Info => eprintln!("{}", info_style.apply_to(record.args())),
+        log::Level::Debug => eprintln!(
             "{}",
             debug_style.apply_to(format!("[DEBUG::{}] {}", record.target(), record.args())),
         ),
-        log::Level::Trace => println!(
+        log::Level::Trace => eprintln!(
             "{}",
             trace_style.apply_to(format!("[TRACE::{}] {}", record.target(), record.args()))
         ),

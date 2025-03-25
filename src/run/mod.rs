@@ -37,14 +37,6 @@ fn show_banner() {
     debug!("codspeed v{}", VERSION);
 }
 
-#[derive(ValueEnum, Clone, Default, Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RunnerMode {
-    #[default]
-    Instrumentation,
-    Walltime,
-}
-
 #[derive(Args, Debug)]
 pub struct RunArgs {
     /// The upload URL to use for uploading the results, useful for on-premises installations
@@ -87,6 +79,9 @@ pub struct RunArgs {
     #[arg(long)]
     pub mongo_uri_env_name: Option<String>,
 
+    #[arg(long, hide = true)]
+    pub message_format: Option<MessageFormat>,
+
     /// Only for debugging purposes, skips the upload of the results
     #[arg(
         long,
@@ -104,6 +99,19 @@ pub struct RunArgs {
     pub command: Vec<String>,
 }
 
+#[derive(ValueEnum, Clone, Default, Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RunnerMode {
+    #[default]
+    Instrumentation,
+    Walltime,
+}
+
+#[derive(ValueEnum, Clone, Debug, PartialEq)]
+pub enum MessageFormat {
+    Json,
+}
+
 #[cfg(test)]
 impl RunArgs {
     /// Constructs a new `RunArgs` with default values for testing purposes
@@ -117,6 +125,7 @@ impl RunArgs {
             mode: RunnerMode::Instrumentation,
             instruments: vec![],
             mongo_uri_env_name: None,
+            message_format: None,
             skip_upload: false,
             skip_setup: false,
             command: vec![],
@@ -125,6 +134,7 @@ impl RunArgs {
 }
 
 pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
+    let output_json = args.message_format == Some(MessageFormat::Json);
     let mut config = Config::try_from(args)?;
     let provider = run_environment::get_provider(&config)?;
     let codspeed_config = CodSpeedConfig::load()?;
@@ -194,7 +204,16 @@ pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
 
         if provider.get_run_environment() == RunEnvironment::Local {
             start_group!("Fetching the results");
+            let run_id = upload_result.run_id.clone();
             poll_results::poll_results(api_client, &provider, upload_result.run_id).await?;
+            if output_json {
+                // TODO: Refactor `log_json` to avoid having to format the json manually
+                // We could make use of structured logging for this https://docs.rs/log/latest/log/#structured-logging
+                log_json!(format!(
+                    "{{\"event\": \"run_finished\", \"run_id\": \"{}\"}}",
+                    run_id
+                ));
+            }
             end_group!();
         }
     }

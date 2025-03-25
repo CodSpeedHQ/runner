@@ -71,3 +71,23 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
         _ => None,
     }
 }
+
+#[macro_export]
+/// Log a structured JSON output
+macro_rules! log_json {
+    ($value:expr) => {
+        log::log!(target: $crate::logger::JSON_TARGET, log::Level::Info, "{}", $value);
+    };
+}
+
+pub struct JsonEvent(pub String);
+
+pub const JSON_TARGET: &str = "codspeed::json";
+
+pub(super) fn get_json_event(record: &log::Record) -> Option<JsonEvent> {
+    if record.target() != JSON_TARGET {
+        return None;
+    }
+
+    Some(JsonEvent(record.args().to_string()))
+}
