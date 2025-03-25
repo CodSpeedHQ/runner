@@ -15,13 +15,31 @@ use codspeed::fifo::RUNNER_ACK_FIFO;
 use codspeed::fifo::RUNNER_CTL_FIFO;
 use std::fs::canonicalize;
 use std::process::Command;
+use tempfile::TempDir;
 
-pub struct WallTimeExecutor;
+const PERF_DATA_PREFIX: &str = "perf.data.";
+
+pub struct WallTimeExecutor {
+    perf_dir: TempDir,
+}
+
+impl WallTimeExecutor {
+    pub fn new() -> Self {
+        Self {
+            perf_dir: tempfile::tempdir().unwrap(),
+        }
+    }
+}
 
 #[async_trait(?Send)]
 impl Executor for WallTimeExecutor {
     fn name(&self) -> ExecutorName {
         ExecutorName::WallTime
+    }
+
+    async fn setup(&self, _system_info: &SystemInfo) -> Result<()> {
+        super::perf::setup_environment();
+        Ok(())
     }
 
     async fn run(
@@ -31,8 +49,6 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        super::perf::setup_environment();
-
         let mut cmd = Command::new("sh");
         cmd.envs(get_base_injected_env(
             RunnerMode::Walltime,
@@ -53,11 +69,10 @@ impl Executor for WallTimeExecutor {
 
         // We have to pass a file to perf, which will create `perf.data.<timestamp>` files
         // when the output is split.
-        let perf_dir = tempfile::tempdir()?;
         let perf_file = tempfile::Builder::new()
             .keep(true)
-            .prefix("perf.data")
-            .tempfile_in(&perf_dir)?;
+            .prefix(PERF_DATA_PREFIX)
+            .tempfile_in(&self.perf_dir)?;
 
         cmd.args([
             "-c",
@@ -109,15 +124,6 @@ impl Executor for WallTimeExecutor {
             bail!("failed to execute the benchmark process");
         }
 
-        // Collect the perf.data traces
-        let mut perf_files = Vec::new();
-        for entry in std::fs::read_dir(&perf_dir)?.filter_map(|entry| entry.ok()) {
-            perf_files.push(entry.path());
-        }
-        dbg!(&perf_files);
-
-        // TODO: Upload the files
-
         Ok(())
     }
 
@@ -125,8 +131,24 @@ impl Executor for WallTimeExecutor {
         &self,
         _config: &Config,
         _system_info: &SystemInfo,
-        _run_data: &RunData,
+        run_data: &RunData,
     ) -> Result<()> {
+        // Copy the perf data files to the profile folder
+        let map_files = std::fs::read_dir(&self.perf_dir)?
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .map(|name| name.to_string_lossy().starts_with(PERF_DATA_PREFIX))
+                    .unwrap_or(false)
+            });
+        for entry in map_files {
+            let src_path = entry.clone();
+            let dst_path = run_data.profile_folder.join(entry.file_name().unwrap());
+
+            std::fs::copy(src_path, dst_path)?;
+        }
+
         Ok(())
     }
 }
