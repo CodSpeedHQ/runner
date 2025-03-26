@@ -55,8 +55,6 @@ impl PerfFifo {
 }
 
 pub fn setup_environment() {
-    // sysctl kernel.kptr_restrict=0
-
     let sysctl_read = |name: &str| -> Option<u64> {
         let output = std::process::Command::new("sysctl")
             .arg(name)
