@@ -1,16 +1,16 @@
 use std::ops::Range;
 
 use anyhow::{bail, Context};
-use bincode::{Decode, Encode};
 use debugid::CodeId;
 use framehop::ExplicitModuleSectionInfo;
 use linux_perf_data::{
     linux_perf_event_reader::{EventRecord, Mmap2FileId},
     DsoKey, PerfFileReader, PerfFileRecord,
 };
+use serde::{Deserialize, Serialize};
 
 /// Debug symbols for a single module.
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DebugModule {
     pub path: String,
 
@@ -120,14 +120,12 @@ impl DebugModule {
 
     pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
         let mut writer = std::fs::File::create(path.as_ref())?;
-        bincode::encode_into_std_write(self, &mut writer, bincode::config::standard())?;
+        bincode::serialize_into(&mut writer, self)?;
         Ok(())
     }
 
     pub fn from_data(data: &[u8]) -> anyhow::Result<Self> {
-        bincode::decode_from_slice(data, bincode::config::standard())
-            .map(|(data, _)| data)
-            .context("Failed to decode")
+        bincode::deserialize(data).context("Failed to decode")
     }
 
     pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {

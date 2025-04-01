@@ -6,7 +6,17 @@ use std::process::Command;
 use std::process::ExitStatus;
 use std::thread;
 
-pub fn run_command_with_log_pipe_and_callback<F: FnOnce(u32)>(
+/// Run a command and log its output to stdout and stderr
+///
+/// # Arguments
+/// - `cmd`: The command to run.
+/// - `cb`: A callback function that takes the process ID and returns a result.
+///
+/// # Returns
+///
+/// The exit status of the command.
+///
+pub fn run_command_with_log_pipe_and_callback<F: FnOnce(u32) -> anyhow::Result<()>>(
     mut cmd: Command,
     cb: F,
 ) -> Result<ExitStatus> {
@@ -50,12 +60,11 @@ pub fn run_command_with_log_pipe_and_callback<F: FnOnce(u32)>(
         log_tee(stderr, std::io::stderr(), Some("[stderr]")).unwrap();
     });
 
-    let perf_pid = process.id();
-    cb(perf_pid);
+    cb(process.id())?;
 
     process.wait().context("failed to wait for the process")
 }
 
 pub fn run_command_with_log_pipe(cmd: Command) -> Result<ExitStatus> {
-    run_command_with_log_pipe_and_callback(cmd, |_| {})
+    run_command_with_log_pipe_and_callback(cmd, |_| Ok(()))
 }
