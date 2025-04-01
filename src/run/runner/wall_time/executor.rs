@@ -77,7 +77,7 @@ impl Executor for WallTimeExecutor {
         cmd.args([
             "-c",
             &format!(
-                "perf record --data --freq=1000 --switch-output --control=fifo:{},{} --delay=-1 -g --output={} -- {}",
+                "perf record --data --freq=1000 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
                 PERF_CTL_FIFO,
                 PERF_CTL_ACK_FIFO,
                 perf_file.path().to_string_lossy(),
