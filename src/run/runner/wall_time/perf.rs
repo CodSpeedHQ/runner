@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use crate::run::runner::helpers::setup::run_with_sudo;
 use anyhow::Context;
 use codspeed::fifo::FifoIpc;
@@ -36,21 +37,21 @@ impl PerfFifo {
         })
     }
 
-    pub fn start_events(&mut self) -> anyhow::Result<()> {
+    pub async fn start_events(&mut self) -> anyhow::Result<()> {
         self.ctl_fifo.write_all(b"enable\n").unwrap();
-        self.wait_for_ack();
+        self.wait_for_ack().await;
 
         Ok(())
     }
 
-    pub fn stop_events(&mut self) -> anyhow::Result<()> {
+    pub async fn stop_events(&mut self) -> anyhow::Result<()> {
         self.ctl_fifo.write_all(b"disable\n").unwrap();
-        self.wait_for_ack();
+        self.wait_for_ack().await;
 
         Ok(())
     }
 
-    fn wait_for_ack(&mut self) {
+    async fn wait_for_ack(&mut self) {
         const ACK: &[u8] = b"ack\n\x00";
 
         loop {
@@ -90,4 +91,35 @@ pub fn setup_environment() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+pub async fn handle_fifo(
+    perf_pid: u32,
+    mut ctl_fifo: FifoIpc,
+    mut ack_fifo: FifoIpc,
+    mut perf_fifo: PerfFifo,
+) -> anyhow::Result<()> {
+    use codspeed::fifo::Command as FifoCommand;
+
+    loop {
+        let Ok(cmd) = ctl_fifo.recv_cmd() else {
+            continue;
+        };
+        debug!("Received command: {:?}", cmd);
+
+        match cmd {
+            FifoCommand::StartBenchmark => {
+                unsafe { libc::kill(perf_pid as i32, libc::SIGUSR2) };
+                perf_fifo.start_events().await?;
+                ack_fifo.send_cmd(FifoCommand::Ack)?;
+            }
+            FifoCommand::StopBenchmark => {
+                perf_fifo.stop_events().await?;
+                ack_fifo.send_cmd(FifoCommand::Ack)?;
+            }
+            FifoCommand::Ack => unreachable!(),
+        }
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
 }

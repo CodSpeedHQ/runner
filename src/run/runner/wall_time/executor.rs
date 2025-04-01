@@ -60,9 +60,11 @@ impl Executor for WallTimeExecutor {
         }
 
         let use_perf = std::env::var("USE_PERF").map(|v| v == "1").unwrap_or(true);
+        debug!("Running the cmd with perf: {}", use_perf);
+
         let status = if use_perf {
-            let mut perf_fifo = PerfFifo::new()?;
-            let mut ctl_fifo = FifoIpc::create(RUNNER_CTL_FIFO)?.with_reader()?;
+            let perf_fifo = PerfFifo::new()?;
+            let ctl_fifo = FifoIpc::create(RUNNER_CTL_FIFO)?.with_reader()?;
 
             // We have to pass a file to perf, which will create `perf.data.<timestamp>` files
             // when the output is split.
@@ -83,35 +85,22 @@ impl Executor for WallTimeExecutor {
             ]);
             debug!("cmd: {:?}", cmd);
 
-            let on_process_started = |perf_pid: u32| -> anyhow::Result<()> {
-                use codspeed::fifo::Command as FifoCommand;
+            let on_process_started = |pid: u32| -> anyhow::Result<()> {
+                debug!("Process id: {}", pid);
 
-                let mut ack_fifo = FifoIpc::create(RUNNER_ACK_FIFO)?
+                let ack_fifo = FifoIpc::create(RUNNER_ACK_FIFO)?
                     .with_reader()? // FIFO needs a reader to be opened with writer
                     .with_writer()?;
 
-                debug!("Perf PID: {}", perf_pid);
-                std::thread::spawn(move || -> anyhow::Result<()> {
-                    loop {
-                        let Ok(cmd) = ctl_fifo.recv_cmd() else {
-                            continue;
-                        };
-
-                        match cmd {
-                            FifoCommand::StartBenchmark => {
-                                unsafe { libc::kill(perf_pid as i32, libc::SIGUSR2) };
-                                perf_fifo.start_events()?;
-                                ack_fifo.send_cmd(FifoCommand::Ack)?;
-                            }
-                            FifoCommand::StopBenchmark => {
-                                perf_fifo.stop_events()?;
-                                ack_fifo.send_cmd(FifoCommand::Ack)?;
-                            }
-                            FifoCommand::Ack => unreachable!(),
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    rt.block_on(async move {
+                        if let Err(error) =
+                            super::perf::handle_fifo(pid, ctl_fifo, ack_fifo, perf_fifo).await
+                        {
+                            error!("Error handling FIFO: {}", error);
                         }
-
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                    }
+                    });
                 });
 
                 Ok(())
