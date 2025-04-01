@@ -48,11 +48,14 @@ console = "0.15.8"
 async-trait = "0.1.82"
 codspeed = { git = "https://github.com/CodspeedHQ/codspeed-rust", branch = "cod-674-collect-profiles-while-benchmarks-are-running", version = "=2.9.1" }
 libc = "0.2.171"
+perf-helper = { path = "perf-helper" }
 
 [dev-dependencies]
 temp-env = { version = "0.3.6", features = ["async_closure"] }
 insta = { version = "1.29.0", features = ["json", "redactions"] }
 
+[workspace]
+members = ["perf-helper"]
 
 [workspace.metadata.release]
 sign-tag = true

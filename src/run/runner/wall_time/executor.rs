@@ -143,9 +143,21 @@ impl Executor for WallTimeExecutor {
                     .unwrap_or(false)
             });
         for entry in map_files {
-            let src_path = entry.clone();
-            let dst_path = run_data.profile_folder.join(entry.file_name().unwrap());
+            let perf_map = perf_helper::perf_map::SyntheticPerfMap::from_perf_file(entry.as_path());
+            let _ = perf_map.save_to(&run_data.profile_folder);
 
+            if let Some(data) =
+                perf_helper::debug_symbols::DebugData::from_perf_file(entry.as_path())
+            {
+                data.save_to(&run_data.profile_folder)?;
+            }
+
+            let src_path = &entry;
+            let dst_file_name = format!(
+                "{}.perf",
+                entry.file_name().unwrap_or_default().to_string_lossy()
+            );
+            let dst_path = run_data.profile_folder.join(dst_file_name);
             std::fs::copy(src_path, dst_path)?;
         }
 
