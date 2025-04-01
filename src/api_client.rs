@@ -12,15 +12,13 @@ pub struct CodSpeedAPIClient {
     unauthenticated_gql_client: GQLClient,
 }
 
-impl TryFrom<&Cli> for CodSpeedAPIClient {
+impl TryFrom<(&Cli, &CodSpeedConfig)> for CodSpeedAPIClient {
     type Error = Error;
-    fn try_from(args: &Cli) -> Result<Self> {
-        let codspeed_config = CodSpeedConfig::load()?;
-
+    fn try_from((args, codspeed_config): (&Cli, &CodSpeedConfig)) -> Result<Self> {
         Ok(Self {
-            gql_client: build_gql_api_client(&codspeed_config, args.api_url.clone(), true),
+            gql_client: build_gql_api_client(codspeed_config, args.api_url.clone(), true),
             unauthenticated_gql_client: build_gql_api_client(
-                &codspeed_config,
+                codspeed_config,
                 args.api_url.clone(),
                 false,
             ),

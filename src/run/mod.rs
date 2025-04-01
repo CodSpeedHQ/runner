@@ -133,11 +133,14 @@ impl RunArgs {
     }
 }
 
-pub async fn run(args: RunArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
+pub async fn run(
+    args: RunArgs,
+    api_client: &CodSpeedAPIClient,
+    codspeed_config: &CodSpeedConfig,
+) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
     let mut config = Config::try_from(args)?;
     let provider = run_environment::get_provider(&config)?;
-    let codspeed_config = CodSpeedConfig::load()?;
     let logger = Logger::new(&provider)?;
 
     if provider.get_run_environment() != RunEnvironment::Local {

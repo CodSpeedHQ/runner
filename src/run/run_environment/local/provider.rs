@@ -3,9 +3,12 @@ use simplelog::SharedLogger;
 
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
+use crate::run::check_system::SystemInfo;
 use crate::run::config::RepositoryOverride;
 use crate::run::helpers::{parse_git_remote, GitRemote};
 use crate::run::run_environment::{RunEnvironment, RunPart};
+use crate::run::runner::ExecutorName;
+use crate::run::uploader::{Runner, UploadMetadata};
 use crate::run::{
     config::Config,
     helpers::find_repository_root,
@@ -138,6 +141,34 @@ impl RunEnvironmentProvider for LocalProvider {
             repository: self.repository.clone(),
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
+        })
+    }
+
+    fn get_upload_metadata(
+        &self,
+        config: &Config,
+        system_info: &SystemInfo,
+        archive_hash: &str,
+        executor_name: ExecutorName,
+    ) -> Result<UploadMetadata> {
+        let run_environment_metadata = self.get_run_environment_metadata()?;
+
+        Ok(UploadMetadata {
+            version: Some(6),
+            tokenless: config.token.is_none(),
+            repository_provider: self.get_repository_provider(),
+            commit_hash: run_environment_metadata.ref_.clone(),
+            run_environment_metadata,
+            profile_md5: archive_hash.into(),
+            runner: Runner {
+                name: "codspeed-runner".into(),
+                version: crate::VERSION.into(),
+                instruments: config.instruments.get_active_instrument_names(),
+                executor: executor_name,
+                system_info: system_info.clone(),
+            },
+            run_environment: self.get_run_environment(),
+            run_part: self.get_run_provider_run_part(),
         })
     }
 

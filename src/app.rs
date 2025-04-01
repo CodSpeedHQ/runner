@@ -1,6 +1,7 @@
 use crate::{
     api_client::CodSpeedAPIClient,
     auth,
+    config::CodSpeedConfig,
     local_logger::{init_local_logger, CODSPEED_U8_COLOR_CODE},
     prelude::*,
     run, setup,
@@ -33,6 +34,10 @@ pub struct Cli {
     )]
     pub api_url: String,
 
+    /// The OAuth token to use for all requests
+    #[arg(long, env = "CODSPEED_OAUTH_TOKEN", global = true, hide = true)]
+    pub oauth_token: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -49,7 +54,8 @@ enum Commands {
 
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
-    let api_client = CodSpeedAPIClient::try_from(&cli)?;
+    let codspeed_config = CodSpeedConfig::load_with_override(cli.oauth_token.as_deref())?;
+    let api_client = CodSpeedAPIClient::try_from((&cli, &codspeed_config))?;
 
     match cli.command {
         Commands::Run(_) => {} // Run is responsible for its own logger initialization
@@ -59,7 +65,7 @@ pub async fn run() -> Result<()> {
     }
 
     match cli.command {
-        Commands::Run(args) => run::run(args, &api_client).await?,
+        Commands::Run(args) => run::run(args, &api_client, &codspeed_config).await?,
         Commands::Auth(args) => auth::run(args, &api_client).await?,
         Commands::Setup => setup::setup().await?,
     }

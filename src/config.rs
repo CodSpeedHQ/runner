@@ -36,27 +36,39 @@ impl Default for CodSpeedConfig {
 }
 
 impl CodSpeedConfig {
-    /// Load the configuration. If it does not exist, store and return a default configuration
-    pub fn load() -> Result<Self> {
+    /// Load the configuration. If it does not exist, return a default configuration.
+    ///
+    /// If oauth_token_override is provided, the token from the loaded configuration will be
+    /// ignored, and the override will be used instead
+    pub fn load_with_override(oauth_token_override: Option<&str>) -> Result<Self> {
         let config_path = get_configuration_file_path();
 
-        match fs::read(&config_path) {
+        let mut config = match fs::read(&config_path) {
             Ok(config_str) => {
                 let config = serde_yaml::from_slice(&config_str).context(format!(
                     "Failed to parse CodSpeed config at {}",
                     config_path.display()
                 ))?;
                 debug!("Config loaded from {}", config_path.display());
-                Ok(config)
+                config
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 debug!("Config file not found at {}", config_path.display());
-                let config = CodSpeedConfig::default();
-                config.persist()?;
-                Ok(config)
+                CodSpeedConfig::default()
             }
             Err(e) => bail!("Failed to load config: {}", e),
+        };
+
+        if let Some(oauth_token) = oauth_token_override {
+            config.auth.token = Some(oauth_token.to_owned());
         }
+
+        Ok(config)
+    }
+
+    /// Load the configuration. If it does not exist, return a default configuration.
+    pub fn load() -> Result<Self> {
+        Self::load_with_override(None)
     }
 
     /// Persist changes to the configuration
