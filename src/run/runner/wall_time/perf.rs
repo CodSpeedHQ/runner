@@ -16,16 +16,10 @@ pub struct PerfFifo {
 
 impl PerfFifo {
     pub fn new() -> anyhow::Result<Self> {
-        let fifo_dir = tempfile::tempdir()?;
+        let fifo_dir = tempfile::tempdir()?.into_path();
 
-        let make_fifo_path = |name: &str| -> PathBuf {
-            let mut path = PathBuf::from(fifo_dir.path());
-            path.push(name);
-            path
-        };
-
-        let ctl_fifo_path = make_fifo_path("codspeed_perf.ctl.fifo");
-        let ack_fifo_path = make_fifo_path("codspeed_perf.ack.fifo");
+        let ctl_fifo_path = fifo_dir.join("codspeed_perf.ctl.fifo");
+        let ack_fifo_path = fifo_dir.join("codspeed_perf.ack.fifo");
 
         // Note: The writer can't be opened before there's a reader. We can
         // create our own reader first to be able to open the writer.
