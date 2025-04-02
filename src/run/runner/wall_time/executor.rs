@@ -1,4 +1,3 @@
-use super::perf::PerfFifo;
 use crate::prelude::*;
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
@@ -7,6 +6,8 @@ use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::{
     run_command_with_log_pipe, run_command_with_log_pipe_and_callback,
 };
+use crate::run::runner::wall_time::perf;
+use crate::run::runner::wall_time::perf::fifo::PerfFifo;
 use crate::run::runner::{ExecutorName, RunData, RunnerMode};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
@@ -16,6 +17,9 @@ use codspeed::fifo::RUNNER_CTL_FIFO;
 use std::fs::canonicalize;
 use std::process::Command;
 use tempfile::TempDir;
+
+use super::perf::perf_map::SyntheticPerfMap;
+use super::perf::unwind_data::UnwindDataLoader;
 
 const PERF_DATA_PREFIX: &str = "perf.data.";
 
@@ -96,7 +100,7 @@ impl Executor for WallTimeExecutor {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(async move {
                         if let Err(error) =
-                            super::perf::handle_fifo(pid, ctl_fifo, ack_fifo, perf_fifo).await
+                            perf::fifo::handle_fifo(pid, ctl_fifo, ack_fifo, perf_fifo).await
                         {
                             error!("Error handling FIFO: {}", error);
                         }
@@ -138,12 +142,10 @@ impl Executor for WallTimeExecutor {
                     .unwrap_or(false)
             });
         for entry in map_files {
-            let perf_map = perf_helper::perf_map::SyntheticPerfMap::from_perf_file(entry.as_path());
+            let perf_map = SyntheticPerfMap::from_perf_file(entry.as_path());
             let _ = perf_map.save_to(&run_data.profile_folder);
 
-            if let Some(data) =
-                perf_helper::debug_symbols::DebugData::from_perf_file(entry.as_path())
-            {
+            if let Some(data) = UnwindDataLoader::from_perf_file(entry.as_path()) {
                 data.save_to(&run_data.profile_folder)?;
             }
 

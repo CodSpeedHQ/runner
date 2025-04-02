@@ -1,17 +1,21 @@
-use std::ops::Range;
+// !!!!!!!!!!!!!!!!!!!!!
+// !!! DO NOT MODIFY !!!
+// !!!!!!!!!!!!!!!!!!!!!
+//
+// This file has to be in sync with perf-parser!
 
 use anyhow::{bail, Context};
 use debugid::CodeId;
-use framehop::ExplicitModuleSectionInfo;
 use linux_perf_data::{
     linux_perf_event_reader::{EventRecord, Mmap2FileId},
     DsoKey, PerfFileReader, PerfFileRecord,
 };
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
-/// Debug symbols for a single module.
+/// Unwind data for a single module.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DebugModule {
+pub struct UnwindData {
     pub path: String,
 
     pub avma_range: Range<u64>,
@@ -24,7 +28,7 @@ pub struct DebugModule {
     pub eh_frame_svma: Range<u64>,
 }
 
-impl DebugModule {
+impl UnwindData {
     // Based on this: https://github.com/mstange/linux-perf-stuff/blob/22ca6531b90c10dd2a4519351c843b8d7958a451/src/main.rs#L747-L893
     fn new(
         path_slice: &[u8],
@@ -124,44 +128,20 @@ impl DebugModule {
         Ok(())
     }
 
-    pub fn from_data(data: &[u8]) -> anyhow::Result<Self> {
-        bincode::deserialize(data).context("Failed to decode")
-    }
-
-    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<Self> {
-        let content = std::fs::read(path.as_ref())?;
-        Self::from_data(&content)
-    }
-
     pub fn name(&self) -> String {
         match self.path.rfind('/') {
             Some(pos) => self.path[pos + 1..].to_owned(),
             None => self.path.clone(),
         }
     }
-
-    pub fn into_framehop_module(self) -> framehop::Module<Vec<u8>> {
-        framehop::Module::new(
-            self.name(),
-            self.avma_range,
-            self.base_avma,
-            ExplicitModuleSectionInfo {
-                eh_frame_svma: Some(self.eh_frame_svma),
-                eh_frame: Some(self.eh_frame),
-                eh_frame_hdr_svma: Some(self.eh_frame_hdr_svma),
-                eh_frame_hdr: Some(self.eh_frame_hdr),
-                ..Default::default()
-            },
-        )
-    }
 }
 
 #[derive(Debug)]
-pub struct DebugData {
-    modules: Vec<DebugModule>,
+pub struct UnwindDataLoader {
+    modules: Vec<UnwindData>,
 }
 
-impl DebugData {
+impl UnwindDataLoader {
     pub fn from_perf_file<P: AsRef<std::path::Path>>(path: P) -> Option<Self> {
         let content = std::fs::read(path.as_ref()).unwrap();
         let reader = std::io::Cursor::new(content);
@@ -243,7 +223,7 @@ impl DebugData {
             }
 
             if let Ok(module) =
-                DebugModule::new(&path, page_offset, addr, length, build_id.as_deref())
+                UnwindData::new(&path, page_offset, addr, length, build_id.as_deref())
             {
                 modules.push(module);
             }
@@ -255,7 +235,7 @@ impl DebugData {
     pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
         for module in &self.modules {
             let path = folder.as_ref().join(format!(
-                "{}_{:x}_{:x}.dwarf",
+                "{}_{:x}_{:x}.unwind",
                 module.name(),
                 module.avma_range.start,
                 module.avma_range.end
