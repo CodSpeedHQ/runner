@@ -8,12 +8,11 @@ use crate::run::runner::helpers::run_command_with_log_pipe::{
 };
 use crate::run::runner::wall_time::perf;
 use crate::run::runner::wall_time::perf::fifo::PerfFifo;
+use crate::run::runner::wall_time::perf::fifo::RunnerFifo;
 use crate::run::runner::{ExecutorName, RunData, RunnerMode};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
-use codspeed::fifo::FifoIpc;
-use codspeed::fifo::RUNNER_ACK_FIFO;
-use codspeed::fifo::RUNNER_CTL_FIFO;
+use std::cell::OnceCell;
 use std::fs::canonicalize;
 use std::process::Command;
 use tempfile::TempDir;
@@ -24,13 +23,20 @@ use super::perf::unwind_data::UnwindDataLoader;
 const PERF_DATA_PREFIX: &str = "perf.data.";
 
 pub struct WallTimeExecutor {
+    use_perf: bool,
     perf_dir: TempDir,
+    bench_order: OnceCell<Vec<String>>,
 }
 
 impl WallTimeExecutor {
     pub fn new() -> Self {
+        let use_perf = std::env::var("USE_PERF").map(|v| v == "1").unwrap_or(true);
+        debug!("Running the cmd with perf: {}", use_perf);
+
         Self {
-            perf_dir: tempfile::tempdir().unwrap(),
+            use_perf,
+            perf_dir: tempfile::tempdir().expect("Failed to create temporary directory"),
+            bench_order: OnceCell::new(),
         }
     }
 }
@@ -63,12 +69,9 @@ impl Executor for WallTimeExecutor {
             cmd.current_dir(abs_cwd);
         }
 
-        let use_perf = std::env::var("USE_PERF").map(|v| v == "1").unwrap_or(true);
-        debug!("Running the cmd with perf: {}", use_perf);
-
-        let status = if use_perf {
+        let status = if self.use_perf {
             let perf_fifo = PerfFifo::new()?;
-            let ctl_fifo = FifoIpc::create(RUNNER_CTL_FIFO)?.with_reader()?;
+            let runner_fifo = RunnerFifo::new()?;
 
             // We have to pass a file to perf, which will create `perf.data.<timestamp>` files
             // when the output is split.
@@ -80,7 +83,7 @@ impl Executor for WallTimeExecutor {
             cmd.args([
                 "-c",
                 &format!(
-                    "perf record --data --freq=1000 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
+                    "perf record --data --freq=max --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
                     perf_fifo.ctl_fifo_path.to_string_lossy(),
                     perf_fifo.ack_fifo_path.to_string_lossy(),
                     perf_file.path().to_string_lossy(),
@@ -89,28 +92,28 @@ impl Executor for WallTimeExecutor {
             ]);
             debug!("cmd: {:?}", cmd);
 
+            let mut thread_handle = None;
             let on_process_started = |pid: u32| -> anyhow::Result<()> {
                 debug!("Process id: {}", pid);
 
-                let ack_fifo = FifoIpc::create(RUNNER_ACK_FIFO)?
-                    .with_reader()? // FIFO needs a reader to be opened with writer
-                    .with_writer()?;
-
-                std::thread::spawn(move || {
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    rt.block_on(async move {
-                        if let Err(error) =
-                            perf::fifo::handle_fifo(pid, ctl_fifo, ack_fifo, perf_fifo).await
-                        {
-                            error!("Error handling FIFO: {}", error);
-                        }
-                    });
+                let handle = tokio::task::spawn(async move {
+                    perf::fifo::handle_fifo(pid, runner_fifo, perf_fifo).await
                 });
+                thread_handle = Some(handle);
 
                 Ok(())
             };
+            let status = run_command_with_log_pipe_and_callback(cmd, on_process_started);
+            info!("Process finished with status: {:?}", status);
 
-            run_command_with_log_pipe_and_callback(cmd, on_process_started)
+            // Write the bench_order to the perf directory
+            let bench_order = thread_handle
+                .context("No thread found")?
+                .await
+                .map_err(|e| anyhow!("failed to join thread: {:?}", e))??;
+            let _ = self.bench_order.set(bench_order);
+
+            status
         } else {
             cmd.args(["-c", get_bench_command(config)?.as_str()]);
             run_command_with_log_pipe(cmd)
@@ -132,30 +135,53 @@ impl Executor for WallTimeExecutor {
         _system_info: &SystemInfo,
         run_data: &RunData,
     ) -> Result<()> {
-        // Copy the perf data files to the profile folder
-        let map_files = std::fs::read_dir(&self.perf_dir)?
-            .filter_map(|entry| entry.ok())
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.file_name()
-                    .map(|name| name.to_string_lossy().starts_with(PERF_DATA_PREFIX))
-                    .unwrap_or(false)
-            });
-        for entry in map_files {
-            let perf_map = SyntheticPerfMap::from_perf_file(entry.as_path());
-            let _ = perf_map.save_to(&run_data.profile_folder);
+        debug!("Copying files to the profile folder");
 
-            if let Some(data) = UnwindDataLoader::from_perf_file(entry.as_path()) {
-                data.save_to(&run_data.profile_folder)?;
+        if self.use_perf {
+            let bench_order = self
+                .bench_order
+                .get()
+                .expect("Benchmark order is not available");
+
+            // Copy the perf data files to the profile folder
+            let map_files = std::fs::read_dir(&self.perf_dir)?
+                .filter_map(|entry| entry.ok())
+                .map(|entry| entry.path())
+                .filter(|path| {
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().starts_with(PERF_DATA_PREFIX))
+                        .unwrap_or(false)
+                })
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                map_files.len() - 1, // First perf.data is empty
+                bench_order.len(),
+                "Number of perf data files does not match the number of benchmarks"
+            );
+
+            for entry in map_files {
+                let perf_map = SyntheticPerfMap::from_perf_file(entry.as_path());
+                let _ = perf_map.save_to(&run_data.profile_folder);
+
+                if let Some(data) = UnwindDataLoader::from_perf_file(entry.as_path()) {
+                    data.save_to(&run_data.profile_folder)?;
+                }
+
+                let src_path = &entry;
+                let dst_file_name = format!(
+                    "{}.perf",
+                    entry.file_name().unwrap_or_default().to_string_lossy()
+                );
+                let dst_path = run_data.profile_folder.join(dst_file_name);
+                std::fs::copy(src_path, dst_path)?;
             }
 
-            let src_path = &entry;
-            let dst_file_name = format!(
-                "{}.perf",
-                entry.file_name().unwrap_or_default().to_string_lossy()
-            );
-            let dst_path = run_data.profile_folder.join(dst_file_name);
-            std::fs::copy(src_path, dst_path)?;
+            // Copy bench_order.txt to the profile folder
+            std::fs::write(
+                run_data.profile_folder.join("metadata.bench_order"),
+                bench_order.join("\n"),
+            )?;
         }
 
         Ok(())

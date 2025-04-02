@@ -1,13 +1,71 @@
+use super::{Command as FifoCommand, RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use crate::prelude::*;
-use codspeed::fifo::FifoIpc;
-use std::{
-    io::{Read, Write},
-    path::PathBuf,
-};
+use std::{path::PathBuf, time::Duration};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::unix::pipe::OpenOptions as TokioPipeOpenOptions;
+use tokio::net::unix::pipe::Receiver as TokioPipeReader;
+use tokio::net::unix::pipe::Sender as TokioPipeSender;
+
+fn create_fifo<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<()> {
+    // Remove the previous FIFO (if it exists)
+    let _ = nix::unistd::unlink(path.as_ref());
+
+    // Create the FIFO with RWX permissions for the owner
+    nix::unistd::mkfifo(path.as_ref(), nix::sys::stat::Mode::S_IRWXU)?;
+
+    Ok(())
+}
+
+pub struct RunnerFifo {
+    ack_fifo: TokioPipeSender,
+    ctl_fifo: TokioPipeReader,
+}
+
+impl RunnerFifo {
+    pub fn new() -> anyhow::Result<Self> {
+        create_fifo(RUNNER_CTL_FIFO)?;
+        create_fifo(RUNNER_ACK_FIFO)?;
+
+        let ack_fifo = TokioPipeOpenOptions::new()
+            .read_write(true)
+            .open_sender(RUNNER_ACK_FIFO)?;
+        let ctl_fifo = TokioPipeOpenOptions::new()
+            .read_write(true)
+            .open_receiver(RUNNER_CTL_FIFO)?;
+
+        Ok(Self { ctl_fifo, ack_fifo })
+    }
+
+    pub async fn recv_cmd(&mut self) -> anyhow::Result<FifoCommand> {
+        let mut len_buffer = [0u8; 4];
+        self.ctl_fifo.read_exact(&mut len_buffer).await?;
+        let message_len = u32::from_le_bytes(len_buffer) as usize;
+
+        let mut buffer = vec![0u8; message_len];
+        loop {
+            if self.ctl_fifo.read_exact(&mut buffer).await.is_ok() {
+                break;
+            }
+        }
+
+        let decoded = bincode::deserialize(&buffer)?;
+        Ok(decoded)
+    }
+
+    pub async fn send_cmd(&mut self, cmd: FifoCommand) -> anyhow::Result<()> {
+        let encoded = bincode::serialize(&cmd)?;
+
+        self.ack_fifo
+            .write_all(&(encoded.len() as u32).to_le_bytes())
+            .await?;
+        self.ack_fifo.write_all(&encoded).await?;
+        Ok(())
+    }
+}
 
 pub struct PerfFifo {
-    ctl_fifo: FifoIpc,
-    ack_fifo: FifoIpc,
+    ctl_fifo: TokioPipeSender,
+    ack_fifo: TokioPipeReader,
 
     pub(crate) ctl_fifo_path: PathBuf,
     pub(crate) ack_fifo_path: PathBuf,
@@ -20,12 +78,15 @@ impl PerfFifo {
         let ctl_fifo_path = fifo_dir.join("codspeed_perf.ctl.fifo");
         let ack_fifo_path = fifo_dir.join("codspeed_perf.ack.fifo");
 
-        // Note: The writer can't be opened before there's a reader. We can
-        // create our own reader first to be able to open the writer.
-        let ctl_fifo = FifoIpc::create(&ctl_fifo_path)?
-            .with_reader()?
-            .with_writer()?;
-        let ack_fifo = FifoIpc::create(&ack_fifo_path)?.with_reader()?;
+        create_fifo(&ctl_fifo_path)?;
+        create_fifo(&ack_fifo_path)?;
+
+        let ack_fifo = TokioPipeOpenOptions::new()
+            .read_write(true)
+            .open_receiver(&ack_fifo_path)?;
+        let ctl_fifo = TokioPipeOpenOptions::new()
+            .read_write(true)
+            .open_sender(&ctl_fifo_path)?;
 
         Ok(Self {
             ctl_fifo,
@@ -36,14 +97,21 @@ impl PerfFifo {
     }
 
     pub async fn start_events(&mut self) -> anyhow::Result<()> {
-        self.ctl_fifo.write_all(b"enable\n").unwrap();
+        self.ctl_fifo.write_all(b"enable\n").await?;
         self.wait_for_ack().await;
 
         Ok(())
     }
 
     pub async fn stop_events(&mut self) -> anyhow::Result<()> {
-        self.ctl_fifo.write_all(b"disable\n").unwrap();
+        self.ctl_fifo.write_all(b"disable\n").await?;
+        self.wait_for_ack().await;
+
+        Ok(())
+    }
+
+    pub async fn ping(&mut self) -> anyhow::Result<()> {
+        self.ctl_fifo.write_all(b"ping\n").await?;
         self.wait_for_ack().await;
 
         Ok(())
@@ -54,7 +122,7 @@ impl PerfFifo {
 
         loop {
             let mut buf: [u8; ACK.len()] = [0; ACK.len()];
-            if self.ack_fifo.read_exact(&mut buf).is_err() {
+            if self.ack_fifo.read_exact(&mut buf).await.is_err() {
                 continue;
             }
 
@@ -67,31 +135,39 @@ impl PerfFifo {
 
 pub async fn handle_fifo(
     perf_pid: u32,
-    mut ctl_fifo: FifoIpc,
-    mut ack_fifo: FifoIpc,
+    mut runner_fifo: RunnerFifo,
     mut perf_fifo: PerfFifo,
-) -> anyhow::Result<()> {
-    use codspeed::fifo::Command as FifoCommand;
-
+) -> anyhow::Result<Vec<String>> {
+    let mut bench_order = Vec::new();
     loop {
-        let Ok(cmd) = ctl_fifo.recv_cmd() else {
+        let perf_ping = tokio::time::timeout(Duration::from_secs(1), perf_fifo.ping()).await;
+        if let Ok(Err(_)) | Err(_) = perf_ping {
+            break;
+        }
+
+        let result = tokio::time::timeout(Duration::from_secs(1), runner_fifo.recv_cmd()).await;
+        let Ok(Ok(cmd)) = result else {
             continue;
         };
         debug!("Received command: {:?}", cmd);
 
         match cmd {
+            FifoCommand::CurrentBenchmark(uri) => {
+                bench_order.push(uri);
+                runner_fifo.send_cmd(FifoCommand::Ack).await?;
+            }
             FifoCommand::StartBenchmark => {
                 unsafe { libc::kill(perf_pid as i32, libc::SIGUSR2) };
                 perf_fifo.start_events().await?;
-                ack_fifo.send_cmd(FifoCommand::Ack)?;
+                runner_fifo.send_cmd(FifoCommand::Ack).await?;
             }
             FifoCommand::StopBenchmark => {
                 perf_fifo.stop_events().await?;
-                ack_fifo.send_cmd(FifoCommand::Ack)?;
+                runner_fifo.send_cmd(FifoCommand::Ack).await?;
             }
             FifoCommand::Ack => unreachable!(),
         }
-
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
+
+    Ok(bench_order)
 }

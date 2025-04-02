@@ -2,6 +2,9 @@ use anyhow::Context;
 
 use crate::run::runner::helpers::setup::run_with_sudo;
 
+mod shared;
+pub use shared::*;
+
 pub mod fifo;
 pub mod perf_map;
 pub mod unwind_data;
