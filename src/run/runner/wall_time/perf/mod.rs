@@ -7,7 +7,7 @@ pub mod perf_map;
 pub mod unwind_data;
 
 pub fn setup_environment() -> anyhow::Result<()> {
-    let sysctl_read = |name: &str| -> anyhow::Result<u64> {
+    let sysctl_read = |name: &str| -> anyhow::Result<i64> {
         let output = std::process::Command::new("sysctl").arg(name).output()?;
         let output = String::from_utf8(output.stdout)?;
 
@@ -16,7 +16,7 @@ pub fn setup_environment() -> anyhow::Result<()> {
             .last()
             .context("Couldn't find the value in sysctl output")?
             .trim()
-            .parse::<u64>()?)
+            .parse::<i64>()?)
     };
 
     // Allow access to kernel symbols
