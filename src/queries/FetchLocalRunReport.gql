@@ -3,14 +3,20 @@ query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
     settings {
       allowedRegression
     }
-    runs(where: { id: { equals: $runId } }) {
-      id
+    run(id: $runId) {
+     id
       status
       url
       headReports {
         id
         impact
         conclusion
+      }
+      results {
+        time
+        benchmark {
+          name
+        }
       }
     }
   }

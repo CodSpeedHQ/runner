@@ -46,6 +46,7 @@ sysinfo = { version = "0.33.1", features = ["serde"] }
 indicatif = "0.17.8"
 console = "0.15.8"
 async-trait = "0.1.82"
+humantime = "2.2.0"
 
 [dev-dependencies]
 temp-env = { version = "0.3.6", features = ["async_closure"] }

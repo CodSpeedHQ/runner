@@ -108,11 +108,14 @@ impl Display for ReportConclusion {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FetchLocalRunReportHeadReport {
+pub struct FetchLocalRunReportRun {
     pub id: String,
-    pub impact: Option<f64>,
-    pub conclusion: ReportConclusion,
+    pub status: RunStatus,
+    pub url: String,
+    pub head_reports: Vec<FetchLocalRunReportHeadReport>,
+    pub results: Vec<FetchLocalRunBenchmarkResult>,
 }
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RunStatus {
@@ -121,14 +124,26 @@ pub enum RunStatus {
     Pending,
     Processing,
 }
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FetchLocalRunReportRun {
+pub struct FetchLocalRunReportHeadReport {
     pub id: String,
-    pub status: RunStatus,
-    pub url: String,
-    pub head_reports: Vec<FetchLocalRunReportHeadReport>,
+    pub impact: Option<f64>,
+    pub conclusion: ReportConclusion,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FetchLocalRunBenchmarkResult {
+    pub time: f64,
+    pub benchmark: FetchLocalRunBenchmark,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FetchLocalRunBenchmark {
+    pub name: String,
+}
+
 nest! {
     #[derive(Debug, Deserialize, Serialize)]*
     #[serde(rename_all = "camelCase")]*
@@ -137,7 +152,7 @@ nest! {
             settings: struct FetchLocalRunReportSettings {
                 allowed_regression: f64,
             },
-            runs: Vec<FetchLocalRunReportRun>,
+            run: FetchLocalRunReportRun,
         }
     }
 }
@@ -190,22 +205,10 @@ impl CodSpeedAPIClient {
             )
             .await;
         match response {
-            Ok(response) => {
-                let allowed_regression = response.repository.settings.allowed_regression;
-
-                match response.repository.runs.into_iter().next() {
-                    Some(run) => Ok(FetchLocalRunReportResponse {
-                        allowed_regression,
-                        run,
-                    }),
-                    None => bail!(
-                        "No runs found for owner: {}, name: {}, run_id: {}",
-                        vars.owner,
-                        vars.name,
-                        vars.run_id
-                    ),
-                }
-            }
+            Ok(response) => Ok(FetchLocalRunReportResponse {
+                allowed_regression: response.repository.settings.allowed_regression,
+                run: response.repository.run,
+            }),
             Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
                 bail!("Your session has expired, please login again using `codspeed auth login`")
             }

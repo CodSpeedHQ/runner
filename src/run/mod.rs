@@ -206,17 +206,8 @@ pub async fn run(
         end_group!();
 
         if provider.get_run_environment() == RunEnvironment::Local {
-            start_group!("Fetching the results");
-            let run_id = upload_result.run_id.clone();
-            poll_results::poll_results(api_client, &provider, upload_result.run_id).await?;
-            if output_json {
-                // TODO: Refactor `log_json` to avoid having to format the json manually
-                // We could make use of structured logging for this https://docs.rs/log/latest/log/#structured-logging
-                log_json!(format!(
-                    "{{\"event\": \"run_finished\", \"run_id\": \"{}\"}}",
-                    run_id
-                ));
-            }
+            poll_results::poll_results(api_client, &provider, upload_result.run_id, output_json)
+                .await?;
             end_group!();
         }
     }

@@ -18,6 +18,7 @@ pub async fn poll_results(
     api_client: &CodSpeedAPIClient,
     provider: &Box<dyn RunEnvironmentProvider>,
     run_id: String,
+    output_json: bool,
 ) -> Result<()> {
     let start = Instant::now();
     let run_environment_metadata = provider.get_run_environment_metadata()?;
@@ -29,6 +30,7 @@ pub async fn poll_results(
         run_id: run_id.clone(),
     };
 
+    start_group!("Fetching the results");
     let response;
     loop {
         if start.elapsed() > RUN_PROCESSING_MAX_DURATION {
@@ -83,6 +85,35 @@ pub async fn poll_results(
         "\nTo see the full report, visit: {}",
         style(response.run.url).blue().bold().underlined()
     );
+
+    if output_json {
+        // TODO: Refactor `log_json` to avoid having to format the json manually
+        // We could make use of structured logging for this https://docs.rs/log/latest/log/#structured-logging
+        log_json!(format!(
+            "{{\"event\": \"run_finished\", \"run_id\": \"{}\"}}",
+            run_id
+        ));
+    }
+
+    end_group!();
+
+    if !response.run.results.is_empty() {
+        start_group!("Benchmarks");
+        for result in response.run.results {
+            let benchmark_name = result.benchmark.name;
+            let time: humantime::Duration = Duration::from_secs_f64(result.time).into();
+            let time_text = style(format!("{}", time)).bold();
+
+            if output_json {
+                log_json!(format!(
+                    "{{\"event\": \"benchmark_ran\", \"name\": \"{}\", \"time\": \"{}\"}}",
+                    benchmark_name, result.time,
+                ));
+            }
+            info!("{} - Time: {}", benchmark_name, time_text);
+        }
+        end_group!();
+    }
 
     Ok(())
 }
