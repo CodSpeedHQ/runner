@@ -5,7 +5,7 @@ use crate::prelude::*;
 use super::RunnerMode;
 
 mod executor;
-mod helpers;
+pub(crate) mod helpers;
 mod interfaces;
 mod valgrind;
 mod wall_time;
@@ -30,12 +30,15 @@ pub const EXECUTOR_TARGET: &str = "executor";
 pub fn get_executor_from_mode(mode: &RunnerMode) -> Box<dyn Executor> {
     match mode {
         RunnerMode::Instrumentation => Box::new(ValgrindExecutor),
-        RunnerMode::Walltime => Box::new(WallTimeExecutor),
+        RunnerMode::Walltime => Box::new(WallTimeExecutor::new()),
     }
 }
 
 pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
-    vec![Box::new(ValgrindExecutor), Box::new(WallTimeExecutor)]
+    vec![
+        Box::new(ValgrindExecutor),
+        Box::new(WallTimeExecutor::new()),
+    ]
 }
 
 pub fn get_run_data() -> Result<RunData> {
