@@ -22,11 +22,11 @@ mod tests {
 
     #[test]
     fn test_get_env_variable_not_found() {
-        let result = get_env_variable("MY_CUSTOM_ENV_VAR");
+        let result = get_env_variable("MY_CUSTOM_ENV_VAR_NOT_FOUND");
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "MY_CUSTOM_ENV_VAR environment variable not found"
+            "MY_CUSTOM_ENV_VAR_NOT_FOUND environment variable not found"
         );
     }
 }

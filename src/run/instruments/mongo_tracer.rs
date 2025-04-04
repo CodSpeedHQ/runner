@@ -290,7 +290,7 @@ mod tests {
     fn test_try_from_empty_env() {
         let profile_folder = PathBuf::from("/tmp/codspeed");
         let mongodb_config = MongoDBConfig {
-            uri_env_name: Some("MONGO_URL".into()),
+            uri_env_name: Some("MONGO_URL_NOT_FOUND".into()),
         };
 
         let tracer = MongoTracer::try_from(&profile_folder, &mongodb_config);
@@ -298,7 +298,7 @@ mod tests {
         assert!(tracer.is_err());
         assert_eq!(
             tracer.unwrap_err().to_string(),
-            "MONGO_URL environment variable not found"
+            "MONGO_URL_NOT_FOUND environment variable not found"
         );
     }
 
