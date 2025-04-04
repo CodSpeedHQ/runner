@@ -7,6 +7,7 @@ use crate::api_client::{
     CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
 };
 use crate::prelude::*;
+use crate::run::helpers;
 
 use super::run_environment::RunEnvironmentProvider;
 
@@ -98,11 +99,12 @@ pub async fn poll_results(
     end_group!();
 
     if !response.run.results.is_empty() {
-        start_group!("Benchmarks");
+        start_group!("Benchmark results");
         for result in response.run.results {
             let benchmark_name = result.benchmark.name;
-            let time: humantime::Duration = Duration::from_secs_f64(result.time).into();
-            let time_text = style(format!("{}", time)).bold();
+            let time = helpers::format_duration(result.time, Some(2));
+
+            info!("{}: {}", benchmark_name, style(time).bold());
 
             if output_json {
                 log_json!(format!(
@@ -110,7 +112,6 @@ pub async fn poll_results(
                     benchmark_name, result.time,
                 ));
             }
-            info!("{} - Time: {}", benchmark_name, time_text);
         }
         end_group!();
     }
