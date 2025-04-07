@@ -36,7 +36,7 @@ pub fn find_pid<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<i32> {
         }
     }
 
-    // Choose the pid with the highest frequency. However, we can only use a pid if more than 80% of the
+    // Choose the pid with the highest frequency. However, we can only use a pid if more than N% of the
     // events are from that pid.
     //
     let total_count = pid_freq.values().sum::<u64>();
