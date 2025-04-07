@@ -1,9 +1,10 @@
-use linux_perf_data::{
-    linux_perf_event_reader::{EventRecord, Mmap2Record, MmapRecord},
-    PerfFileReader, PerfFileRecord,
-};
+use log::warn;
 use object::{Object, ObjectSymbol, ObjectSymbolTable};
-use std::{collections::HashMap, io::Write, path::Path};
+use std::{
+    collections::HashMap,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 struct Symbol {
@@ -14,18 +15,16 @@ struct Symbol {
 
 #[derive(Debug)]
 pub struct ModuleSymbols {
-    #[allow(unused)]
-    path: String,
-    symbols: Vec<Symbol>,
-    pid: i32,
+    path: PathBuf,
+    pid: u32,
 
-    start_addr: u64,
-    end_addr: u64,
+    base_addr: u64,
+    symbols: Vec<Symbol>,
 }
 
 impl ModuleSymbols {
-    pub fn new(pid: i32, path: &str, addr: u64, size: u64) -> Option<Self> {
-        let Ok(content) = std::fs::read(path) else {
+    pub fn new<P: AsRef<Path>>(pid: u32, path: P, addr: u64) -> Option<Self> {
+        let Ok(content) = std::fs::read(path.as_ref()) else {
             return None;
         };
 
@@ -44,124 +43,79 @@ impl ModuleSymbols {
             .collect();
 
         Some(Self {
-            path: path.to_string(),
+            path: path.as_ref().to_path_buf(),
             symbols,
             pid,
-            start_addr: addr,
-            end_addr: addr + size,
+            base_addr: addr,
         })
     }
 
-    /// Merge all of the passed symbols into one module.
     pub fn merge(&mut self, other: &ModuleSymbols) {
         assert_eq!(other.pid, self.pid);
+        assert_eq!(other.path, self.path);
+        assert_eq!(self.symbols.len(), other.symbols.len());
 
-        self.start_addr = core::cmp::min(self.start_addr, other.start_addr);
-        self.end_addr = core::cmp::min(self.end_addr, other.end_addr);
-
-        self.symbols.extend(other.symbols.iter().cloned());
-        self.symbols.dedup();
+        // The symbols are relative to the base address, so we need to find it
+        // based on all the sections that are part of the module.
+        self.base_addr = core::cmp::min(self.base_addr, other.base_addr);
     }
 
-    pub fn from_mmap(event: &MmapRecord) -> Option<Self> {
-        let path_slice = event.path.as_slice();
-        let path = core::str::from_utf8(path_slice.as_ref()).unwrap();
+    fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?;
 
-        if !event.is_executable {
-            log::debug!("Skipping non-executable record: {}", path);
-            return None;
-        }
-
-        Self::new(event.pid, path, event.address, event.length)
-    }
-
-    pub fn from_mmap2(event: &Mmap2Record) -> Option<Self> {
-        let path_slice = event.path.as_slice();
-        let path = core::str::from_utf8(path_slice.as_ref()).unwrap();
-
-        Self::new(event.pid, path, event.address, event.length)
-    }
-
-    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), std::io::Error> {
-        let mut file = std::fs::File::create(path)?;
         for symbol in &self.symbols {
             writeln!(
                 file,
                 "{:x} {:x} {}",
-                self.start_addr + symbol.offset,
+                self.base_addr + symbol.offset,
                 symbol.size,
                 symbol.name
             )?;
         }
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct SyntheticPerfMap {
-    module_by_pid: HashMap<i32, ModuleSymbols>,
-}
-
-impl SyntheticPerfMap {
-    pub fn from_perf_file<P: AsRef<Path>>(path: P) -> Self {
-        let file = std::fs::File::open(path).unwrap();
-        let reader = std::io::BufReader::new(file);
-        let PerfFileReader {
-            mut perf_file,
-            mut record_iter,
-        } = PerfFileReader::parse_file(reader).unwrap();
-
-        let mut module_by_pid = HashMap::<i32, ModuleSymbols>::new();
-        while let Some(record) = record_iter.next_record(&mut perf_file).unwrap() {
-            let PerfFileRecord::EventRecord { record, .. } = record else {
-                continue;
-            };
-
-            let Ok(parsed_record) = record.parse() else {
-                continue;
-            };
-
-            match parsed_record {
-                EventRecord::Mmap(event) => {
-                    if let Some(module) = ModuleSymbols::from_mmap(&event) {
-                        module_by_pid
-                            .entry(event.pid)
-                            .and_modify(|existing| existing.merge(&module))
-                            .or_insert(module);
-                    }
-                }
-                EventRecord::Mmap2(event) => {
-                    if let Some(module) = ModuleSymbols::from_mmap2(&event) {
-                        module_by_pid
-                            .entry(event.pid)
-                            .and_modify(|existing| existing.merge(&module))
-                            .or_insert(module);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        SyntheticPerfMap { module_by_pid }
-    }
-
-    pub fn save_to<P: AsRef<Path>>(&self, folder: P) -> Result<(), std::io::Error> {
-        for (pid, module) in &self.module_by_pid {
-            let path = folder.as_ref().join(format!("perf-{}.map", pid));
-            module.to_file(path)?;
-        }
 
         Ok(())
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Represents all the modules inside a process and their symbols.
+pub struct ProcessSymbols {
+    modules: HashMap<PathBuf, ModuleSymbols>,
+    pid: u32,
+}
 
-    #[test]
-    fn test_create_synthetic_perf_map() {
-        let module = ModuleSymbols::new(42, "/usr/local/bin/valgrind", 0x100_000, 0x1000).unwrap();
-        assert_eq!(module.symbols.len(), 0, "{:x?}", module);
+impl ProcessSymbols {
+    pub fn new(pid: u32) -> Self {
+        Self {
+            modules: HashMap::new(),
+            pid,
+        }
+    }
+
+    pub fn add_module_symbols(&mut self, symbols: ModuleSymbols) {
+        if self.pid != symbols.pid {
+            warn!("pid mismatch: {} != {}", self.pid, symbols.pid);
+            return;
+        }
+
+        self.modules
+            .entry(symbols.path.clone())
+            .and_modify(|existing| existing.merge(&symbols))
+            .or_insert(symbols);
+    }
+
+    pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
+        if self.modules.is_empty() {
+            return Ok(());
+        }
+
+        let symbols_path = folder.as_ref().join(format!("perf-{}.map", self.pid));
+        for module in self.modules.values() {
+            module.append_to_file(&symbols_path)?;
+        }
+
+        Ok(())
     }
 }

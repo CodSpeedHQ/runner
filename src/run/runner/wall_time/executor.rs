@@ -1,3 +1,4 @@
+use super::perf::BenchmarkData;
 use crate::prelude::*;
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
@@ -17,15 +18,12 @@ use std::fs::canonicalize;
 use std::process::Command;
 use tempfile::TempDir;
 
-use super::perf::perf_map::SyntheticPerfMap;
-use super::perf::unwind_data::UnwindDataLoader;
-
 const PERF_DATA_PREFIX: &str = "perf.data.";
 
 pub struct WallTimeExecutor {
     use_perf: bool,
     perf_dir: TempDir,
-    bench_order: OnceCell<Vec<String>>,
+    benchmark_data: OnceCell<BenchmarkData>,
 }
 
 impl WallTimeExecutor {
@@ -36,7 +34,7 @@ impl WallTimeExecutor {
         Self {
             use_perf,
             perf_dir: tempfile::tempdir().expect("Failed to create temporary directory"),
-            bench_order: OnceCell::new(),
+            benchmark_data: OnceCell::new(),
         }
     }
 }
@@ -83,7 +81,7 @@ impl Executor for WallTimeExecutor {
             cmd.args([
                 "-c",
                 &format!(
-                    "perf record --data --freq=max --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
+                    "perf record --user-callchains --freq=max --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
                     perf_fifo.ctl_fifo_path.to_string_lossy(),
                     perf_fifo.ack_fifo_path.to_string_lossy(),
                     perf_file.path().to_string_lossy(),
@@ -107,11 +105,11 @@ impl Executor for WallTimeExecutor {
             info!("Process finished with status: {:?}", status);
 
             // Write the bench_order to the perf directory
-            let bench_order = thread_handle
+            let benchmark_data = thread_handle
                 .context("No thread found")?
                 .await
                 .map_err(|e| anyhow!("failed to join thread: {:?}", e))??;
-            let _ = self.bench_order.set(bench_order);
+            let _ = self.benchmark_data.set(benchmark_data);
 
             status
         } else {
@@ -138,50 +136,43 @@ impl Executor for WallTimeExecutor {
         debug!("Copying files to the profile folder");
 
         if self.use_perf {
-            let bench_order = self
-                .bench_order
+            let bench_data = self
+                .benchmark_data
                 .get()
                 .expect("Benchmark order is not available");
+            bench_data.save_to(&run_data.profile_folder).unwrap();
 
             // Copy the perf data files to the profile folder
             let map_files = std::fs::read_dir(&self.perf_dir)?
                 .filter_map(|entry| entry.ok())
-                .map(|entry| entry.path())
+                .map(|entry| entry.path().to_path_buf())
                 .filter(|path| {
                     path.file_name()
                         .map(|name| name.to_string_lossy().starts_with(PERF_DATA_PREFIX))
                         .unwrap_or(false)
                 })
+                .sorted_by_key(|path| path.file_name().unwrap().to_string_lossy().to_string())
+                // The first perf.data will only contain metadata that is not relevant to the benchmarks. We
+                // capture the symbols and unwind data separately.
+                .skip(1)
                 .collect::<Vec<_>>();
 
             assert_eq!(
-                map_files.len() - 1, // First perf.data is empty
-                bench_order.len(),
-                "Number of perf data files does not match the number of benchmarks"
+                map_files.len(),
+                bench_data.bench_count(),
+                "Benchmark count mismatch"
             );
 
             for entry in map_files {
-                let perf_map = SyntheticPerfMap::from_perf_file(entry.as_path());
-                let _ = perf_map.save_to(&run_data.profile_folder);
-
-                if let Some(data) = UnwindDataLoader::from_perf_file(entry.as_path()) {
-                    data.save_to(&run_data.profile_folder)?;
-                }
-
                 let src_path = &entry;
                 let dst_file_name = format!(
-                    "{}.perf",
-                    entry.file_name().unwrap_or_default().to_string_lossy()
+                    "{}_{}.perf",
+                    entry.file_name().unwrap_or_default().to_string_lossy(),
+                    perf::helpers::find_pid(&entry)?
                 );
                 let dst_path = run_data.profile_folder.join(dst_file_name);
                 std::fs::copy(src_path, dst_path)?;
             }
-
-            // Copy bench_order.txt to the profile folder
-            std::fs::write(
-                run_data.profile_folder.join("metadata.bench_order"),
-                bench_order.join("\n"),
-            )?;
         }
 
         Ok(())

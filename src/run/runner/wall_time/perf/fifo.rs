@@ -1,5 +1,10 @@
-use super::{Command as FifoCommand, RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
+use super::perf_map::ProcessSymbols;
+use super::{BenchmarkData, Command as FifoCommand, RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use crate::prelude::*;
+use crate::run::runner::wall_time::perf::perf_map::ModuleSymbols;
+use crate::run::runner::wall_time::perf::unwind_data::UnwindData;
+use procfs::process::MMPermissions;
+use std::collections::HashMap;
 use std::{path::PathBuf, time::Duration};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::unix::pipe::OpenOptions as TokioPipeOpenOptions;
@@ -137,8 +142,11 @@ pub async fn handle_fifo(
     perf_pid: u32,
     mut runner_fifo: RunnerFifo,
     mut perf_fifo: PerfFifo,
-) -> anyhow::Result<Vec<String>> {
-    let mut bench_order = Vec::new();
+) -> anyhow::Result<BenchmarkData> {
+    let mut bench_order_by_pid = HashMap::<u32, Vec<String>>::new();
+    let mut symbols_by_pid = HashMap::<u32, ProcessSymbols>::new();
+    let mut unwind_data_by_pid = HashMap::<u32, Vec<UnwindData>>::new();
+
     loop {
         let perf_ping = tokio::time::timeout(Duration::from_secs(1), perf_fifo.ping()).await;
         if let Ok(Err(_)) | Err(_) = perf_ping {
@@ -152,8 +160,46 @@ pub async fn handle_fifo(
         debug!("Received command: {:?}", cmd);
 
         match cmd {
-            FifoCommand::CurrentBenchmark(uri) => {
-                bench_order.push(uri);
+            FifoCommand::CurrentBenchmark { pid, uri } => {
+                bench_order_by_pid.entry(pid).or_default().push(uri);
+
+                if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid) {
+                    let bench_proc = procfs::process::Process::new(pid as _)
+                        .expect("Failed to find benchmark process");
+                    let exe_path = bench_proc.exe().expect("Failed to read /proc/{pid}/exe");
+                    let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
+
+                    for map in &exe_maps {
+                        let page_offset = map.offset;
+                        let (base_addr, end_addr) = map.address;
+                        let path = match &map.pathname {
+                            procfs::process::MMapPath::Path(path) => Some(path.clone()),
+                            _ => None,
+                        };
+
+                        if let Some(path) = path {
+                            if let Some(symbols) = ModuleSymbols::new(pid, &path, base_addr) {
+                                symbols_by_pid
+                                    .entry(pid)
+                                    .or_insert(ProcessSymbols::new(pid))
+                                    .add_module_symbols(symbols);
+                            }
+                        }
+
+                        if map.perms.contains(MMPermissions::EXECUTE) {
+                            if let Ok(unwind_data) = UnwindData::new(
+                                exe_path.to_string_lossy().as_bytes(),
+                                page_offset,
+                                base_addr,
+                                end_addr - base_addr,
+                                None,
+                            ) {
+                                unwind_data_by_pid.entry(pid).or_default().push(unwind_data);
+                            }
+                        }
+                    }
+                }
+
                 runner_fifo.send_cmd(FifoCommand::Ack).await?;
             }
             FifoCommand::StartBenchmark => {
@@ -169,5 +215,9 @@ pub async fn handle_fifo(
         }
     }
 
-    Ok(bench_order)
+    Ok(BenchmarkData {
+        bench_order_by_pid,
+        symbols_by_pid,
+        unwind_data_by_pid,
+    })
 }

@@ -8,7 +8,7 @@ pub const RUNNER_ACK_FIFO: &str = "/tmp/runner.ack.fifo";
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 pub enum Command {
-    CurrentBenchmark(String),
+    CurrentBenchmark { pid: u32, uri: String },
     StartBenchmark,
     StopBenchmark,
     Ack,

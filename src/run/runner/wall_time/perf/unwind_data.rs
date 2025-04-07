@@ -6,10 +6,6 @@
 
 use anyhow::{bail, Context};
 use debugid::CodeId;
-use linux_perf_data::{
-    linux_perf_event_reader::{EventRecord, Mmap2FileId},
-    DsoKey, PerfFileReader, PerfFileRecord,
-};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -30,7 +26,7 @@ pub struct UnwindData {
 
 impl UnwindData {
     // Based on this: https://github.com/mstange/linux-perf-stuff/blob/22ca6531b90c10dd2a4519351c843b8d7958a451/src/main.rs#L747-L893
-    fn new(
+    pub fn new(
         path_slice: &[u8],
         mapping_start_file_offset: u64,
         mapping_start_avma: u64,
@@ -122,127 +118,27 @@ impl UnwindData {
         })
     }
 
-    pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        let mut writer = std::fs::File::create(path.as_ref())?;
-        bincode::serialize_into(&mut writer, self)?;
+    pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: u32) -> anyhow::Result<()> {
+        let unwind_data_path = folder.as_ref().join(format!(
+            "{}_{:x}_{:x}.unwind",
+            pid, self.avma_range.start, self.avma_range.end
+        ));
+        self.to_file(unwind_data_path)?;
+
         Ok(())
     }
 
-    pub fn name(&self) -> String {
-        match self.path.rfind('/') {
-            Some(pos) => self.path[pos + 1..].to_owned(),
-            None => self.path.clone(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct UnwindDataLoader {
-    modules: Vec<UnwindData>,
-}
-
-impl UnwindDataLoader {
-    pub fn from_perf_file<P: AsRef<std::path::Path>>(path: P) -> Option<Self> {
-        let content = std::fs::read(path.as_ref()).unwrap();
-        let reader = std::io::Cursor::new(content);
-
-        let PerfFileReader {
-            mut record_iter,
-            mut perf_file,
-        } = PerfFileReader::parse_file(reader).ok()?;
-        let build_ids = perf_file.build_ids().ok().unwrap_or_default();
-
-        let find_build_id = |path: &[u8], cpu_mode| -> Option<Option<Vec<u8>>> {
-            let dso_key = DsoKey::detect(path, cpu_mode)?;
-            let build_id = build_ids
-                .get(&dso_key)
-                .map(|db| &db.build_id[..])
-                .map(Vec::from);
-
-            Some(build_id)
-        };
-
-        let mut modules = Vec::new();
-        while let Some(record) = record_iter.next_record(&mut perf_file).unwrap() {
-            let PerfFileRecord::EventRecord { record, .. } = record else {
-                continue;
-            };
-
-            let Ok(parsed_record) = record.parse() else {
-                continue;
-            };
-
-            let (is_exec, path, page_offset, addr, length, build_id) = match parsed_record {
-                EventRecord::Mmap(event) => {
-                    let Some(build_id) = find_build_id(&event.path.as_slice(), event.cpu_mode)
-                    else {
-                        continue;
-                    };
-
-                    // Ignore kernel mappings
-                    if event.pid == -1 {
-                        continue;
-                    }
-
-                    (
-                        event.is_executable,
-                        event.path.as_slice(),
-                        event.page_offset,
-                        event.address,
-                        event.length,
-                        build_id,
-                    )
-                }
-                EventRecord::Mmap2(event) => {
-                    let build_id = if let Mmap2FileId::BuildId(build_id) = event.file_id {
-                        Some(build_id)
-                    } else {
-                        let Some(build_id) = find_build_id(&event.path.as_slice(), event.cpu_mode)
-                        else {
-                            continue;
-                        };
-                        build_id
-                    };
-
-                    (
-                        true,
-                        event.path.as_slice(),
-                        event.page_offset,
-                        event.address,
-                        event.length,
-                        build_id,
-                    )
-                }
-                _ => {
-                    continue;
-                }
-            };
-
-            if !is_exec {
-                continue;
-            }
-
-            if let Ok(module) =
-                UnwindData::new(&path, page_offset, addr, length, build_id.as_deref())
-            {
-                modules.push(module);
-            }
+    fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
+        if let Ok(true) = std::fs::exists(path.as_ref()) {
+            log::warn!(
+                "{} already exists, file will be truncated",
+                path.as_ref().display()
+            );
+            log::warn!("{} {:x?}", self.path, self.avma_range);
         }
 
-        Some(Self { modules })
-    }
-
-    pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
-        for module in &self.modules {
-            let path = folder.as_ref().join(format!(
-                "{}_{:x}_{:x}.unwind",
-                module.name(),
-                module.avma_range.start,
-                module.avma_range.end
-            ));
-            module.to_file(path)?;
-        }
-
+        let mut writer = std::fs::File::create(path.as_ref())?;
+        bincode::serialize_into(&mut writer, self)?;
         Ok(())
     }
 }
