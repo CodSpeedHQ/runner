@@ -167,8 +167,8 @@ impl Executor for WallTimeExecutor {
                 let src_path = &entry;
                 let dst_file_name = format!(
                     "{}_{}.perf",
+                    perf::helpers::find_pid(&entry)?,
                     entry.file_name().unwrap_or_default().to_string_lossy(),
-                    perf::helpers::find_pid(&entry)?
                 );
                 let dst_path = run_data.profile_folder.join(dst_file_name);
                 std::fs::copy(src_path, dst_path)?;

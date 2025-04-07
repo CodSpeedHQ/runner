@@ -33,7 +33,7 @@ impl BenchmarkData {
         }
 
         for (pid, orders) in &self.bench_order_by_pid {
-            let dst_file_name = format!("{}.bench_order", pid);
+            let dst_file_name = format!("{}_.bench_order", pid);
             let dst_path = path.as_ref().join(dst_file_name);
             std::fs::write(dst_path, orders.join("\n"))?;
         }
