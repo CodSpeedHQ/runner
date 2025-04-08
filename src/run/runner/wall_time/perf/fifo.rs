@@ -33,15 +33,15 @@ impl RunnerFifo {
     pub fn new() -> anyhow::Result<Self> {
         set_runner_fifo_dir(tempfile::tempdir()?.into_path());
 
-        create_fifo(runner_ctl_fifo_path())?;
-        create_fifo(runner_ack_fifo_path())?;
+        create_fifo(runner_ctl_fifo_path()?)?;
+        create_fifo(runner_ack_fifo_path()?)?;
 
         let ack_fifo = TokioPipeOpenOptions::new()
             .read_write(true)
-            .open_sender(runner_ack_fifo_path())?;
+            .open_sender(runner_ack_fifo_path()?)?;
         let ctl_fifo = TokioPipeOpenOptions::new()
             .read_write(true)
-            .open_receiver(runner_ctl_fifo_path())?;
+            .open_receiver(runner_ctl_fifo_path()?)?;
 
         Ok(Self { ctl_fifo, ack_fifo })
     }
