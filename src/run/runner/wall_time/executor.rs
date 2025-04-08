@@ -81,7 +81,7 @@ impl Executor for WallTimeExecutor {
             cmd.args([
                 "-c",
                 &format!(
-                    "perf record --user-callchains --freq=max --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
+                    "perf record --quiet --user-callchains --freq=max --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph=dwarf --output={} -- {}",
                     perf_fifo.ctl_fifo_path.to_string_lossy(),
                     perf_fifo.ack_fifo_path.to_string_lossy(),
                     perf_file.path().to_string_lossy(),
