@@ -1,5 +1,8 @@
 use super::perf_map::ProcessSymbols;
-use super::{BenchmarkData, Command as FifoCommand, RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
+use super::{
+    runner_ack_fifo_path, runner_ctl_fifo_path, set_runner_fifo_dir, BenchmarkData,
+    Command as FifoCommand,
+};
 use crate::prelude::*;
 use crate::run::runner::wall_time::perf::perf_map::ModuleSymbols;
 use crate::run::runner::wall_time::perf::unwind_data::UnwindData;
@@ -28,15 +31,17 @@ pub struct RunnerFifo {
 
 impl RunnerFifo {
     pub fn new() -> anyhow::Result<Self> {
-        create_fifo(RUNNER_CTL_FIFO)?;
-        create_fifo(RUNNER_ACK_FIFO)?;
+        set_runner_fifo_dir(tempfile::tempdir()?.into_path());
+
+        create_fifo(runner_ctl_fifo_path())?;
+        create_fifo(runner_ack_fifo_path())?;
 
         let ack_fifo = TokioPipeOpenOptions::new()
             .read_write(true)
-            .open_sender(RUNNER_ACK_FIFO)?;
+            .open_sender(runner_ack_fifo_path())?;
         let ctl_fifo = TokioPipeOpenOptions::new()
             .read_write(true)
-            .open_receiver(RUNNER_CTL_FIFO)?;
+            .open_receiver(runner_ctl_fifo_path())?;
 
         Ok(Self { ctl_fifo, ack_fifo })
     }
