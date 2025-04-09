@@ -13,6 +13,13 @@ pub fn find_pid<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<i32> {
     } = PerfFileReader::parse_file(reader)?;
 
     let mut pid_freq = HashMap::new();
+
+    // Only consider the first N events to reduce the performance impact. Certain benchmark libraries can generate
+    // more than 100k for each benchmark, which can slow down the runner a lot. The highest chance of finding
+    // different pids is in the first few events, where there's a possible overlap.
+    const COUNT_FIRST_N: usize = 1000;
+    let mut i = 0;
+
     while let Some(record) = record_iter.next_record(&mut perf_file)? {
         let PerfFileRecord::EventRecord { record, .. } = record else {
             continue;
@@ -33,6 +40,11 @@ pub fn find_pid<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<i32> {
 
         if let Some(pid) = event.pid {
             *pid_freq.entry(pid).or_insert(0) += 1;
+
+            i += 1;
+            if i >= COUNT_FIRST_N {
+                break;
+            }
         }
     }
 
