@@ -1,4 +1,4 @@
-use log::warn;
+use crate::prelude::*;
 use object::{Object, ObjectSymbol, ObjectSymbolTable};
 use std::{
     collections::HashMap,
@@ -13,54 +13,51 @@ struct Symbol {
     name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ModuleSymbols {
     path: PathBuf,
-    pid: u32,
-
-    base_addr: u64,
     symbols: Vec<Symbol>,
 }
 
 impl ModuleSymbols {
-    pub fn new<P: AsRef<Path>>(pid: u32, path: P, addr: u64) -> Option<Self> {
-        let Ok(content) = std::fs::read(path.as_ref()) else {
-            return None;
-        };
+    pub fn new<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let content = std::fs::read(path.as_ref())?;
+        let object = object::File::parse(&*content)?;
 
-        let object = object::File::parse(&*content).ok()?;
-        let symbols = object
-            .symbol_table()?
-            .symbols()
-            .filter_map(|symbol| {
+        let mut symbols = Vec::new();
+
+        if let Some(symbol_table) = object.symbol_table() {
+            symbols.extend(symbol_table.symbols().filter_map(|symbol| {
                 Some(Symbol {
                     offset: symbol.address(),
                     size: symbol.size(),
                     name: symbol.name().ok()?.to_string(),
                 })
-            })
-            .filter(|symbol| symbol.offset > 0 && symbol.size > 0)
-            .collect();
+            }));
+        }
 
-        Some(Self {
+        if let Some(symbol_table) = object.dynamic_symbol_table() {
+            symbols.extend(symbol_table.symbols().filter_map(|symbol| {
+                Some(Symbol {
+                    offset: symbol.address(),
+                    size: symbol.size(),
+                    name: symbol.name().ok()?.to_string(),
+                })
+            }));
+        }
+
+        symbols.retain(|symbol| symbol.offset > 0 && symbol.size > 0);
+        if symbols.is_empty() {
+            return Err(anyhow::anyhow!("No symbols found"));
+        }
+
+        Ok(Self {
             path: path.as_ref().to_path_buf(),
             symbols,
-            pid,
-            base_addr: addr,
         })
     }
 
-    pub fn merge(&mut self, other: &ModuleSymbols) {
-        assert_eq!(other.pid, self.pid);
-        assert_eq!(other.path, self.path);
-        assert_eq!(self.symbols.len(), other.symbols.len());
-
-        // The symbols are relative to the base address, so we need to find it
-        // based on all the sections that are part of the module.
-        self.base_addr = core::cmp::min(self.base_addr, other.base_addr);
-    }
-
-    fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+    fn append_to_file<P: AsRef<Path>>(&self, path: P, base_addr: u64) -> anyhow::Result<()> {
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -70,7 +67,7 @@ impl ModuleSymbols {
             writeln!(
                 file,
                 "{:x} {:x} {}",
-                self.base_addr + symbol.offset,
+                base_addr + symbol.offset,
                 symbol.size,
                 symbol.name
             )?;
@@ -82,6 +79,7 @@ impl ModuleSymbols {
 
 /// Represents all the modules inside a process and their symbols.
 pub struct ProcessSymbols {
+    modules_bounds: HashMap<PathBuf, Vec<(u64, u64)>>,
     modules: HashMap<PathBuf, ModuleSymbols>,
     pid: u32,
 }
@@ -89,21 +87,42 @@ pub struct ProcessSymbols {
 impl ProcessSymbols {
     pub fn new(pid: u32) -> Self {
         Self {
+            modules_bounds: HashMap::new(),
             modules: HashMap::new(),
             pid,
         }
     }
 
-    pub fn add_module_symbols(&mut self, symbols: ModuleSymbols) {
-        if self.pid != symbols.pid {
-            warn!("pid mismatch: {} != {}", self.pid, symbols.pid);
+    pub fn add_mapping<P: AsRef<Path>>(
+        &mut self,
+        pid: u32,
+        module_path: P,
+        start_addr: u64,
+        end_addr: u64,
+    ) {
+        if self.pid != pid {
+            warn!("pid mismatch: {} != {}", self.pid, pid);
             return;
         }
 
-        self.modules
-            .entry(symbols.path.clone())
-            .and_modify(|existing| existing.merge(&symbols))
-            .or_insert(symbols);
+        let path = module_path.as_ref().to_path_buf();
+        match ModuleSymbols::new(module_path) {
+            Ok(symbol) => {
+                self.modules.entry(path.clone()).or_insert(symbol);
+            }
+            Err(error) => {
+                debug!(
+                    "Failed to load symbols for module {}: {}",
+                    path.display(),
+                    error
+                );
+            }
+        }
+
+        self.modules_bounds
+            .entry(path.clone())
+            .or_default()
+            .push((start_addr, end_addr));
     }
 
     pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
@@ -113,7 +132,15 @@ impl ProcessSymbols {
 
         let symbols_path = folder.as_ref().join(format!("perf-{}.map", self.pid));
         for module in self.modules.values() {
-            module.append_to_file(&symbols_path)?;
+            let Some((base_addr, _)) = self
+                .modules_bounds
+                .get(&module.path)
+                .and_then(|bounds| bounds.iter().min_by_key(|(start, _)| start))
+            else {
+                warn!("No bounds found for module: {}", module.path.display());
+                continue;
+            };
+            module.append_to_file(&symbols_path, *base_addr)?;
         }
 
         Ok(())
