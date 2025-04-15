@@ -1,9 +1,12 @@
 const std = @import("std");
 const fifo = @import("../fifo.zig");
 
-pub fn is_running() bool {
-    // fifo.sendCmd(std.heap.c_allocator, fifo.Command.Ping)
-    return false;
+pub fn is_running(allocator: std.mem.Allocator) bool {
+    fifo.sendCmd(allocator, fifo.Command.PingPerf) catch {
+        return false;
+    };
+
+    return true;
 }
 
 pub fn set_integration(name: [*c]const u8, version: [*c]const u8) !void {
@@ -28,5 +31,5 @@ pub fn current_benchmark(allocator: std.mem.Allocator, pid: u32, uri: [*c]const 
     try fifo.sendCmd(allocator, fifo.Command{ .CurrentBenchmark = .{
         .pid = pid,
         .uri = uri_str,
-    }});
+    } });
 }

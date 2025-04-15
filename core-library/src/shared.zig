@@ -15,6 +15,11 @@ pub const Command = union(enum) {
     StartBenchmark,
     StopBenchmark,
     Ack,
+    PingPerf,
+    SetIntegration: struct {
+        name: []const u8,
+        version: []const u8,
+    },
 
     pub fn format(
         self: Command,
