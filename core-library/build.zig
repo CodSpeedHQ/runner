@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     //
     const libcore = b.addStaticLibrary(.{
         .name = "core",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) void {
     // Tests
     //
     const test_main = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .optimize = optimize,
         .link_libc = true,
         .test_runner = b.path("src/test_main.zig")

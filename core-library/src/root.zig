@@ -4,6 +4,13 @@ const valgrind = @import("integrations/valgrind.zig");
 const fifo = @import("fifo.zig");
 const std = @import("std");
 
+pub export fn is_instrumented() bool {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    return valgrind.is_running() or perf.is_running(gpa.allocator());
+}
+
 pub export fn start_benchmark() void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -12,7 +19,7 @@ pub export fn start_benchmark() void {
         valgrind.start_benchmark();
     }
 
-    if (perf.is_running()) {
+    if (perf.is_running(gpa.allocator())) {
         perf.start_benchmark(gpa.allocator()) catch {
             std.debug.print("Error starting benchmark\n", .{});
         };
@@ -27,7 +34,7 @@ pub export fn stop_benchmark() void {
         valgrind.stop_benchmark();
     }
 
-    if (perf.is_running()) {
+    if (perf.is_running(gpa.allocator())) {
         perf.stop_benchmark(gpa.allocator()) catch {
             std.debug.print("Error stopping benchmark\n", .{});
         };
@@ -42,7 +49,7 @@ pub export fn current_benchmark(pid: u32, uri: [*c]const u8) void {
         valgrind.current_benchmark(pid, uri);
     }
 
-    if (perf.is_running()) {
+    if (perf.is_running(gpa.allocator())) {
         perf.current_benchmark(gpa.allocator(), pid, uri) catch {
             std.debug.print("Error setting current benchmark\n", .{});
         };
@@ -53,13 +60,13 @@ pub export fn set_integration(name: [*c]const u8, version: [*c]const u8) void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    if (valgrind.is_running()) {
+    if (perf.is_running(gpa.allocator())) {
         valgrind.set_integration(gpa.allocator(), name, version) catch {
             std.debug.print("Failed to set integration", .{});
         };
     }
 
-    if (perf.is_running()) {
+    if (perf.is_running(gpa.allocator())) {
         perf.set_integration(name, version) catch {
             std.debug.print("Failed to set integration", .{});
         };
@@ -76,5 +83,4 @@ test "no crash when not instrumented" {
     _ = stop_benchmark();
     _ = current_benchmark(0, "test");
     _ = set_integration("test", "1.0");
-
 }

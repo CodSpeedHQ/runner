@@ -2,11 +2,10 @@
     .name = "core",
     .fingerprint = 0x6b8d854f40550aa0,
     .version = "0.0.1",
-    .dependencies = .{
-
-    },
+    .dependencies = .{},
     .paths = .{
         "build.zig",
-        "src/main.zig",
+        "build.zig.zon",
+        "src",
     },
 }
