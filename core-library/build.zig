@@ -19,6 +19,11 @@ pub fn build(b: *std.Build) void {
         .flags = &.{"-Wall"},
     });
     b.installArtifact(libcore);
+    b.installFile("src/includes/wrapper.c", "lib/wrapper.c");
+    b.installFile("src/includes/valgrind.h", "lib/valgrind.h");
+    b.installFile("src/includes/callgrind.h", "lib/callgrind.h");
+    b.installFile("src/includes/core.h", "lib/core.h");
+    // TODO: Copy zig.h
 
     // Tests
     //
