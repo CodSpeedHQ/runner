@@ -12,6 +12,9 @@ pub enum Command {
     StartBenchmark,
     StopBenchmark,
     Ack,
+    PingPerf,
+    SetIntegration { name: String, version: String },
+    Err,
 }
 //
 // !!!!!!!!!!!!!!!!!!!!!!!!

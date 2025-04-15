@@ -79,17 +79,17 @@ impl ModuleSymbols {
 
 /// Represents all the modules inside a process and their symbols.
 pub struct ProcessSymbols {
-    modules_bounds: HashMap<PathBuf, Vec<(u64, u64)>>,
-    modules: HashMap<PathBuf, ModuleSymbols>,
     pid: u32,
+    module_mappings: HashMap<PathBuf, Vec<(u64, u64)>>,
+    modules: HashMap<PathBuf, ModuleSymbols>,
 }
 
 impl ProcessSymbols {
     pub fn new(pid: u32) -> Self {
         Self {
-            modules_bounds: HashMap::new(),
-            modules: HashMap::new(),
             pid,
+            module_mappings: HashMap::new(),
+            modules: HashMap::new(),
         }
     }
 
@@ -119,10 +119,19 @@ impl ProcessSymbols {
             }
         }
 
-        self.modules_bounds
+        self.module_mappings
             .entry(path.clone())
             .or_default()
             .push((start_addr, end_addr));
+    }
+
+    pub fn module_mapping<P: AsRef<std::path::Path>>(
+        &self,
+        module_path: P,
+    ) -> Option<&[(u64, u64)]> {
+        self.module_mappings
+            .get(module_path.as_ref())
+            .map(|bounds| bounds.as_slice())
     }
 
     pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
@@ -133,7 +142,7 @@ impl ProcessSymbols {
         let symbols_path = folder.as_ref().join(format!("perf-{}.map", self.pid));
         for module in self.modules.values() {
             let Some((base_addr, _)) = self
-                .modules_bounds
+                .module_mappings
                 .get(&module.path)
                 .and_then(|bounds| bounds.iter().min_by_key(|(start, _)| start))
             else {
