@@ -30,7 +30,7 @@ impl Executor for ValgrindExecutor {
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
         //TODO: add valgrind version check
-        measure::measure(config, &run_data.profile_folder, mongo_tracer)?;
+        measure::measure(config, &run_data.profile_folder, mongo_tracer).await?;
 
         Ok(())
     }
