@@ -125,6 +125,15 @@ impl ProcessSymbols {
             .push((start_addr, end_addr));
     }
 
+    pub fn module_mapping<P: AsRef<std::path::Path>>(
+        &self,
+        module_path: P,
+    ) -> Option<&[(u64, u64)]> {
+        self.module_mappings
+            .get(module_path.as_ref())
+            .map(|bounds| bounds.as_slice())
+    }
+
     pub fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
         if self.modules.is_empty() {
             return Ok(());
