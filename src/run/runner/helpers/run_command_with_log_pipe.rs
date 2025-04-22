@@ -1,12 +1,30 @@
 use crate::local_logger::suspend_progress_bar;
 use crate::prelude::*;
 use crate::run::runner::EXECUTOR_TARGET;
+use std::future::Future;
 use std::io::{Read, Write};
 use std::process::Command;
 use std::process::ExitStatus;
 use std::thread;
 
-pub fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
+/// Run a command and log its output to stdout and stderr
+///
+/// # Arguments
+/// - `cmd`: The command to run.
+/// - `cb`: A callback function that takes the process ID and returns a result.
+///
+/// # Returns
+///
+/// The exit status of the command.
+///
+pub async fn run_command_with_log_pipe_and_callback<F, Fut>(
+    mut cmd: Command,
+    cb: F,
+) -> Result<ExitStatus>
+where
+    F: FnOnce(u32) -> Fut,
+    Fut: Future<Output = anyhow::Result<()>>,
+{
     fn log_tee(
         mut reader: impl Read,
         mut writer: impl Write,
@@ -46,5 +64,12 @@ pub fn run_command_with_log_pipe(mut cmd: Command) -> Result<ExitStatus> {
     thread::spawn(move || {
         log_tee(stderr, std::io::stderr(), Some("[stderr]")).unwrap();
     });
+
+    cb(process.id()).await?;
+
     process.wait().context("failed to wait for the process")
+}
+
+pub async fn run_command_with_log_pipe(cmd: Command) -> Result<ExitStatus> {
+    run_command_with_log_pipe_and_callback(cmd, async |_| Ok(())).await
 }
