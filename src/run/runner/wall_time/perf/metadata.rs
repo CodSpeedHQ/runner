@@ -15,6 +15,9 @@ pub struct PerfMetadata {
 
     /// The URIs of the benchmarks in the order they were executed.
     pub bench_order_by_pid: HashMap<u32, Vec<String>>,
+
+    /// Modules that should be ignored and removed from the folded trace and callgraph (e.g. python interpreter)
+    pub ignored_modules: Vec<(String, u64, u64)>,
 }
 
 impl PerfMetadata {
