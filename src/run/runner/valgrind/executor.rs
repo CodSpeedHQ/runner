@@ -41,7 +41,7 @@ impl Executor for ValgrindExecutor {
         _system_info: &SystemInfo,
         run_data: &RunData,
     ) -> Result<()> {
-        harvest_perf_maps(&run_data.profile_folder)?;
+        harvest_perf_maps(&run_data.profile_folder).await?;
 
         Ok(())
     }
