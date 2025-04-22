@@ -27,7 +27,7 @@ lazy_static! {
         format!("{VALGRIND_CODSPEED_BASE_VERSION}-0codspeed1");
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     let res = crate::app::run().await;
     if let Err(err) = res {

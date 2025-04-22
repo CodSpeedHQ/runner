@@ -73,7 +73,7 @@ fn create_run_script() -> anyhow::Result<TempPath> {
     Ok(script_file.into_temp_path())
 }
 
-pub fn measure(
+pub async fn measure(
     config: &Config,
     profile_folder: &Path,
     mongo_tracer: &Option<MongoTracer>,
@@ -132,6 +132,7 @@ pub fn measure(
 
     debug!("cmd: {:?}", cmd);
     let status = run_command_with_log_pipe(cmd)
+        .await
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
     debug!(
         "Valgrind exit code = {:?}, Valgrind signal = {:?}",

@@ -1,5 +1,5 @@
+use super::perf::PerfRunner;
 use crate::prelude::*;
-
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
 use crate::run::runner::helpers::env::get_base_injected_env;
@@ -11,12 +11,37 @@ use async_trait::async_trait;
 use std::fs::canonicalize;
 use std::process::Command;
 
-pub struct WallTimeExecutor;
+pub struct WallTimeExecutor {
+    perf: Option<PerfRunner>,
+}
+
+impl WallTimeExecutor {
+    pub fn new() -> Self {
+        let use_perf = if cfg!(target_os = "linux") {
+            std::env::var("CODSPEED_USE_PERF").is_ok()
+        } else {
+            false
+        };
+        debug!("Running the cmd with perf: {}", use_perf);
+
+        Self {
+            perf: use_perf.then(PerfRunner::new),
+        }
+    }
+}
 
 #[async_trait(?Send)]
 impl Executor for WallTimeExecutor {
     fn name(&self) -> ExecutorName {
         ExecutorName::WallTime
+    }
+
+    async fn setup(&self, _system_info: &SystemInfo) -> Result<()> {
+        if self.perf.is_some() {
+            PerfRunner::setup_environment()?;
+        }
+
+        Ok(())
     }
 
     async fn run(
@@ -38,13 +63,22 @@ impl Executor for WallTimeExecutor {
             cmd.current_dir(abs_cwd);
         }
 
-        cmd.args(["-c", get_bench_command(config)?.as_str()]);
+        let bench_cmd = get_bench_command(config)?;
+        let status = if let Some(perf) = &self.perf {
+            perf.run(cmd, &bench_cmd).await
+        } else {
+            cmd.args(["-c", &bench_cmd]);
+            debug!("cmd: {:?}", cmd);
 
-        debug!("cmd: {:?}", cmd);
-        let status = run_command_with_log_pipe(cmd)
-            .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
+            run_command_with_log_pipe(cmd).await
+        };
+
+        let status =
+            status.map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
+        debug!("cmd exit status: {:?}", status);
+
         if !status.success() {
-            bail!("failed to execute the benchmark process");
+            bail!("failed to execute the benchmark process: {}", status);
         }
 
         Ok(())
@@ -54,8 +88,14 @@ impl Executor for WallTimeExecutor {
         &self,
         _config: &Config,
         _system_info: &SystemInfo,
-        _run_data: &RunData,
+        run_data: &RunData,
     ) -> Result<()> {
+        debug!("Copying files to the profile folder");
+
+        if let Some(perf) = &self.perf {
+            perf.save_files_to(&run_data.profile_folder).await?;
+        }
+
         Ok(())
     }
 }
