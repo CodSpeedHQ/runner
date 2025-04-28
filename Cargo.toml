@@ -62,12 +62,12 @@ inherits = "release"
 lto = "thin"
 strip = true
 
-# Config for 'cargo dist'
+# Config for 'dist'
 [workspace.metadata.dist]
 # Whether to consider the binaries in a package for distribution (defaults true)
 dist = true
-# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
-cargo-dist-version = "0.22.1"
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.28.4"
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
