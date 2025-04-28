@@ -1,3 +1,5 @@
+#![cfg_attr(not(unix), allow(dead_code, unused_mut))]
+
 use crate::prelude::*;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::setup::run_with_sudo;
@@ -8,7 +10,6 @@ use fifo::{PerfFifo, RunnerFifo};
 use futures::stream::FuturesUnordered;
 use metadata::PerfMetadata;
 use perf_map::ProcessSymbols;
-use procfs::process::MMPermissions;
 use shared::Command as FifoCommand;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -200,8 +201,11 @@ impl PerfRunner {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
                     bench_order_by_pid.entry(pid).or_default().push(uri);
 
+                    #[cfg(unix)]
                     if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
                     {
+                        use procfs::process::MMPermissions;
+
                         let bench_proc = procfs::process::Process::new(pid as _)
                             .expect("Failed to find benchmark process");
                         let exe_path = bench_proc.exe().expect("Failed to read /proc/{pid}/exe");
