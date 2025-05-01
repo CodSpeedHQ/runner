@@ -20,6 +20,7 @@ use tempfile::TempDir;
 use unwind_data::UnwindData;
 
 mod metadata;
+mod setup;
 mod shared;
 pub use shared::*;
 
@@ -37,6 +38,8 @@ pub struct PerfRunner {
 
 impl PerfRunner {
     pub fn setup_environment() -> anyhow::Result<()> {
+        setup::install_perf()?;
+
         let sysctl_read = |name: &str| -> anyhow::Result<i64> {
             let output = std::process::Command::new("sysctl").arg(name).output()?;
             let output = String::from_utf8(output.stdout)?;
@@ -191,7 +194,7 @@ impl PerfRunner {
                 break;
             }
 
-            let result = tokio::time::timeout(Duration::from_secs(1), runner_fifo.recv_cmd()).await;
+            let result = tokio::time::timeout(Duration::from_secs(5), runner_fifo.recv_cmd()).await;
             let Ok(Ok(cmd)) = result else {
                 continue;
             };
