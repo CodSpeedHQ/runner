@@ -51,7 +51,9 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = Command::new("sh");
+        // IMPORTANT: Don't use `sh` here! We will use this pid to send signals to the
+        // spawned child process which won't work if we use a different shell.
+        let mut cmd = Command::new("bash");
 
         cmd.envs(get_base_injected_env(
             RunnerMode::Walltime,
