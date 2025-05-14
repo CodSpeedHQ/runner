@@ -9,6 +9,7 @@ use instruments::mongo_tracer::{install_mongodb_tracer, MongoTracer};
 use run_environment::interfaces::{RepositoryProvider, RunEnvironment};
 use runner::get_run_data;
 use serde::Serialize;
+use std::path::PathBuf;
 
 pub mod check_system;
 pub mod helpers;
@@ -79,6 +80,10 @@ pub struct RunArgs {
     #[arg(long)]
     pub mongo_uri_env_name: Option<String>,
 
+    /// Profile folder to use for the run.
+    #[arg(long)]
+    pub profile_folder: Option<PathBuf>,
+
     #[arg(long, hide = true)]
     pub message_format: Option<MessageFormat>,
 
@@ -90,6 +95,10 @@ pub struct RunArgs {
         env = "CODSPEED_SKIP_UPLOAD"
     )]
     pub skip_upload: bool,
+    /// Used internally to upload the results after running the benchmarks in a sandbox environment
+    /// with no internet access
+    #[arg(long, default_value = "false", hide = true)]
+    pub skip_run: bool,
 
     /// Only for debugging purposes, skips the setup of the runner
     #[arg(long, default_value = "false", hide = true)]
@@ -126,7 +135,9 @@ impl RunArgs {
             instruments: vec![],
             mongo_uri_env_name: None,
             message_format: None,
+            profile_folder: None,
             skip_upload: false,
+            skip_run: false,
             skip_setup: false,
             command: vec![],
         }
@@ -172,35 +183,40 @@ pub async fn run(
         end_group!();
     }
 
-    let run_data = get_run_data()?;
+    let run_data = get_run_data(&config)?;
 
-    start_opened_group!("Running the benchmarks");
+    if !config.skip_run {
+        start_opened_group!("Running the benchmarks");
 
-    // TODO: refactor and move directly in the Instruments struct as a `start` method
-    let mongo_tracer = if let Some(mongodb_config) = &config.instruments.mongodb {
-        let mut mongo_tracer = MongoTracer::try_from(&run_data.profile_folder, mongodb_config)?;
-        mongo_tracer.start().await?;
-        Some(mongo_tracer)
+        // TODO: refactor and move directly in the Instruments struct as a `start` method
+        let mongo_tracer = if let Some(mongodb_config) = &config.instruments.mongodb {
+            let mut mongo_tracer = MongoTracer::try_from(&run_data.profile_folder, mongodb_config)?;
+            mongo_tracer.start().await?;
+            Some(mongo_tracer)
+        } else {
+            None
+        };
+
+        executor
+            .run(&config, &system_info, &run_data, &mongo_tracer)
+            .await?;
+
+        // TODO: refactor and move directly in the Instruments struct as a `stop` method
+        if let Some(mut mongo_tracer) = mongo_tracer {
+            mongo_tracer.stop().await?;
+        }
+        executor.teardown(&config, &system_info, &run_data).await?;
+
+        end_group!();
     } else {
-        None
+        debug!("Skipping the run of the benchmarks");
     };
-
-    executor
-        .run(&config, &system_info, &run_data, &mongo_tracer)
-        .await?;
-
-    // TODO: refactor and move directly in the Instruments struct as a `stop` method
-    if let Some(mut mongo_tracer) = mongo_tracer {
-        mongo_tracer.stop().await?;
-    }
-
-    executor.teardown(&config, &system_info, &run_data).await?;
-
-    end_group!();
 
     if !config.skip_upload {
         start_group!("Uploading performance data");
-        logger.persist_log_to_profile_folder(&run_data)?;
+        if !config.skip_run {
+            logger.persist_log_to_profile_folder(&run_data)?;
+        }
         let upload_result =
             uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
         end_group!();

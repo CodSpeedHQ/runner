@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::prelude::*;
 
-use super::RunnerMode;
+use super::{config::Config, RunnerMode};
 
 mod executor;
 mod helpers;
@@ -41,7 +41,11 @@ pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     ]
 }
 
-pub fn get_run_data() -> Result<RunData> {
-    let profile_folder = create_profile_folder()?;
+pub fn get_run_data(config: &Config) -> Result<RunData> {
+    let profile_folder = if let Some(profile_folder) = &config.profile_folder {
+        profile_folder.clone()
+    } else {
+        create_profile_folder()?
+    };
     Ok(RunData { profile_folder })
 }
