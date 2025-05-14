@@ -7,15 +7,20 @@ use std::fs::copy;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 
+use super::config::Config;
+
 pub struct Logger {
     log_file_path: PathBuf,
 }
 
 impl Logger {
     #[allow(clippy::borrowed_box)]
-    pub fn new(provider: &Box<dyn RunEnvironmentProvider>) -> Result<Self> {
+    pub fn new(provider: &Box<dyn RunEnvironmentProvider>, config: &Config) -> Result<Self> {
         let provider_logger = provider.get_logger();
-        let log_file = NamedTempFile::new().context("Failed to create log file")?;
+        let log_file = match &config.out_dir {
+            None => NamedTempFile::new().context("Failed to create log file")?,
+            Some(out_dir) => NamedTempFile::new_in(out_dir).context("Failed to create log file")?,
+        };
         let log_file_path = log_file.path().to_path_buf();
         let file_logger_config = simplelog::ConfigBuilder::new()
             // Groups are not logged to the file

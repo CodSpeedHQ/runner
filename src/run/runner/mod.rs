@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf};
 
 use crate::prelude::*;
 
@@ -41,7 +41,7 @@ pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     ]
 }
 
-pub fn get_run_data() -> Result<RunData> {
-    let profile_folder = create_profile_folder()?;
+pub fn get_run_data(out_dir: Option<&PathBuf>) -> Result<RunData> {
+    let profile_folder = create_profile_folder(out_dir)?;
     Ok(RunData { profile_folder })
 }

@@ -6,12 +6,16 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-pub fn create_profile_folder() -> Result<PathBuf> {
+pub fn create_profile_folder(out_dir: Option<&PathBuf>) -> Result<PathBuf> {
     let folder_name = format!(
         "profile.{}.out",
         Alphanumeric.sample_string(&mut rand::thread_rng(), 10)
     );
-    let mut folder_path = env::temp_dir();
+    let mut folder_path = if let Some(out_dir) = out_dir {
+        out_dir.clone()
+    } else {
+        env::temp_dir()
+    };
     folder_path.push(folder_name);
     fs::create_dir_all(&folder_path).map_err(|e| {
         anyhow!(
@@ -30,7 +34,7 @@ mod tests {
 
     #[test]
     fn test_create_profile_folder() -> Result<()> {
-        let folder_path = create_profile_folder()?;
+        let folder_path = create_profile_folder(None)?;
         assert!(folder_path.exists());
         assert!(folder_path.is_dir());
         Ok(())

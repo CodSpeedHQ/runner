@@ -12,9 +12,9 @@ use std::fs::canonicalize;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::ExitStatusExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{env::consts::ARCH, process::Command};
-use tempfile::TempPath;
+use tempfile::{NamedTempFile, TempPath};
 
 lazy_static! {
     static ref VALGRIND_BASE_ARGS: Vec<String> = {
@@ -47,7 +47,7 @@ lazy_static! {
 }
 
 /// Creates the shell script on disk and returns the path to it.
-fn create_run_script() -> anyhow::Result<TempPath> {
+fn create_run_script(out_dir: Option<&PathBuf>) -> anyhow::Result<TempPath> {
     // The command is wrapped in a shell script, which executes it in a
     // subprocess and then writes the exit code to a file. The process will
     // always exit with status code 0, unless valgrind fails.
@@ -62,10 +62,18 @@ fn create_run_script() -> anyhow::Result<TempPath> {
             "#;
 
     let rwx = std::fs::Permissions::from_mode(0o777);
-    let mut script_file = tempfile::Builder::new()
-        .suffix(".sh")
-        .permissions(rwx)
-        .tempfile()?;
+
+    let mut script_file = if let Some(out_dir) = out_dir {
+        tempfile::Builder::new()
+            .suffix(".sh")
+            .permissions(rwx)
+            .tempfile_in(out_dir)?
+    } else {
+        tempfile::Builder::new()
+            .suffix(".sh")
+            .permissions(rwx)
+            .tempfile()?
+    };
     script_file.write_all(WRAPPER_SCRIPT.as_bytes())?;
 
     // Note: We have to convert the file to a path to be able to execute it.
@@ -91,7 +99,7 @@ pub async fn measure(
         "PATH",
         format!(
             "{}:{}",
-            setup_introspected_nodejs()
+            setup_introspected_nodejs(config.out_dir.as_ref())
                 .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
                 .to_str()
                 .unwrap(),
@@ -117,8 +125,12 @@ pub async fn measure(
         .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
 
     // Set the command to execute:
-    let script_path = create_run_script()?;
-    let cmd_status_path = tempfile::NamedTempFile::new().unwrap().into_temp_path();
+    let script_path = create_run_script(config.out_dir.as_ref())?;
+    let cmd_status_path = match &config.out_dir {
+        None => NamedTempFile::new().unwrap().into_temp_path(),
+        Some(out_dir) => NamedTempFile::new_in(out_dir).unwrap().into_temp_path(),
+    };
+
     cmd.args([
         script_path.to_str().unwrap(),
         get_bench_command(config)?.as_str(),
@@ -172,7 +184,7 @@ mod tests {
     use super::*;
 
     fn safe_run(to_execute: &str) -> (u32, u32) {
-        let script_path = create_run_script().unwrap();
+        let script_path = create_run_script(None).unwrap();
         let out_status = tempfile::NamedTempFile::new().unwrap().into_temp_path();
 
         let mut cmd = Command::new(script_path.to_str().unwrap());

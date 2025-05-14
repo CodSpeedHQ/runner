@@ -5,8 +5,12 @@ const INTROSPECTED_NODE_SCRIPT: &str = include_str!("node.sh");
 
 /// Creates the `node` script that will replace the `node` binary while running
 /// Returns the path to the script folder, which should be added to the PATH environment variable
-pub fn setup_introspected_nodejs() -> Result<PathBuf> {
-    let script_folder = env::temp_dir().join("codspeed_introspected_node");
+pub fn setup_introspected_nodejs(out_dir: Option<&PathBuf>) -> Result<PathBuf> {
+    let script_folder = if let Some(out_dir) = out_dir {
+        out_dir.clone()
+    } else {
+        env::temp_dir()
+    };
     std::fs::create_dir_all(&script_folder)?;
     let script_path = script_folder.join("node");
     let mut script_file = File::create(script_path)?;

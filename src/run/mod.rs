@@ -9,6 +9,7 @@ use instruments::mongo_tracer::{install_mongodb_tracer, MongoTracer};
 use run_environment::interfaces::{RepositoryProvider, RunEnvironment};
 use runner::get_run_data;
 use serde::Serialize;
+use std::path::PathBuf;
 
 pub mod check_system;
 pub mod helpers;
@@ -72,6 +73,10 @@ pub struct RunArgs {
     #[arg(long, value_delimiter = ',')]
     pub instruments: Vec<String>,
 
+    /// The directory where output files will be created, including runner and instrument logs.
+    #[arg(long)]
+    pub out_dir: Option<PathBuf>,
+
     /// The name of the environment variable that contains the MongoDB URI to patch.
     /// If not provided, user will have to provide it dynamically through a CodSpeed integration.
     ///
@@ -124,6 +129,7 @@ impl RunArgs {
             working_directory: None,
             mode: RunnerMode::Instrumentation,
             instruments: vec![],
+            out_dir: None,
             mongo_uri_env_name: None,
             message_format: None,
             skip_upload: false,
@@ -141,7 +147,7 @@ pub async fn run(
     let output_json = args.message_format == Some(MessageFormat::Json);
     let mut config = Config::try_from(args)?;
     let provider = run_environment::get_provider(&config)?;
-    let logger = Logger::new(&provider)?;
+    let logger = Logger::new(&provider, &config)?;
 
     if provider.get_run_environment() != RunEnvironment::Local {
         show_banner();
@@ -172,7 +178,7 @@ pub async fn run(
         end_group!();
     }
 
-    let run_data = get_run_data()?;
+    let run_data = get_run_data(config.out_dir.as_ref())?;
 
     start_opened_group!("Running the benchmarks");
 

@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use crate::run::instruments::Instruments;
+use std::path::PathBuf;
 use url::Url;
 
 use crate::run::run_environment::RepositoryProvider;
@@ -15,6 +16,7 @@ pub struct Config {
     pub working_directory: Option<String>,
     pub command: String,
 
+    pub out_dir: Option<PathBuf>,
     pub mode: RunnerMode,
     pub instruments: Instruments,
 
@@ -45,6 +47,7 @@ impl Config {
             repository_override: None,
             working_directory: None,
             command: "".into(),
+            out_dir: None,
             mode: RunnerMode::Instrumentation,
             instruments: Instruments::test(),
             skip_upload: false,
@@ -79,6 +82,7 @@ impl TryFrom<RunArgs> for Config {
                 })
                 .transpose()?,
             working_directory: args.working_directory,
+            out_dir: args.out_dir,
             mode: args.mode,
             instruments,
             command: args.command.join(" "),
@@ -109,6 +113,7 @@ mod tests {
             repository: None,
             provider: None,
             working_directory: None,
+            out_dir: None,
             mode: RunnerMode::Instrumentation,
             instruments: vec![],
             mongo_uri_env_name: None,
@@ -122,6 +127,7 @@ mod tests {
         assert_eq!(config.token, None);
         assert_eq!(config.repository_override, None);
         assert_eq!(config.working_directory, None);
+        assert_eq!(config.out_dir, None);
         assert_eq!(config.instruments, Instruments { mongodb: None });
         assert!(!config.skip_upload);
         assert!(!config.skip_setup);
@@ -136,6 +142,7 @@ mod tests {
             repository: Some("owner/repo".into()),
             provider: Some(RepositoryProvider::GitLab),
             working_directory: Some("/tmp".into()),
+            out_dir: Some("./out".into()),
             mode: RunnerMode::Instrumentation,
             instruments: vec!["mongodb".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
@@ -160,6 +167,7 @@ mod tests {
             })
         );
         assert_eq!(config.working_directory, Some("/tmp".into()));
+        assert_eq!(config.out_dir, Some("./out".into()));
         assert_eq!(
             config.instruments,
             Instruments {
