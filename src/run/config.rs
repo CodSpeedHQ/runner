@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use crate::run::instruments::Instruments;
+use std::path::PathBuf;
 use url::Url;
 
 use crate::run::run_environment::RepositoryProvider;
@@ -18,7 +19,9 @@ pub struct Config {
     pub mode: RunnerMode,
     pub instruments: Instruments,
 
+    pub profile_folder: Option<PathBuf>,
     pub skip_upload: bool,
+    pub skip_run: bool,
     pub skip_setup: bool,
 }
 
@@ -47,7 +50,9 @@ impl Config {
             command: "".into(),
             mode: RunnerMode::Instrumentation,
             instruments: Instruments::test(),
+            profile_folder: None,
             skip_upload: false,
+            skip_run: false,
             skip_setup: false,
         }
     }
@@ -82,7 +87,9 @@ impl TryFrom<RunArgs> for Config {
             mode: args.mode,
             instruments,
             command: args.command.join(" "),
+            profile_folder: args.profile_folder,
             skip_upload: args.skip_upload,
+            skip_run: args.skip_run,
             skip_setup: args.skip_setup,
         })
     }
@@ -113,7 +120,9 @@ mod tests {
             instruments: vec![],
             mongo_uri_env_name: None,
             message_format: None,
+            profile_folder: None,
             skip_upload: false,
+            skip_run: false,
             skip_setup: false,
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
         })
@@ -124,6 +133,7 @@ mod tests {
         assert_eq!(config.working_directory, None);
         assert_eq!(config.instruments, Instruments { mongodb: None });
         assert!(!config.skip_upload);
+        assert!(!config.skip_run);
         assert!(!config.skip_setup);
         assert_eq!(config.command, "cargo codspeed bench");
     }
@@ -140,7 +150,9 @@ mod tests {
             instruments: vec!["mongodb".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
             message_format: Some(crate::run::MessageFormat::Json),
+            profile_folder: Some("./codspeed.out".into()),
             skip_upload: true,
+            skip_run: true,
             skip_setup: true,
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
         })
@@ -168,7 +180,9 @@ mod tests {
                 })
             }
         );
+        assert_eq!(config.profile_folder, Some("./codspeed.out".into()));
         assert!(config.skip_upload);
+        assert!(config.skip_run);
         assert!(config.skip_setup);
         assert_eq!(config.command, "cargo codspeed bench");
     }
