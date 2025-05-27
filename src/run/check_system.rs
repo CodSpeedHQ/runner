@@ -76,7 +76,14 @@ impl SystemInfo {
             .iter()
             .next()
             .ok_or(anyhow!("Failed to get CPU info"))?;
-        let cpu_brand = cpu.brand().to_string();
+        let cpu_brand = {
+            let brand = cpu.brand().to_string();
+            if brand.is_empty() {
+                "unknown".to_string()
+            } else {
+                brand
+            }
+        };
         let cpu_name = cpu.name().to_string();
         let cpu_vendor_id = cpu.vendor_id().to_string();
 
