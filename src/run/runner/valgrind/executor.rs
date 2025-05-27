@@ -7,7 +7,7 @@ use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 
 use super::setup::install_valgrind;
-use super::{helpers::perf_maps::harvest_perf_maps, measure};
+use super::{helpers::perf_maps::harvest_perf_maps, helpers::venv_compat, measure};
 
 pub struct ValgrindExecutor;
 
@@ -19,6 +19,13 @@ impl Executor for ValgrindExecutor {
 
     async fn setup(&self, system_info: &SystemInfo) -> Result<()> {
         install_valgrind(system_info).await?;
+
+        if let Err(error) = venv_compat::symlink_libpython(None) {
+            error!("Failed to symlink libpython: {}", error);
+        } else {
+            info!("Successfully added symlink for libpython in the venv");
+        }
+
         Ok(())
     }
 
