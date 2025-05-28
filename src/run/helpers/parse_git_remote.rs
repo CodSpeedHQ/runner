@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     static ref REMOTE_REGEX: regex::Regex = regex::Regex::new(
-        r"(?P<domain>[^/@\.]+\.\w+)[:/](?P<owner>[^/]+)/(?P<repository>[^/]+?)(\.git)?$"
+        r"(?P<domain>[^/@\.]+\.\w+)[:/](?P<owner>[^/]+)/(?P<repository>[^/]+?)(\.git)?/?$"
     )
     .unwrap();
 }
@@ -85,6 +85,16 @@ mod tests {
         insta::assert_debug_snapshot!(git_remote, @r###"
         GitRemote {
             domain: "gitlab.com",
+            owner: "codspeed",
+            repository: "runner",
+        }
+        "###);
+
+        let remote = "https://github.com/codspeed/runner/";
+        let git_remote = parse_git_remote(remote).unwrap();
+        insta::assert_debug_snapshot!(git_remote, @r###"
+        GitRemote {
+            domain: "github.com",
             owner: "codspeed",
             repository: "runner",
         }
