@@ -207,6 +207,8 @@ pub async fn run(
         }
         executor.teardown(&config, &system_info, &run_data).await?;
 
+        logger.persist_log_to_profile_folder(&run_data)?;
+
         end_group!();
     } else {
         debug!("Skipping the run of the benchmarks");
@@ -214,9 +216,6 @@ pub async fn run(
 
     if !config.skip_upload {
         start_group!("Uploading performance data");
-        if !config.skip_run {
-            logger.persist_log_to_profile_folder(&run_data)?;
-        }
         let upload_result =
             uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
         end_group!();
