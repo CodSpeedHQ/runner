@@ -41,7 +41,7 @@ fn show_banner() {
 #[derive(Args, Debug)]
 pub struct RunArgs {
     /// The upload URL to use for uploading the results, useful for on-premises installations
-    #[arg(long)]
+    #[arg(long, env = "CODSPEED_UPLOAD_URL")]
     pub upload_url: Option<String>,
 
     /// The token to use for uploading the results,
