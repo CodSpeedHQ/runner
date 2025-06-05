@@ -108,13 +108,16 @@ impl PerfRunner {
                 ""
             }
         };
+        let user = nix::unistd::User::from_uid(nix::unistd::Uid::current())?.unwrap();
         cmd.args([
             "-c",
             &format!(
-                "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
+                "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- \
+                sudo systemd-run --scope --slice=codspeed.slice --same-dir -- runuser -u {} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
-                perf_file.path().to_string_lossy()
+                perf_file.path().to_string_lossy(),
+                user.name
             ),
         ]);
         debug!("cmd: {:?}", cmd);
