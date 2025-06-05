@@ -1,6 +1,7 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
 use crate::prelude::*;
+use crate::run::runner::helpers::isolation::CpuIsolation;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
@@ -96,10 +97,15 @@ impl PerfRunner {
         };
         debug!("Using call graph mode: {}", cg_mode);
 
+        let (perf_cpu, bench_cpu, _) = CpuIsolation::cpu_bindings();
+        let cpu_isolation = CpuIsolation::new();
+        cpu_isolation.isolate()?;
+
         cmd.args([
             "-c",
             &format!(
-                "perf record --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
+                "taskset -c {perf_cpu} perf record --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- \
+                taskset -c {bench_cpu} {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy()
