@@ -96,10 +96,22 @@ impl PerfRunner {
         };
         debug!("Using call graph mode: {}", cg_mode);
 
+        let quiet_flag = {
+            let log_level = std::env::var("CODSPEED_LOG")
+                .ok()
+                .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
+                .unwrap_or(log::LevelFilter::Info);
+
+            if log_level < log::LevelFilter::Debug {
+                "--quiet"
+            } else {
+                ""
+            }
+        };
         cmd.args([
             "-c",
             &format!(
-                "perf record --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
+                "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy()
