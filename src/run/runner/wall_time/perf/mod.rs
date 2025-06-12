@@ -226,7 +226,6 @@ impl PerfRunner {
 
                         let bench_proc = procfs::process::Process::new(pid as _)
                             .expect("Failed to find benchmark process");
-                        let exe_path = bench_proc.exe().expect("Failed to read /proc/{pid}/exe");
                         let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
 
                         for map in &exe_maps {
@@ -237,23 +236,36 @@ impl PerfRunner {
                                 _ => None,
                             };
 
-                            if let Some(path) = path {
+                            if let Some(path) = &path {
                                 symbols_by_pid
                                     .entry(pid)
                                     .or_insert(ProcessSymbols::new(pid))
-                                    .add_mapping(pid, &path, base_addr, end_addr);
+                                    .add_mapping(pid, path, base_addr, end_addr);
                                 debug!("Added mapping for module {:?}", path);
-                            }
 
-                            if map.perms.contains(MMPermissions::EXECUTE) {
-                                if let Ok(unwind_data) = UnwindData::new(
-                                    exe_path.to_string_lossy().as_bytes(),
-                                    page_offset,
-                                    base_addr,
-                                    end_addr - base_addr,
-                                    None,
-                                ) {
-                                    unwind_data_by_pid.entry(pid).or_default().push(unwind_data);
+                                if map.perms.contains(MMPermissions::EXECUTE) {
+                                    match UnwindData::new(
+                                        path.to_string_lossy().as_bytes(),
+                                        page_offset,
+                                        base_addr,
+                                        end_addr - base_addr,
+                                        None,
+                                    ) {
+                                        Ok(unwind_data) => {
+                                            unwind_data_by_pid
+                                                .entry(pid)
+                                                .or_default()
+                                                .push(unwind_data);
+                                            debug!("Added unwind data for {path:?}");
+                                        }
+                                        Err(error) => {
+                                            debug!(
+                                                "Failed to create unwind data for module {}: {}",
+                                                path.display(),
+                                                error
+                                            );
+                                        }
+                                    }
                                 }
                             }
                         }
