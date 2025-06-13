@@ -256,7 +256,7 @@ impl PerfRunner {
                                                 .entry(pid)
                                                 .or_default()
                                                 .push(unwind_data);
-                                            debug!("Added unwind data for {path:?}");
+                                            debug!("Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})");
                                         }
                                         Err(error) => {
                                             debug!(
@@ -267,6 +267,8 @@ impl PerfRunner {
                                         }
                                     }
                                 }
+                            } else if map.perms.contains(MMPermissions::EXECUTE) {
+                                debug!("Found executable mapping without path: {base_addr:x} - {end_addr:x}");
                             }
                         }
                     }
