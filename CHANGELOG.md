@@ -5,6 +5,15 @@
 
 
 
+## [3.6.1] - 2025-06-16
+
+### <!-- 0 -->🚀 Features
+- Run benchmark with systemd (for optional cpu isolation) by @not-matthias in [#86](https://github.com/CodSpeedHQ/runner/pull/86)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Only show perf output at debug or trace level by @not-matthias in [#87](https://github.com/CodSpeedHQ/runner/pull/87)
+
+
 ## [3.6.0] - 2025-06-10
 
 ### <!-- 0 -->🚀 Features
@@ -373,6 +382,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.6.1]: https://github.com/CodSpeedHQ/runner/compare/v3.6.0..v3.6.1
 [3.6.0]: https://github.com/CodSpeedHQ/runner/compare/v3.5.0..v3.6.0
 [3.5.0]: https://github.com/CodSpeedHQ/runner/compare/v3.4.0..v3.5.0
 [3.4.0]: https://github.com/CodSpeedHQ/runner/compare/v3.3.1..v3.4.0
