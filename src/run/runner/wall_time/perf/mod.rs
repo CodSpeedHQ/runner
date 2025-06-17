@@ -109,13 +109,15 @@ impl PerfRunner {
             }
         };
 
+        let runner_mode = std::env::var("CODSPEED_RUNNER_MODE").unwrap_or_default();
+        let codspeed_env = std::env::var("CODSPEED_ENV").unwrap_or_default();
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
         cmd.args([
             "-c",
             &format!(
                 "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- \
-                sudo systemd-run --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- {bench_cmd}",
+                sudo systemd-run --scope --slice=codspeed.slice --same-dir --setenv=CODSPEED_ENV={codspeed_env} --setenv=CODSPEED_RUNNER_MODE={runner_mode} --uid={uid} --gid={gid} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy(),
