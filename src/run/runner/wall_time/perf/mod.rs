@@ -1,10 +1,13 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
 use crate::prelude::*;
+use crate::run::runner::helpers::env::get_base_injected_env;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
+use crate::run::runner::RunData;
+use crate::run::RunnerMode;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
 use futures::stream::FuturesUnordered;
@@ -72,7 +75,12 @@ impl PerfRunner {
         }
     }
 
-    pub async fn run(&self, mut cmd: Command, bench_cmd: &str) -> anyhow::Result<ExitStatus> {
+    pub async fn run(
+        &self,
+        mut cmd: Command,
+        bench_cmd: &str,
+        run_data: &RunData,
+    ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
 
@@ -109,15 +117,18 @@ impl PerfRunner {
             }
         };
 
-        let runner_mode = std::env::var("CODSPEED_RUNNER_MODE").unwrap_or_default();
-        let codspeed_env = std::env::var("CODSPEED_ENV").unwrap_or_default();
+        let setenv = get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
+            .into_iter()
+            .map(|(env, value)| format!("--setenv={env}={value}"))
+            .join(" ");
+
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
         cmd.args([
             "-c",
             &format!(
                 "sudo perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- \
-                systemd-run --scope --slice=codspeed.slice --same-dir --setenv=CODSPEED_ENV={codspeed_env} --setenv=CODSPEED_RUNNER_MODE={runner_mode} --uid={uid} --gid={gid} -- {bench_cmd}",
+                systemd-run --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} {setenv} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy(),
