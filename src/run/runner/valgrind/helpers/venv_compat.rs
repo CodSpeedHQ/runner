@@ -51,6 +51,8 @@ pub fn symlink_libpython(cwd: Option<&String>) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
+    // Only run in Github Actions, to ensure python is dynamically linked.
+    #[test_with::env(GITHUB_ACTIONS)]
     #[test]
     fn test_venv_compat_no_crash() {
         assert!(symlink_libpython(None).is_ok());

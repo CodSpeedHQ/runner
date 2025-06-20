@@ -61,7 +61,7 @@ procfs = "0.17.0"
 [dev-dependencies]
 temp-env = { version = "0.3.6", features = ["async_closure"] }
 insta = { version = "1.29.0", features = ["json", "redactions"] }
-
+test-with = { version = "0.15", default-features = false, features = [] }
 
 [workspace.metadata.release]
 sign-tag = true
