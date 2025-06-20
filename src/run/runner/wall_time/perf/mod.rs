@@ -14,7 +14,7 @@ use metadata::PerfMetadata;
 use perf_map::ProcessSymbols;
 use shared::Command as FifoCommand;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
@@ -32,6 +32,55 @@ pub mod perf_map;
 pub mod unwind_data;
 
 const PERF_DATA_PREFIX: &str = "perf.data.";
+
+struct EnvGuard {
+    post_bench_script: PathBuf,
+}
+
+impl EnvGuard {
+    fn execute_script_from_path<P: AsRef<Path>>(path: P) -> anyhow::Result<()> {
+        let path = path.as_ref();
+        if !path.exists() || !path.is_file() {
+            warn!("Script not found or not a file: {}", path.display());
+            return Ok(());
+        }
+
+        let output = Command::new("bash").args([&path]).output()?;
+        if !output.status.success() {
+            info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+            error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+            bail!("Failed to execute script: {}", path.display());
+        }
+
+        Ok(())
+    }
+
+    pub fn setup_with_scripts<P: AsRef<Path>>(pre_bench_script: P, post_bench_script: P) -> Self {
+        if let Err(e) = Self::execute_script_from_path(pre_bench_script.as_ref()) {
+            warn!("Failed to execute pre-bench script: {e}");
+            println!("asdf: {e}");
+        }
+
+        Self {
+            post_bench_script: post_bench_script.as_ref().to_path_buf(),
+        }
+    }
+
+    pub fn setup() -> Self {
+        Self::setup_with_scripts(
+            "/usr/local/bin/codspeed-pre-bench",
+            "/usr/local/bin/codspeed-post-bench",
+        )
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        if let Err(e) = Self::execute_script_from_path(&self.post_bench_script) {
+            warn!("Failed to execute post-bench script: {e}");
+        }
+    }
+}
 
 pub struct PerfRunner {
     perf_dir: TempDir,
@@ -139,7 +188,11 @@ impl PerfRunner {
 
             Ok(())
         };
-        run_command_with_log_pipe_and_callback(cmd, on_process_started).await
+
+        {
+            let _guard = EnvGuard::setup();
+            run_command_with_log_pipe_and_callback(cmd, on_process_started).await
+        }
     }
 
     pub async fn save_files_to(&self, profile_folder: &PathBuf) -> anyhow::Result<()> {
@@ -404,5 +457,51 @@ impl BenchmarkData {
 
     pub fn bench_count(&self) -> usize {
         self.bench_order_by_pid.values().map(|v| v.len()).sum()
+    }
+}
+#[cfg(test)]
+mod tests {
+    use tempfile::NamedTempFile;
+
+    use super::*;
+    use std::{
+        io::{Read, Write},
+        os::unix::fs::PermissionsExt,
+    };
+
+    #[test]
+    fn test_env_guard_no_crash() {
+        fn create_run_script(content: &str) -> anyhow::Result<NamedTempFile> {
+            let rwx = std::fs::Permissions::from_mode(0o777);
+            let mut script_file = tempfile::Builder::new()
+                .suffix(".sh")
+                .permissions(rwx)
+                .keep(true)
+                .tempfile()?;
+            script_file.write_all(content.as_bytes())?;
+
+            Ok(script_file)
+        }
+
+        let mut tmp_dst = tempfile::NamedTempFile::new().unwrap();
+
+        let pre_script = create_run_script(&format!(
+            "#!/usr/bin/env bash\necho \"pre\" >> {}",
+            tmp_dst.path().display()
+        ))
+        .unwrap();
+        let post_script = create_run_script(&format!(
+            "#!/usr/bin/env bash\necho \"post\" >> {}",
+            tmp_dst.path().display()
+        ))
+        .unwrap();
+
+        {
+            let _guard = EnvGuard::setup_with_scripts(pre_script.path(), post_script.path());
+        }
+
+        let mut result = String::new();
+        tmp_dst.read_to_string(&mut result).unwrap();
+        assert_eq!(result, "pre\npost\n");
     }
 }
