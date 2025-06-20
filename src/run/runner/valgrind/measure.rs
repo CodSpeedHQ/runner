@@ -33,6 +33,7 @@ lazy_static! {
                 "--compress-strings=no",
                 "--combine-dumps=yes",
                 "--dump-line=no",
+                "--fair-sched=try",
             ]
             .iter()
             .map(|x| x.to_string()),
