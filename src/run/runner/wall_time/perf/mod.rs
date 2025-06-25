@@ -84,15 +84,17 @@ impl PerfRunner {
             .tempfile_in(&self.perf_dir)?;
 
         // Detect the mode based on the command to be executed
-        let cg_mode = if bench_cmd.contains("cargo") {
-            "dwarf"
+        let cg_mode = if let Ok(mode) = std::env::var("CODSPEED_PERF_CALLGRAPH_MODE") {
+            debug!("Using call graph mode from environment variable: {}", mode);
+            mode
+        } else if bench_cmd.contains("cargo") {
+            "dwarf".into()
         } else if bench_cmd.contains("pytest") {
-            "fp"
+            "fp".into()
         } else {
-            panic!(
-                "Perf not supported. Failed to detect call graph mode for command: {}",
-                bench_cmd
-            )
+            // Default to dwarf unwinding since it works well with most binaries.
+            debug!("No call graph mode detected, defaulting to dwarf");
+            "dwarf".into()
         };
         debug!("Using call graph mode: {}", cg_mode);
 
