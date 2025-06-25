@@ -38,6 +38,29 @@ fn show_banner() {
     debug!("codspeed v{}", VERSION);
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, ValueEnum, Default)]
+pub enum UnwindingMode {
+    /// Use the frame pointer for unwinding. Requires the binary to be compiled with frame pointers enabled.
+    #[clap(name = "fp")]
+    FramePointer,
+
+    /// Use DWARF unwinding. This does not require any special compilation flags and is enabled by default.
+    #[default]
+    Dwarf,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct PerfRunArgs {
+    /// Enable the performance runner, which uses `perf` to collect performance data.
+    /// This is only supported on Linux.
+    #[arg(long, env = "CODSPEED_PERF_ENABLED", default_value_t = false)]
+    enable_perf: bool,
+
+    /// The unwinding mode that should be used with perf to collect the call stack.
+    #[arg(long, env = "CODSPEED_PERF_UNWINDING_MODE")]
+    perf_unwinding_mode: Option<UnwindingMode>,
+}
+
 #[derive(Args, Debug)]
 pub struct RunArgs {
     /// The upload URL to use for uploading the results, useful for on-premises installations
@@ -104,6 +127,9 @@ pub struct RunArgs {
     #[arg(long, default_value = "false", hide = true)]
     pub skip_setup: bool,
 
+    #[command(flatten)]
+    pub perf_run_args: PerfRunArgs,
+
     /// The bench command to run
     pub command: Vec<String>,
 }
@@ -139,6 +165,10 @@ impl RunArgs {
             skip_upload: false,
             skip_run: false,
             skip_setup: false,
+            perf_run_args: PerfRunArgs {
+                enable_perf: false,
+                perf_unwinding_mode: None,
+            },
             command: vec![],
         }
     }

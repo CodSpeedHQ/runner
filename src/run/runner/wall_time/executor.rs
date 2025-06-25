@@ -17,15 +17,8 @@ pub struct WallTimeExecutor {
 
 impl WallTimeExecutor {
     pub fn new() -> Self {
-        let use_perf = if cfg!(target_os = "linux") {
-            std::env::var("CODSPEED_USE_PERF").is_ok()
-        } else {
-            false
-        };
-        debug!("Running the cmd with perf: {}", use_perf);
-
         Self {
-            perf: use_perf.then(PerfRunner::new),
+            perf: cfg!(target_os = "linux").then(PerfRunner::new),
         }
     }
 }
@@ -66,13 +59,14 @@ impl Executor for WallTimeExecutor {
         }
 
         let bench_cmd = get_bench_command(config)?;
-        let status = if let Some(perf) = &self.perf {
-            perf.run(cmd, &bench_cmd).await
-        } else {
-            cmd.args(["-c", &bench_cmd]);
-            debug!("cmd: {:?}", cmd);
+        let status = match (config.enable_perf, &self.perf) {
+            (true, Some(perf)) => perf.run(cmd, &bench_cmd, config).await,
+            _ => {
+                cmd.args(["-c", &bench_cmd]);
+                debug!("cmd: {:?}", cmd);
 
-            run_command_with_log_pipe(cmd).await
+                run_command_with_log_pipe(cmd).await
+            }
         };
 
         let status =

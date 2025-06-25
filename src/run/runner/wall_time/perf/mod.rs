@@ -1,10 +1,12 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
 use crate::prelude::*;
+use crate::run::config::Config;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
+use crate::run::UnwindingMode;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
 use futures::stream::FuturesUnordered;
@@ -72,7 +74,12 @@ impl PerfRunner {
         }
     }
 
-    pub async fn run(&self, mut cmd: Command, bench_cmd: &str) -> anyhow::Result<ExitStatus> {
+    pub async fn run(
+        &self,
+        mut cmd: Command,
+        bench_cmd: &str,
+        config: &Config,
+    ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
 
@@ -83,18 +90,23 @@ impl PerfRunner {
             .prefix(PERF_DATA_PREFIX)
             .tempfile_in(&self.perf_dir)?;
 
-        // Detect the mode based on the command to be executed
-        let cg_mode = if bench_cmd.contains("cargo") {
-            "dwarf"
-        } else if bench_cmd.contains("pytest") {
-            "fp"
-        } else {
-            panic!(
-                "Perf not supported. Failed to detect call graph mode for command: {}",
-                bench_cmd
-            )
+        // Infer the unwinding mode from the benchmark cmd
+        let cg_mode = match (config.perf_unwinding_mode, &bench_cmd) {
+            (Some(mode), _) => mode,
+            (None, cmd) if cmd.contains("pytest") => UnwindingMode::FramePointer,
+            (None, cmd) if cmd.contains("cargo") => UnwindingMode::Dwarf,
+            (None, _) => {
+                // Default to dwarf unwinding since it works well with most binaries.
+                debug!("No call graph mode detected, defaulting to dwarf");
+                UnwindingMode::Dwarf
+            }
         };
-        debug!("Using call graph mode: {}", cg_mode);
+
+        let cg_mode = match cg_mode {
+            UnwindingMode::FramePointer => "fp",
+            UnwindingMode::Dwarf => "dwarf",
+        };
+        debug!("Using call graph mode: {:?}", cg_mode);
 
         let quiet_flag = {
             let log_level = std::env::var("CODSPEED_LOG")

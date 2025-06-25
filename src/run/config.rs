@@ -6,7 +6,7 @@ use url::Url;
 use crate::run::run_environment::RepositoryProvider;
 use crate::run::RunArgs;
 
-use super::RunnerMode;
+use super::{RunnerMode, UnwindingMode};
 
 #[derive(Debug)]
 pub struct Config {
@@ -18,6 +18,8 @@ pub struct Config {
 
     pub mode: RunnerMode,
     pub instruments: Instruments,
+    pub enable_perf: bool,
+    pub perf_unwinding_mode: Option<UnwindingMode>,
 
     pub profile_folder: Option<PathBuf>,
     pub skip_upload: bool,
@@ -50,6 +52,8 @@ impl Config {
             command: "".into(),
             mode: RunnerMode::Instrumentation,
             instruments: Instruments::test(),
+            perf_unwinding_mode: None,
+            enable_perf: false,
             profile_folder: None,
             skip_upload: false,
             skip_run: false,
@@ -86,6 +90,8 @@ impl TryFrom<RunArgs> for Config {
             working_directory: args.working_directory,
             mode: args.mode,
             instruments,
+            perf_unwinding_mode: args.perf_run_args.perf_unwinding_mode,
+            enable_perf: args.perf_run_args.enable_perf,
             command: args.command.join(" "),
             profile_folder: args.profile_folder,
             skip_upload: args.skip_upload,
@@ -105,6 +111,7 @@ fn extract_owner_and_repository_from_arg(owner_and_repository: &str) -> Result<(
 #[cfg(test)]
 mod tests {
     use crate::run::instruments::MongoDBConfig;
+    use crate::run::PerfRunArgs;
 
     use super::*;
 
@@ -124,6 +131,10 @@ mod tests {
             skip_upload: false,
             skip_run: false,
             skip_setup: false,
+            perf_run_args: PerfRunArgs {
+                enable_perf: false,
+                perf_unwinding_mode: None,
+            },
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
         })
         .unwrap();
@@ -154,6 +165,10 @@ mod tests {
             skip_upload: true,
             skip_run: true,
             skip_setup: true,
+            perf_run_args: PerfRunArgs {
+                enable_perf: false,
+                perf_unwinding_mode: Some(UnwindingMode::FramePointer),
+            },
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
         })
         .unwrap();
