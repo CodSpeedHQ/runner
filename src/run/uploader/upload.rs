@@ -62,6 +62,13 @@ async fn retrieve_upload_data(
                         };
                     error_message.push_str(&format!("\n\n{additional_message}"));
                 }
+
+                debug!(
+                    "Check that owner and repository are correct (case-sensitive!): {}/{}",
+                    upload_metadata.run_environment_metadata.owner,
+                    upload_metadata.run_environment_metadata.repository
+                );
+
                 bail!(
                     "Failed to retrieve upload data: {}\n  -> {} {}",
                     status,
