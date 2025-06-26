@@ -108,22 +108,20 @@ impl PerfRunner {
                 ""
             }
         };
-        let user = nix::unistd::User::from_uid(nix::unistd::Uid::current())?.unwrap();
+
         cmd.args([
             "-c",
             &format!(
-                "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- \
-                sudo systemd-run --scope --slice=codspeed.slice --same-dir -- runuser -u {} -- {bench_cmd}",
+                "sudo perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy(),
-                user.name
             ),
         ]);
         debug!("cmd: {:?}", cmd);
 
-        let on_process_started = async |pid: u32| -> anyhow::Result<()> {
-            let data = Self::handle_fifo(pid, runner_fifo, perf_fifo).await?;
+        let on_process_started = async |_| -> anyhow::Result<()> {
+            let data = Self::handle_fifo(runner_fifo, perf_fifo).await?;
             let _ = self.benchmark_data.set(data);
 
             Ok(())
@@ -133,6 +131,18 @@ impl PerfRunner {
 
     pub async fn save_files_to(&self, profile_folder: &PathBuf) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
+
+        // We ran perf with sudo, so we have to change the ownership of the perf data files
+        run_with_sudo(&[
+            "chown",
+            "-R",
+            &format!(
+                "{}:{}",
+                nix::unistd::Uid::current(),
+                nix::unistd::Gid::current()
+            ),
+            self.perf_dir.path().to_str().unwrap(),
+        ])?;
 
         // Copy the perf data files to the profile folder
         let copy_tasks = std::fs::read_dir(&self.perf_dir)?
@@ -194,7 +204,6 @@ impl PerfRunner {
     }
 
     async fn handle_fifo(
-        perf_pid: u32,
         mut runner_fifo: RunnerFifo,
         mut perf_fifo: PerfFifo,
     ) -> anyhow::Result<BenchmarkData> {
@@ -203,6 +212,7 @@ impl PerfRunner {
         let mut unwind_data_by_pid = HashMap::<u32, Vec<UnwindData>>::new();
         let mut integration = None;
 
+        let perf_pid = OnceCell::new();
         loop {
             let perf_ping = tokio::time::timeout(Duration::from_secs(1), perf_fifo.ping()).await;
             if let Ok(Err(_)) | Err(_) = perf_ping {
@@ -276,7 +286,22 @@ impl PerfRunner {
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
-                    unsafe { libc::kill(perf_pid as i32, libc::SIGUSR2) };
+                    let perf_pid = perf_pid.get_or_init(|| {
+                        let output = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg("pidof -s perf")
+                            .output()
+                            .expect("Failed to run pidof command");
+
+                        String::from_utf8_lossy(&output.stdout)
+                            .trim()
+                            .parse::<u32>()
+                            .expect("Failed to parse perf pid")
+                    });
+
+                    // Split the perf.data file
+                    run_with_sudo(&["kill", "-USR2", &perf_pid.to_string()])?;
+
                     perf_fifo.start_events().await?;
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
