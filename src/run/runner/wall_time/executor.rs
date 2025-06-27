@@ -18,7 +18,9 @@ pub struct WallTimeExecutor {
 impl WallTimeExecutor {
     pub fn new() -> Self {
         let use_perf = if cfg!(target_os = "linux") {
-            std::env::var("CODSPEED_USE_PERF").is_ok()
+            std::env::var("CODSPEED_PERF_ENABLED")
+                .map(|var| matches!(var.as_str(), "1" | "true"))
+                .unwrap_or(false)
         } else {
             false
         };
