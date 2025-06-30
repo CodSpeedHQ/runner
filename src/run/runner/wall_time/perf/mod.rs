@@ -12,7 +12,7 @@ use metadata::PerfMetadata;
 use perf_map::ProcessSymbols;
 use shared::Command as FifoCommand;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
@@ -31,48 +31,51 @@ pub mod unwind_data;
 
 const PERF_DATA_PREFIX: &str = "perf.data.";
 
-struct EnvGuard;
+struct EnvGuard {
+    post_bench_script: PathBuf,
+}
 
 impl EnvGuard {
-    fn execute_script_from_env(script_env_var: &str) -> anyhow::Result<()> {
-        let Ok(script_path) = std::env::var(script_env_var) else {
-            debug!("Couldn't find {script_env_var}, skipping script execution");
-            return Ok(());
-        };
-
-        if script_path.is_empty() {
-            return Ok(());
-        }
-
-        let path = std::path::Path::new(&script_path);
+    fn execute_script_from_path<P: AsRef<Path>>(path: P) -> anyhow::Result<()> {
+        let path = path.as_ref();
         if !path.exists() || !path.is_file() {
-            warn!("Script not found or not a file: {}", script_path);
+            warn!("Script not found or not a file: {}", path.display());
             return Ok(());
         }
 
-        let output = Command::new("bash").args([&script_path]).output()?;
+        let output = Command::new("bash").args([&path]).output()?;
         if !output.status.success() {
             info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
             error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-            bail!("Failed to execute script: {}", script_path);
+            bail!("Failed to execute script: {}", path.display());
         }
 
         Ok(())
     }
 
-    pub fn setup() -> Self {
-        if let Err(e) = Self::execute_script_from_env("CODSPEED_PRE_STARTUP_SCRIPT") {
-            warn!("Failed to execute pre-startup script: {}", e);
+    pub fn setup_with_scripts<P: AsRef<Path>>(pre_bench_script: P, post_bench_script: P) -> Self {
+        if let Err(e) = Self::execute_script_from_path(pre_bench_script.as_ref()) {
+            warn!("Failed to execute pre-bench script: {}", e);
             println!("asdf: {e}");
         }
-        Self
+
+        Self {
+            post_bench_script: post_bench_script.as_ref().to_path_buf(),
+        }
+    }
+
+    pub fn setup() -> Self {
+        Self::setup_with_scripts(
+            "/usr/local/bin/codspeed-pre-bench",
+            "/usr/local/bin/codspeed-post-bench",
+        )
     }
 }
 
 impl Drop for EnvGuard {
     fn drop(&mut self) {
-        if let Err(e) = Self::execute_script_from_env("CODSPEED_POST_CLEANUP_SCRIPT") {
-            warn!("Failed to execute post-cleanup script: {}", e);
+        if let Err(e) = Self::execute_script_from_path(&self.post_bench_script) {
+            warn!("Failed to execute post-bench script: {}", e);
         }
     }
 }
@@ -449,28 +452,6 @@ mod tests {
         os::unix::fs::PermissionsExt,
     };
 
-    fn with_env<F>(vars: &[(&str, &str)], mut f: F)
-    where
-        F: FnMut(),
-    {
-        let original_vars: Vec<(&str, std::result::Result<String, std::env::VarError>)> =
-            vars.iter().map(|(k, _)| (*k, std::env::var(*k))).collect();
-
-        for (k, v) in vars {
-            std::env::set_var(k, v);
-        }
-
-        f();
-
-        for (k, v) in original_vars {
-            if let Ok(val) = v {
-                std::env::set_var(k, val);
-            } else {
-                std::env::remove_var(k);
-            }
-        }
-    }
-
     #[test]
     fn test_env_guard_no_crash() {
         fn create_run_script(content: &str) -> anyhow::Result<NamedTempFile> {
@@ -498,20 +479,9 @@ mod tests {
         ))
         .unwrap();
 
-        let env_vars = [
-            (
-                "CODSPEED_PRE_STARTUP_SCRIPT",
-                &*pre_script.path().to_string_lossy(),
-            ),
-            (
-                "CODSPEED_POST_CLEANUP_SCRIPT",
-                &post_script.path().to_string_lossy(),
-            ),
-        ];
-
-        with_env(&env_vars, || {
-            let _guard = EnvGuard::setup();
-        });
+        {
+            let _guard = EnvGuard::setup_with_scripts(pre_script.path(), post_script.path());
+        }
 
         let mut result = String::new();
         tmp_dst.read_to_string(&mut result).unwrap();
