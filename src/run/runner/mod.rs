@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::prelude::*;
 
-use super::{config::Config, RunnerMode};
+use super::{RunnerMode, config::Config};
 
 mod executor;
 mod helpers;

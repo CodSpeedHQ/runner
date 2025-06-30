@@ -16,8 +16,7 @@ pub trait RunEnvironmentDetector {
 
 fn get_commit_hash(repository_root_path: &str) -> Result<String> {
     let repo = Repository::open(repository_root_path).context(format!(
-        "Failed to open repository at path: {}",
-        repository_root_path
+        "Failed to open repository at path: {repository_root_path}"
     ))?;
 
     let commit_hash = repo

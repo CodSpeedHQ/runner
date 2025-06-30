@@ -1,6 +1,6 @@
 //! WARNING: This file has to be in sync with perf-parser!
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use debugid::CodeId;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;

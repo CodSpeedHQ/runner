@@ -35,12 +35,12 @@ async fn main() {
             if log_enabled!(log::Level::Error) {
                 error!("{} {}", style("Error:").bold().red(), style(cause).red());
             } else {
-                eprintln!("Error: {}", cause);
+                eprintln!("Error: {cause}");
             }
         }
         if log_enabled!(log::Level::Debug) {
             for e in err.chain().skip(1) {
-                debug!("Caused by: {}", e);
+                debug!("Caused by: {e}");
             }
         }
         clean_logger();

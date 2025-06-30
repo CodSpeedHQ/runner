@@ -3,7 +3,7 @@ use std::env;
 use simplelog::SharedLogger;
 
 use crate::prelude::*;
-use crate::run::helpers::{parse_git_remote, GitRemote};
+use crate::run::helpers::{GitRemote, parse_git_remote};
 use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::{
     config::Config,
@@ -45,7 +45,7 @@ pub fn get_ref() -> Result<String> {
     let pr_number = get_pr_number()?;
 
     if let Some(pr_number) = pr_number {
-        Ok(format!("refs/pull/{}/merge", pr_number))
+        Ok(format!("refs/pull/{pr_number}/merge"))
     } else {
         Ok(format!(
             "refs/heads/{}",

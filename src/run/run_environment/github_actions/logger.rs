@@ -1,5 +1,5 @@
 use crate::{
-    logger::{get_group_event, get_json_event, GroupEvent},
+    logger::{GroupEvent, get_group_event, get_json_event},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 use log::*;
@@ -27,7 +27,7 @@ impl Log for GithubActionLogger {
         if let Some(group_event) = get_group_event(record) {
             match group_event {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
-                    println!("::group::{}", name);
+                    println!("::group::{name}");
                 }
                 GroupEvent::End => {
                     println!("::endgroup::");
@@ -50,7 +50,7 @@ impl Log for GithubActionLogger {
         let message_string = message.to_string();
         let lines = message_string.lines();
         // ensure that all the lines of the message have the prefix, otherwise GitHub Actions will not recognize the command for the whole string
-        lines.for_each(|line| println!("{}{}", prefix, line));
+        lines.for_each(|line| println!("{prefix}{line}"));
     }
 
     fn flush(&self) {

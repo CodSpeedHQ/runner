@@ -1,6 +1,6 @@
 use crate::run::runner::helpers::setup::run_with_sudo;
-use crate::{prelude::*, run::helpers::download_file, VALGRIND_CODSPEED_VERSION};
-use crate::{run::check_system::SystemInfo, VALGRIND_CODSPEED_DEB_VERSION};
+use crate::{VALGRIND_CODSPEED_DEB_VERSION, run::check_system::SystemInfo};
+use crate::{VALGRIND_CODSPEED_VERSION, prelude::*, run::helpers::download_file};
 use std::{env, process::Command};
 use url::Url;
 

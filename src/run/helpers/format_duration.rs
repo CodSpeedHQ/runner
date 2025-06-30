@@ -10,9 +10,9 @@ fn get_nearest_exponent(val: f64) -> i32 {
 
 fn format_shifted_value(value: f64, fraction_digits: usize) -> String {
     if fraction_digits == 0 && value.fract() == 0.0 {
-        format!("{:.0}", value)
+        format!("{value:.0}")
     } else {
-        format!("{:.1$}", value, fraction_digits)
+        format!("{value:.fraction_digits$}")
     }
 }
 
@@ -35,7 +35,7 @@ fn format_duration_to_exponent(val: f64, exponent: i32, fraction_digits: usize) 
             "{} ns",
             format_shifted_value(val * 10f64.powi(9), fraction_digits)
         ),
-        _ => format!("{} s", val),
+        _ => format!("{val} s"),
     }
 }
 

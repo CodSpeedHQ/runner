@@ -123,7 +123,7 @@ lazy_static! {
 /// - Debian 11 x86_64
 /// - Debian 12 x86_64
 pub fn check_system(system_info: &SystemInfo) -> Result<()> {
-    debug!("System info: {:#?}", system_info);
+    debug!("System info: {system_info:#?}");
 
     let system_tuple = (
         system_info.os.as_str(),

@@ -56,7 +56,9 @@ impl TryFrom<&RunArgs> for Instruments {
                 uri_env_name: args.mongo_uri_env_name.clone(),
             })
         } else if args.mongo_uri_env_name.is_some() {
-            warn!("The MongoDB instrument is disabled but a MongoDB URI environment variable name was provided, ignoring it");
+            warn!(
+                "The MongoDB instrument is disabled but a MongoDB URI environment variable name was provided, ignoring it"
+            );
             None
         } else {
             None

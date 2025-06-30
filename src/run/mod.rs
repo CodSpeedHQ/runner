@@ -1,11 +1,11 @@
+use crate::VERSION;
 use crate::api_client::CodSpeedAPIClient;
 use crate::config::CodSpeedConfig;
 use crate::prelude::*;
 use crate::run::{config::Config, logger::Logger};
-use crate::VERSION;
 use check_system::SystemInfo;
 use clap::{Args, ValueEnum};
-use instruments::mongo_tracer::{install_mongodb_tracer, MongoTracer};
+use instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use run_environment::interfaces::{RepositoryProvider, RunEnvironment};
 use runner::get_run_data;
 use serde::Serialize;
@@ -30,12 +30,11 @@ fn show_banner() {
  / /    / __ \ / __  / \__ \ / __ \ / _ \ / _ \ / __  /
 / /___ / /_/ // /_/ / ___/ // /_/ //  __//  __// /_/ /
 \____/ \____/ \__,_/ /____// .___/ \___/ \___/ \__,_/
-  https://codspeed.io     /_/          runner v{}
-"#,
-        VERSION
+  https://codspeed.io     /_/          runner v{VERSION}
+"#
     );
-    println!("{}", banner);
-    debug!("codspeed v{}", VERSION);
+    println!("{banner}");
+    debug!("codspeed v{VERSION}");
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, ValueEnum, Default)]
@@ -187,7 +186,7 @@ pub async fn run(
     if provider.get_run_environment() != RunEnvironment::Local {
         show_banner();
     }
-    debug!("config: {:#?}", config);
+    debug!("config: {config:#?}");
 
     if provider.get_run_environment() == RunEnvironment::Local {
         if codspeed_config.auth.token.is_none() {

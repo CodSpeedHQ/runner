@@ -2,13 +2,13 @@ use crate::{
     api_client::CodSpeedAPIClient,
     auth,
     config::CodSpeedConfig,
-    local_logger::{init_local_logger, CODSPEED_U8_COLOR_CODE},
+    local_logger::{CODSPEED_U8_COLOR_CODE, init_local_logger},
     prelude::*,
     run, setup,
 };
 use clap::{
-    builder::{styling, Styles},
     Parser, Subcommand,
+    builder::{Styles, styling},
 };
 
 fn create_styles() -> Styles {

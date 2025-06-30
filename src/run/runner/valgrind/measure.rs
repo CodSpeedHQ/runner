@@ -1,10 +1,10 @@
 use crate::prelude::*;
+use crate::run::runner::RunnerMode;
 use crate::run::runner::helpers::env::get_base_injected_env;
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::introspected_nodejs::setup_introspected_nodejs;
-use crate::run::runner::RunnerMode;
 use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
 use std::env;
@@ -111,7 +111,7 @@ pub async fn measure(
         .args(
             get_objects_path_to_ignore()
                 .iter()
-                .map(|x| format!("--obj-skip={}", x)),
+                .map(|x| format!("--obj-skip={x}")),
         )
         .arg(format!("--callgrind-out-file={}", profile_path.to_str().unwrap()).as_str())
         .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
@@ -130,7 +130,7 @@ pub async fn measure(
         mongo_tracer.apply_run_command_transformations(&mut cmd)?;
     }
 
-    debug!("cmd: {:?}", cmd);
+    debug!("cmd: {cmd:?}");
     let status = run_command_with_log_pipe(cmd)
         .await
         .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
@@ -144,7 +144,7 @@ pub async fn measure(
     if !status.success() {
         let valgrind_log = profile_folder.join("valgrind.log");
         let valgrind_log = std::fs::read_to_string(&valgrind_log).unwrap_or_default();
-        debug!("valgrind.log: {}", valgrind_log);
+        debug!("valgrind.log: {valgrind_log}");
 
         bail!("failed to execute valgrind");
     }
@@ -156,7 +156,7 @@ pub async fn measure(
             .parse::<u32>()
             .map_err(|e| anyhow!("unable to retrieve the program exit code. {}", e))?
     };
-    debug!("Program exit code = {}", cmd_status);
+    debug!("Program exit code = {cmd_status}");
     if cmd_status != 0 {
         bail!(
             "failed to execute the benchmark process, exit code: {}",

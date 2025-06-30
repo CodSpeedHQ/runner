@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    logger::{get_group_event, get_json_event, GroupEvent},
+    logger::{GroupEvent, get_group_event, get_json_event},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 
@@ -93,14 +93,18 @@ impl Log for GitLabCILogger {
                     *section_id = Some(new_section_id.to_string());
 
                     // https://docs.gitlab.com/ee/ci/yaml/script.html#custom-collapsible-sections
-                    println!("{ERASE_CURSOR}section_start:{timestamp}:{new_section_id}{U_CR}{ERASE_CURSOR}{U_ESC}[36;1m{name}{COLOR_RESET}");
+                    println!(
+                        "{ERASE_CURSOR}section_start:{timestamp}:{new_section_id}{U_CR}{ERASE_CURSOR}{U_ESC}[36;1m{name}{COLOR_RESET}"
+                    );
                 }
                 GroupEvent::End => {
                     // do not fail if there is no current section
                     let current_section_id = section_id.clone().unwrap_or("".to_string());
 
                     // https://docs.gitlab.com/ee/ci/yaml/script.html#custom-collapsible-sections
-                    println!("{ERASE_CURSOR}section_end:{timestamp}:{current_section_id}{U_CR}{ERASE_CURSOR}");
+                    println!(
+                        "{ERASE_CURSOR}section_end:{timestamp}:{current_section_id}{U_CR}{ERASE_CURSOR}"
+                    );
 
                     *section_id = None;
                 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::{api_client::CodSpeedAPIClient, config::CodSpeedConfig, prelude::*};
 use clap::{Args, Subcommand};
 use console::style;
-use tokio::time::{sleep, Instant};
+use tokio::time::{Instant, sleep};
 
 #[derive(Debug, Args)]
 pub struct AuthArgs {

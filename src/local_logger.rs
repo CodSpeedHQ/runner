@@ -5,14 +5,14 @@ use std::{
 };
 
 use crate::prelude::*;
-use console::{style, Style};
+use console::{Style, style};
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use log::Log;
 use simplelog::{CombinedLogger, SharedLogger};
 use std::io::Write;
 
-use crate::logger::{get_group_event, get_json_event, GroupEvent, JsonEvent};
+use crate::logger::{GroupEvent, JsonEvent, get_group_event, get_json_event};
 
 pub const CODSPEED_U8_COLOR_CODE: u8 = 208; // #FF8700
 
@@ -68,7 +68,7 @@ impl Log for LocalLogger {
                 GroupEvent::Start(name) | GroupEvent::StartOpened(name) => {
                     eprintln!(
                         "\n{}",
-                        style(format!("►►► {} ", name))
+                        style(format!("►►► {name} "))
                             .bold()
                             .color256(CODSPEED_U8_COLOR_CODE)
                     );
@@ -78,18 +78,17 @@ impl Log for LocalLogger {
                         spinner.set_style(
                             ProgressStyle::with_template(
                                 format!(
-                                    "  {{spinner:>.{}}} {{wide_msg:.{}.bold}}",
-                                    CODSPEED_U8_COLOR_CODE, CODSPEED_U8_COLOR_CODE
+                                    "  {{spinner:>.{CODSPEED_U8_COLOR_CODE}}} {{wide_msg:.{CODSPEED_U8_COLOR_CODE}.bold}}"
                                 )
                                 .as_str(),
                             )
                             .unwrap(),
                         );
-                        spinner.set_message(format!("{}...", name));
+                        spinner.set_message(format!("{name}..."));
                         spinner.enable_steady_tick(Duration::from_millis(100));
                         SPINNER.lock().unwrap().replace(spinner);
                     } else {
-                        eprintln!("{}...", name);
+                        eprintln!("{name}...");
                     }
                 }
                 GroupEvent::End => {

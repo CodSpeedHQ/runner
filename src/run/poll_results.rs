@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use console::style;
-use tokio::time::{sleep, Instant};
+use tokio::time::{Instant, sleep};
 
 use crate::api_client::{
     CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
@@ -68,9 +68,9 @@ pub async fn poll_results(
     if let Some(impact) = report.impact {
         let rounded_impact = (impact * 100.0).round();
         let impact_text = if impact > 0.0 {
-            style(format!("+{}%", rounded_impact)).green().bold()
+            style(format!("+{rounded_impact}%")).green().bold()
         } else {
-            style(format!("{}%", rounded_impact)).red().bold()
+            style(format!("{rounded_impact}%")).red().bold()
         };
 
         info!(

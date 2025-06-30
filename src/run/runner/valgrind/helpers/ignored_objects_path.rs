@@ -9,7 +9,7 @@ fn get_python_objects() -> Vec<String> {
 
     if output.is_err() {
         let err = output.err().unwrap().to_string();
-        debug!("Failed to get python shared objects: {}", err);
+        debug!("Failed to get python shared objects: {err}");
         return vec![];
     }
     let output = output.unwrap();
@@ -62,14 +62,8 @@ pub fn get_objects_path_to_ignore() -> Vec<String> {
     let mut objects_path_to_ignore = vec![];
     objects_path_to_ignore.extend(get_python_objects());
     objects_path_to_ignore.extend(get_node_objects());
-    debug!(
-        "objects_path_to_ignore before normalization: {:?}",
-        objects_path_to_ignore
-    );
+    debug!("objects_path_to_ignore before normalization: {objects_path_to_ignore:?}");
     normalize_object_paths(&mut objects_path_to_ignore);
-    debug!(
-        "objects_path_to_ignore after normalization: {:?}",
-        objects_path_to_ignore
-    );
+    debug!("objects_path_to_ignore after normalization: {objects_path_to_ignore:?}");
     objects_path_to_ignore
 }

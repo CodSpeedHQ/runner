@@ -1,5 +1,5 @@
 use crate::{
-    logger::{get_group_event, get_json_event, GroupEvent},
+    logger::{GroupEvent, get_group_event, get_json_event},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 use log::*;

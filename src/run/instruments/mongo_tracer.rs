@@ -11,8 +11,8 @@ use reqwest::Client;
 use tokio::fs;
 use url::Url;
 
+use crate::{MONGODB_TRACER_VERSION, run::helpers::get_env_variable};
 use crate::{prelude::*, run::helpers::download_file};
-use crate::{run::helpers::get_env_variable, MONGODB_TRACER_VERSION};
 
 use super::MongoDBConfig;
 
@@ -53,10 +53,7 @@ impl MongoTracer {
     pub fn try_from(profile_folder: &Path, mongodb_config: &MongoDBConfig) -> Result<Self> {
         let user_input = match &mongodb_config.uri_env_name {
             Some(uri_env_name) => {
-                debug!(
-                    "Retrieving the value of {} to patch the MongoDB URL",
-                    uri_env_name
-                );
+                debug!("Retrieving the value of {uri_env_name} to patch the MongoDB URL");
                 Some(UserInput {
                     mongo_uri: get_env_variable(uri_env_name.as_str())?,
                     uri_env_name: uri_env_name.to_string(),
@@ -98,9 +95,9 @@ impl MongoTracer {
             Some(destination_uri) => {
                 let parsing_error_fn = || {
                     anyhow!(
-                    "Failed to parse the Mongo URI: {}. Be sure to follow the MongoDB URI format described here: https://www.mongodb.com/docs/manual/reference/connection-string/#connection-string-formats",
-                    destination_uri.as_str()
-                )
+                        "Failed to parse the Mongo URI: {}. Be sure to follow the MongoDB URI format described here: https://www.mongodb.com/docs/manual/reference/connection-string/#connection-string-formats",
+                        destination_uri.as_str()
+                    )
                 };
 
                 Some(format!(
@@ -141,14 +138,13 @@ impl MongoTracer {
         }
         command.envs(envs);
 
-        debug!("Start the MongoDB tracer: {:?}", command);
+        debug!("Start the MongoDB tracer: {command:?}");
         if let Some(destination_host_port) = destination_host_port {
-            debug!(
-                "Proxy MongoDB from {} to {}",
-                proxy_host_port, destination_host_port
-            );
+            debug!("Proxy MongoDB from {proxy_host_port} to {destination_host_port}");
         } else {
-            info!("No MongoDB URI provided, user will have to provide it dynamically through the CodSpeed integration");
+            info!(
+                "No MongoDB URI provided, user will have to provide it dynamically through the CodSpeed integration"
+            );
         }
         let mut process = command
             .stdout(Stdio::piped())
@@ -232,7 +228,9 @@ impl MongoTracer {
 pub async fn install_mongodb_tracer() -> Result<()> {
     debug!("Installing mongodb-tracer");
     // TODO: release the tracer and update this url
-    let installer_url = format!("https://codspeed-public-assets.s3.eu-west-1.amazonaws.com/mongo-tracer/{MONGODB_TRACER_VERSION}/cs-mongo-tracer-installer.sh");
+    let installer_url = format!(
+        "https://codspeed-public-assets.s3.eu-west-1.amazonaws.com/mongo-tracer/{MONGODB_TRACER_VERSION}/cs-mongo-tracer-installer.sh"
+    );
     let installer_path = env::temp_dir().join("cs-mongo-tracer-installer.sh");
     download_file(
         &Url::parse(installer_url.as_str()).unwrap(),

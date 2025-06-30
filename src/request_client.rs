@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use reqwest::ClientBuilder;
 use reqwest_middleware::{ClientBuilder as ClientWithMiddlewareBuilder, ClientWithMiddleware};
-use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 
 const UPLOAD_RETRY_COUNT: u32 = 3;
 

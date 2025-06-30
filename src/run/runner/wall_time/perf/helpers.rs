@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, bail};
-use linux_perf_data::{linux_perf_event_reader::EventRecord, PerfFileReader, PerfFileRecord};
+use linux_perf_data::{PerfFileReader, PerfFileRecord, linux_perf_event_reader::EventRecord};
 
 /// Tries to find the pid of the sampled process within a perf.data file.
 pub fn find_pid<P: AsRef<std::path::Path>>(perf_file: P) -> anyhow::Result<i32> {
@@ -56,7 +56,7 @@ pub fn find_pid<P: AsRef<std::path::Path>>(perf_file: P) -> anyhow::Result<i32> 
         .iter()
         .max_by_key(|&(_, count)| count)
         .ok_or_else(|| anyhow!("Couldn't find pid in perf.data"))?;
-    log::debug!("Pid frequency: {:?}", pid_freq);
+    log::debug!("Pid frequency: {pid_freq:?}");
 
     let pid_percentage = (*pid_count as f64 / total_count as f64) * 100.0;
     if pid_percentage < 75.0 {

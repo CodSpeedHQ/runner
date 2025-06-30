@@ -81,16 +81,16 @@ impl TryFrom<&Config> for GitHubActionsProvider {
         };
 
         let github_event_name = get_env_variable("GITHUB_EVENT_NAME")?;
-        let event = serde_json::from_str(&format!("\"{}\"", github_event_name)).context(
-            format!("Event {} is not supported by CodSpeed", github_event_name),
-        )?;
+        let event = serde_json::from_str(&format!("\"{github_event_name}\"")).context(format!(
+            "Event {github_event_name} is not supported by CodSpeed"
+        ))?;
         let repository_root_path = match find_repository_root(&std::env::current_dir()?) {
             Some(mut path) => {
                 // Add a trailing slash to the path
                 path.push("");
                 path.to_string_lossy().to_string()
             }
-            None => format!("/home/runner/work/{}/{}/", repository, repository),
+            None => format!("/home/runner/work/{repository}/{repository}/"),
         };
 
         Ok(Self {
@@ -563,7 +563,10 @@ mod tests {
 
                 assert_eq!(run_part.run_id, "123789");
                 assert_eq!(run_part.job_name, "my_job");
-                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"job-total\":2,\"job-index\":1}");
+                assert_eq!(
+                    run_part.run_part_id,
+                    "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"job-total\":2,\"job-index\":1}"
+                );
                 assert_json_snapshot!(run_part.metadata, @r#"
                 {
                   "job-index": 1,
@@ -609,7 +612,10 @@ mod tests {
 
                 assert_eq!(run_part.run_id, "123789");
                 assert_eq!(run_part.job_name, "my_job");
-                assert_eq!(run_part.run_part_id, "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"job-total\":2,\"job-index\":1}");
+                assert_eq!(
+                    run_part.run_part_id,
+                    "my_job-{\"runner-version\":\"3.2.1\",\"numeric-value\":123456789}-{\"job-total\":2,\"job-index\":1}"
+                );
                 assert_json_snapshot!(run_part.metadata, @r#"
                 {
                   "job-index": 1,

@@ -18,7 +18,7 @@ fn cmd_version(cmd: &str) -> anyhow::Result<String> {
 
 fn is_perf_installed() -> bool {
     let version_str = cmd_version("perf");
-    debug!("Perf version: {:?}", version_str);
+    debug!("Perf version: {version_str:?}");
 
     version_str.is_ok()
 }

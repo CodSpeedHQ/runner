@@ -8,7 +8,7 @@ use crate::run::{
 };
 use crate::{prelude::*, request_client::REQUEST_CLIENT};
 use async_compression::tokio::write::GzipEncoder;
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use console::style;
 use reqwest::StatusCode;
 use tokio::io::AsyncWriteExt;
@@ -60,7 +60,7 @@ async fn retrieve_upload_data(
                         } else {
                             "Check that CODSPEED_TOKEN is set and has the correct value"
                         };
-                    error_message.push_str(&format!("\n\n{}", additional_message));
+                    error_message.push_str(&format!("\n\n{additional_message}"));
                 }
                 bail!(
                     "Failed to retrieve upload data: {}\n  -> {} {}",
@@ -126,7 +126,7 @@ pub async fn upload(
 
     let upload_metadata =
         provider.get_upload_metadata(config, system_info, &archive_hash, executor_name)?;
-    debug!("Upload metadata: {:#?}", upload_metadata);
+    debug!("Upload metadata: {upload_metadata:#?}");
     info!(
         "Linked repository: {}\n",
         style(format!(
@@ -138,7 +138,7 @@ pub async fn upload(
     );
     if upload_metadata.tokenless {
         let hash = upload_metadata.get_hash();
-        info!("CodSpeed Run Hash: \"{}\"", hash);
+        info!("CodSpeed Run Hash: \"{hash}\"");
     }
 
     info!("Preparing upload...");

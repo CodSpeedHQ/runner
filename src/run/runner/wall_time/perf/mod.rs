@@ -1,12 +1,12 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
 use crate::prelude::*;
+use crate::run::UnwindingMode;
 use crate::run::config::Config;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
-use crate::run::UnwindingMode;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
 use futures::stream::FuturesUnordered;
@@ -106,7 +106,7 @@ impl PerfRunner {
             UnwindingMode::FramePointer => "fp",
             UnwindingMode::Dwarf => "dwarf",
         };
-        debug!("Using call graph mode: {:?}", cg_mode);
+        debug!("Using call graph mode: {cg_mode:?}");
 
         let quiet_flag = {
             let log_level = std::env::var("CODSPEED_LOG")
@@ -132,7 +132,7 @@ impl PerfRunner {
                 user.name
             ),
         ]);
-        debug!("cmd: {:?}", cmd);
+        debug!("cmd: {cmd:?}");
 
         let on_process_started = async |pid: u32| -> anyhow::Result<()> {
             let data = Self::handle_fifo(pid, runner_fifo, perf_fifo).await?;
@@ -201,7 +201,7 @@ impl PerfRunner {
         bench_data.save_to(profile_folder).unwrap();
 
         let elapsed = start.elapsed();
-        debug!("Perf teardown took: {:?}", elapsed);
+        debug!("Perf teardown took: {elapsed:?}");
         Ok(())
     }
 
@@ -225,7 +225,7 @@ impl PerfRunner {
             let Ok(Ok(cmd)) = result else {
                 continue;
             };
-            debug!("Received command: {:?}", cmd);
+            debug!("Received command: {cmd:?}");
 
             match cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
@@ -253,7 +253,7 @@ impl PerfRunner {
                                     .entry(pid)
                                     .or_insert(ProcessSymbols::new(pid))
                                     .add_mapping(pid, path, base_addr, end_addr);
-                                debug!("Added mapping for module {:?}", path);
+                                debug!("Added mapping for module {path:?}");
 
                                 if map.perms.contains(MMPermissions::EXECUTE) {
                                     match UnwindData::new(
@@ -268,7 +268,9 @@ impl PerfRunner {
                                                 .entry(pid)
                                                 .or_default()
                                                 .push(unwind_data);
-                                            debug!("Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})");
+                                            debug!(
+                                                "Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})"
+                                            );
                                         }
                                         Err(error) => {
                                             debug!(
@@ -280,7 +282,9 @@ impl PerfRunner {
                                     }
                                 }
                             } else if map.perms.contains(MMPermissions::EXECUTE) {
-                                debug!("Found executable mapping without path: {base_addr:x} - {end_addr:x}");
+                                debug!(
+                                    "Found executable mapping without path: {base_addr:x} - {end_addr:x}"
+                                );
                             }
                         }
                     }

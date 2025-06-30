@@ -24,7 +24,7 @@ pub async fn harvest_perf_maps(profile_folder: &Path) -> Result<()> {
 pub async fn harvest_perf_maps_for_pids(profile_folder: &Path, pids: &HashSet<i32>) -> Result<()> {
     let perf_maps = pids
         .iter()
-        .map(|pid| format!("perf-{}.map", pid))
+        .map(|pid| format!("perf-{pid}.map"))
         .map(|file_name| {
             (
                 PathBuf::from("/tmp").join(&file_name),
