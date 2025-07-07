@@ -56,7 +56,7 @@ fn create_run_script() -> anyhow::Result<TempPath> {
     // 1. The command to execute
     // 2. The path to the file where the exit code will be written
     const WRAPPER_SCRIPT: &str = r#"#!/bin/sh
-           (eval $1)
+           sh -c "$1"
            status=$?
            echo -n "$status" > "$2"
             "#;
@@ -189,6 +189,10 @@ mod tests {
 
     #[test]
     fn test_run_wrapper_script() {
+        temp_env::with_var("TEST_ENV_VAR", "test_value".into(), || {
+            assert_eq!(safe_run("echo $TEST_ENV_VAR"), (0, 0));
+        });
+
         assert_eq!(safe_run("ls"), (0, 0));
         assert_eq!(safe_run("exit 0"), (0, 0));
         assert_eq!(safe_run("exit 1"), (0, 1));
@@ -201,5 +205,38 @@ mod tests {
         assert_eq!(safe_run("test 1 = 2 && exit 42"), (0, 1));
         assert_eq!(safe_run("test 1 = 1 || exit 42"), (0, 0));
         assert_eq!(safe_run("test 1 = 2 || exit 42"), (0, 42));
+
+        const MULTILINE_ECHO_SCRIPT: &str = "echo \"Working\"
+echo \"with\"
+echo \"multiple lines\"";
+
+        const MULTILINE_ECHO_WITH_SEMICOLONS: &str = "echo \"Working\";
+echo \"with\";
+echo \"multiple lines\";";
+
+        const ENV_VAR_VALIDATION_SCRIPT: &str = "export MY_ENV_VAR=\"Hello\"
+output=$(echo \"$MY_ENV_VAR\")
+if [ \"$output\" != \"Hello\" ]; then
+  echo \"Assertion failed: Expected 'Hello' but got '$output'\"
+  exit 1
+fi";
+
+        const ENV_VAR_VALIDATION_FAIL_SCRIPT: &str = "MY_ENV_VAR=\"Wrong\"
+output=$(echo \"$MY_ENV_VAR\")
+if [ \"$output\" != \"Hello\" ]; then
+  echo \"Assertion failed: Expected 'Hello' but got '$output'\"
+  exit 1
+fi";
+
+        const DIRECTORY_CHECK_SCRIPT: &str = "cd /tmp
+# Check that the directory is actually changed
+if [ $(basename $(pwd)) != \"tmp\" ]; then
+  exit 1
+fi";
+        assert_eq!(safe_run(MULTILINE_ECHO_SCRIPT), (0, 0));
+        assert_eq!(safe_run(MULTILINE_ECHO_WITH_SEMICOLONS), (0, 0));
+        assert_eq!(safe_run(DIRECTORY_CHECK_SCRIPT), (0, 0));
+        assert_eq!(safe_run(ENV_VAR_VALIDATION_SCRIPT), (0, 0));
+        assert_eq!(safe_run(ENV_VAR_VALIDATION_FAIL_SCRIPT), (0, 1));
     }
 }
