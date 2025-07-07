@@ -396,7 +396,7 @@ impl PerfRunner {
         }
 
         Ok(BenchmarkData {
-            integration: integration.context("Couldn't find integration metadata")?,
+            integration,
             bench_order_by_pid,
             symbols_by_pid,
             unwind_data_by_pid,
@@ -406,7 +406,7 @@ impl PerfRunner {
 
 pub struct BenchmarkData {
     /// Name and version of the integration
-    integration: (String, String),
+    integration: Option<(String, String)>,
 
     bench_order_by_pid: HashMap<u32, Vec<String>>,
     symbols_by_pid: HashMap<u32, ProcessSymbols>,
@@ -426,7 +426,10 @@ impl BenchmarkData {
         }
 
         let metadata = PerfMetadata {
-            integration: self.integration.clone(),
+            integration: self
+                .integration
+                .clone()
+                .context("Couldn't find integration metadata")?,
             bench_order_by_pid: self.bench_order_by_pid.clone(),
             ignored_modules: {
                 let mut to_ignore = vec![];
