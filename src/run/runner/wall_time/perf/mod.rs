@@ -3,6 +3,7 @@
 use crate::prelude::*;
 use crate::run::UnwindingMode;
 use crate::run::config::Config;
+use crate::run::runner::helpers::env::is_codspeed_debug_enabled;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
@@ -157,17 +158,10 @@ impl PerfRunner {
         };
         debug!("Using call graph mode: {cg_mode:?}");
 
-        let quiet_flag = {
-            let log_level = std::env::var("CODSPEED_LOG")
-                .ok()
-                .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
-                .unwrap_or(log::LevelFilter::Info);
-
-            if log_level < log::LevelFilter::Debug {
-                "--quiet"
-            } else {
-                ""
-            }
+        let quiet_flag = if is_codspeed_debug_enabled() {
+            "--quiet"
+        } else {
+            ""
         };
 
         cmd.args([

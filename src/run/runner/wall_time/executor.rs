@@ -3,14 +3,16 @@ use crate::prelude::*;
 use crate::run::RunnerMode;
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
-use crate::run::runner::helpers::env::get_base_injected_env;
+use crate::run::runner::helpers::env::{get_base_injected_env, is_codspeed_debug_enabled};
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
 use std::fs::canonicalize;
+use std::io::Write;
 use std::process::Command;
+use tempfile::NamedTempFile;
 
 pub struct WallTimeExecutor {
     perf: Option<PerfRunner>,
@@ -23,18 +25,36 @@ impl WallTimeExecutor {
         }
     }
 
-    fn walltime_bench_cmd(config: &Config, run_data: &RunData) -> Result<String> {
+    fn walltime_bench_cmd(config: &Config, run_data: &RunData) -> Result<(NamedTempFile, String)> {
         let bench_cmd = get_bench_command(config)?;
 
-        let setenv = get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
-            .into_iter()
-            .map(|(env, value)| format!("--setenv={env}={value}"))
-            .join(" ");
+        let combined_env = std::env::vars()
+            .chain(
+                get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
+                    .into_iter()
+                    .map(|(k, v)| (k.into(), v)),
+            )
+            .map(|(env, value)| format!("{env}={value}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let mut env_file = NamedTempFile::new()?;
+        env_file.write_all(combined_env.as_bytes())?;
+
+        let quiet_flag = if is_codspeed_debug_enabled() {
+            "--quiet"
+        } else {
+            ""
+        };
+
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
-        Ok(format!(
-            "systemd-run --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} {setenv} -- {bench_cmd}"
-        ))
+        let cmd = format!(
+            "systemd-run {quiet_flag} --pipe --collect --wait --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} --property=EnvironmentFile={} -- sh -c '{}'",
+            env_file.path().display(),
+            bench_cmd.replace("'", "\"")
+        );
+        Ok((env_file, cmd))
     }
 }
 
@@ -66,7 +86,7 @@ impl Executor for WallTimeExecutor {
             cmd.current_dir(abs_cwd);
         }
 
-        let bench_cmd = Self::walltime_bench_cmd(config, run_data)?;
+        let (_env_file, bench_cmd) = Self::walltime_bench_cmd(config, run_data)?;
 
         let status = if let Some(perf) = &self.perf
             && config.enable_perf

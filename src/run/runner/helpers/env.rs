@@ -17,3 +17,12 @@ pub fn get_base_injected_env(
         ),
     ])
 }
+
+pub fn is_codspeed_debug_enabled() -> bool {
+    let log_level = std::env::var("CODSPEED_LOG")
+        .ok()
+        .and_then(|log_level| log_level.parse::<log::LevelFilter>().ok())
+        .unwrap_or(log::LevelFilter::Info);
+
+    log_level < log::LevelFilter::Debug
+}
