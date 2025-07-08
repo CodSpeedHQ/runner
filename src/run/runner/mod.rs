@@ -7,6 +7,8 @@ use super::{RunnerMode, config::Config};
 mod executor;
 mod helpers;
 mod interfaces;
+#[cfg(test)]
+mod tests;
 mod valgrind;
 mod wall_time;
 
