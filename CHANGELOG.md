@@ -5,6 +5,27 @@
 
 
 
+## [3.7.0] - 2025-07-08
+
+### <!-- 0 -->🚀 Features
+- Add pre- and post-benchmark scripts by @not-matthias
+- Add cli args for perf by @not-matthias in [#94](https://github.com/CodSpeedHQ/runner/pull/94)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Forward environment to systemd-run cmd by @not-matthias
+- Only panic in upload for non-existing integration by @not-matthias
+- Multi-line commands in valgrind by @not-matthias
+- Symlink libpython doesn't work for statically linked python by @not-matthias in [#89](https://github.com/CodSpeedHQ/runner/pull/89)
+- Run perf with sudo; support systemd-run for non-perf walltime by @not-matthias
+- Use correct path for unwind info by @not-matthias
+
+### <!-- 7 -->⚙️ Internals
+- Add executor tests by @not-matthias in [#95](https://github.com/CodSpeedHQ/runner/pull/95)
+- Add log to detect invalid origin url by @not-matthias
+- Upgrade to edition 2024 by @not-matthias
+- Add debug logs for proc maps by @not-matthias in [#88](https://github.com/CodSpeedHQ/runner/pull/88)
+
+
 ## [3.6.1] - 2025-06-16
 
 ### <!-- 0 -->🚀 Features
@@ -382,6 +403,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.7.0]: https://github.com/CodSpeedHQ/runner/compare/v3.6.1..v3.7.0
 [3.6.1]: https://github.com/CodSpeedHQ/runner/compare/v3.6.0..v3.6.1
 [3.6.0]: https://github.com/CodSpeedHQ/runner/compare/v3.5.0..v3.6.0
 [3.5.0]: https://github.com/CodSpeedHQ/runner/compare/v3.4.0..v3.5.0
