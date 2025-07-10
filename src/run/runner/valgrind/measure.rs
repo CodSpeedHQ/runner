@@ -55,11 +55,11 @@ fn create_run_script() -> anyhow::Result<TempPath> {
     // Args:
     // 1. The command to execute
     // 2. The path to the file where the exit code will be written
-    const WRAPPER_SCRIPT: &str = r#"#!/bin/sh
-           sh -c "$1"
-           status=$?
-           echo -n "$status" > "$2"
-            "#;
+    const WRAPPER_SCRIPT: &str = r#"#!/usr/bin/env bash
+bash -c "$1"
+status=$?
+echo -n "$status" > "$2"
+"#;
 
     let rwx = std::fs::Permissions::from_mode(0o777);
     let mut script_file = tempfile::Builder::new()
