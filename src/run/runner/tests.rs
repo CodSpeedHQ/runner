@@ -4,35 +4,120 @@ use crate::run::runner::executor::Executor;
 use crate::run::runner::interfaces::RunData;
 use crate::run::runner::valgrind::executor::ValgrindExecutor;
 use crate::run::{RunnerMode, runner::wall_time::executor::WallTimeExecutor};
+use rstest_reuse::{self, *};
+use shell_quote::{Bash, QuoteRefExt};
 use tempfile::TempDir;
 use tokio::sync::{OnceCell, Semaphore, SemaphorePermit};
 
-const SIMPLE_ECHO_SCRIPT: &str = "echo 'Hello, World!'";
-const MULTILINE_ECHO_SCRIPT: &str = "echo \"Working\"
+const TESTS: [&str; 6] = [
+    // Simple echo command
+    "echo 'Hello, World!'",
+    // Multi-line commands without semicolons
+    "echo \"Working\"
 echo \"with\"
-echo \"multiple lines\"";
-const MULTILINE_ECHO_WITH_SEMICOLONS: &str = "echo \"Working\";
+echo \"multiple lines\"",
+    // Multi-line commands with semicolons
+    "echo \"Working\";
 echo \"with\";
-echo \"multiple lines\";";
-const DIRECTORY_CHECK_SCRIPT: &str = "cd /tmp
+echo \"multiple lines\";",
+    // Directory change and validation
+    "cd /tmp
 # Check that the directory is actually changed
 if [ $(basename $(pwd)) != \"tmp\" ]; then
   exit 1
-fi";
-const ENV_VAR_VALIDATION_SCRIPT: &str = "
-output=$(echo \"$MY_ENV_VAR\")
-if [ \"$output\" != \"Hello\" ]; then
-  echo \"Assertion failed: Expected 'Hello' but got '$output'\"
+fi",
+    // Quote escaping test
+    "#!/bin/bash
+VALUE=\"He said \\\"Hello 'world'\\\" & echo \\$HOME\"
+if [ \"$VALUE\" = \"He said \\\"Hello 'world'\\\" & echo \\$HOME\" ]; then
+  echo \"Quote test passed\"
+else
+  echo \"ERROR: Quote handling failed\"
   exit 1
-fi";
-
-const TESTS: [&str; 5] = [
-    SIMPLE_ECHO_SCRIPT,
-    MULTILINE_ECHO_SCRIPT,
-    MULTILINE_ECHO_WITH_SEMICOLONS,
-    DIRECTORY_CHECK_SCRIPT,
-    ENV_VAR_VALIDATION_SCRIPT,
+fi",
+    // Command substitution test
+    "#!/bin/bash
+RESULT=$(echo \"test 'nested' \\\"quotes\\\" here\")
+COUNT=$(echo \"$RESULT\" | wc -w)
+if [ \"$COUNT\" -eq \"4\" ]; then
+  echo \"Command substitution test passed\"
+else
+  echo \"ERROR: Expected 4 words, got $COUNT\"
+  exit 1
+fi",
 ];
+
+fn env_var_validation_script(env: &str, expected: &str) -> String {
+    let expected: String = expected.quoted(Bash);
+    format!(
+        r#"
+if [ "${env}" != {expected} ]; then
+  echo "FAIL: Environment variable not set correctly"
+  echo "Got: '${env}'"
+  exit 1
+fi
+"#
+    )
+}
+
+const ENV_TESTS: [(&str, &str); 8] = [
+    // Mixed quotes, backticks, and shell metacharacters
+    (
+        "quotes_and_escapes",
+        r#""'He said "Hello 'world' `date`" & echo "done" with \\n\\t\\"#,
+    ),
+    // Multiline content with tabs and trailing whitespace
+    (
+        "multiline_and_whitespace",
+        "Line 1\nLine 2\tTabbed\n   \t  ",
+    ),
+    // Shell metacharacters: pipes, redirects, operators
+    (
+        "shell_metacharacters",
+        r#"*.txt | grep "test" && echo "found" || echo "error" ; ls > /tmp/out"#,
+    ),
+    // Variable expansion and command substitution
+    (
+        "variables_and_commands",
+        r#"$HOME ${PATH} $((1+1)) $(echo "embedded") VAR="value with spaces""#,
+    ),
+    // Unicode characters and ANSI escape sequences
+    (
+        "unicode_and_special",
+        "🚀 café naïve\u{200b}hidden\x1b[31mRed\x1b[0m\x01\x02",
+    ),
+    // Complex mix of quoting styles with shell operators
+    (
+        "complex_mixed",
+        r#"start'single'middle"double"end $VAR | cmd && echo "done" || fail"#,
+    ),
+    // Empty string edge case
+    ("empty", ""),
+    // Whitespace-only content
+    ("space_only", "   "),
+];
+
+#[template]
+#[rstest::rstest]
+#[case(TESTS[0])]
+#[case(TESTS[1])]
+#[case(TESTS[2])]
+#[case(TESTS[3])]
+#[case(TESTS[4])]
+#[case(TESTS[5])]
+fn test_cases(#[case] cmd: &str) {}
+
+#[template]
+#[rstest::rstest]
+#[case(ENV_TESTS[0])]
+#[case(ENV_TESTS[1])]
+#[case(ENV_TESTS[2])]
+#[case(ENV_TESTS[3])]
+#[case(ENV_TESTS[4])]
+#[case(ENV_TESTS[5])]
+#[case(ENV_TESTS[6])]
+#[case(ENV_TESTS[7])]
+fn env_test_cases(#[case] env_case: (&str, &str)) {}
 
 async fn create_test_setup() -> (SystemInfo, RunData, TempDir) {
     let system_info = SystemInfo::new().unwrap();
@@ -68,11 +153,7 @@ mod valgrind {
         }
     }
 
-    #[rstest::rstest]
-    #[case(TESTS[0])]
-    #[case(TESTS[1])]
-    #[case(TESTS[2])]
-    #[case(TESTS[3])]
+    #[apply(test_cases)]
     #[tokio::test]
     async fn test_valgrind_executor(#[case] cmd: &str) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
@@ -85,19 +166,16 @@ mod valgrind {
             .unwrap();
     }
 
-    #[rstest::rstest]
-    #[case("MY_ENV_VAR", "Hello", ENV_VAR_VALIDATION_SCRIPT)]
+    #[apply(env_test_cases)]
     #[tokio::test]
-    async fn test_valgrind_executor_with_env(
-        #[case] env_var: &str,
-        #[case] env_value: &str,
-        #[case] cmd: &str,
-    ) {
+    async fn test_valgrind_executor_with_env(#[case] env_case: (&str, &str)) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let executor = get_valgrind_executor().await;
 
+        let (env_var, env_value) = env_case;
         temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
-            let config = valgrind_config(cmd);
+            let cmd = env_var_validation_script(env_var, env_value);
+            let config = valgrind_config(&cmd);
             executor
                 .run(&config, &system_info, &run_data, &None)
                 .await
@@ -141,17 +219,10 @@ mod walltime {
         }
     }
 
+    #[apply(test_cases)]
     #[rstest::rstest]
-    #[case(TESTS[0], false)]
-    #[case(TESTS[0], true)]
-    #[case(TESTS[1], false)]
-    #[case(TESTS[1], true)]
-    #[case(TESTS[2], false)]
-    #[case(TESTS[2], true)]
-    #[case(TESTS[3], false)]
-    #[case(TESTS[3], true)]
     #[tokio::test]
-    async fn test_walltime_executor(#[case] cmd: &str, #[case] enable_perf: bool) {
+    async fn test_walltime_executor(#[case] cmd: &str, #[values(false, true)] enable_perf: bool) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
@@ -162,21 +233,20 @@ mod walltime {
             .unwrap();
     }
 
+    #[apply(env_test_cases)]
     #[rstest::rstest]
-    #[case("MY_ENV_VAR", "Hello", ENV_VAR_VALIDATION_SCRIPT, false)]
-    #[case("MY_ENV_VAR", "Hello", ENV_VAR_VALIDATION_SCRIPT, true)]
     #[tokio::test]
     async fn test_walltime_executor_with_env(
-        #[case] env_var: &str,
-        #[case] env_value: &str,
-        #[case] cmd: &str,
-        #[case] enable_perf: bool,
+        #[case] env_case: (&str, &str),
+        #[values(false, true)] enable_perf: bool,
     ) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
+        let (env_var, env_value) = env_case;
         temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
-            let config = walltime_config(cmd, enable_perf);
+            let cmd = env_var_validation_script(env_var, env_value);
+            let config = walltime_config(&cmd, enable_perf);
             executor
                 .run(&config, &system_info, &run_data, &None)
                 .await

@@ -63,6 +63,8 @@ temp-env = { version = "0.3.6", features = ["async_closure"] }
 insta = { version = "1.29.0", features = ["json", "redactions"] }
 test-with = { version = "0.15", default-features = false, features = [] }
 rstest = { version = "0.25.0", default-features = false }
+rstest_reuse = "0.7.0"
+shell-quote = "0.7.2"
 
 [workspace.metadata.release]
 sign-tag = true
