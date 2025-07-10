@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
-use anyhow::{anyhow, bail};
+use crate::prelude::*;
 use linux_perf_data::{PerfFileReader, PerfFileRecord, linux_perf_event_reader::EventRecord};
+use std::collections::HashMap;
 
 /// Tries to find the pid of the sampled process within a perf.data file.
 pub fn find_pid<P: AsRef<std::path::Path>>(perf_file: P) -> anyhow::Result<i32> {
@@ -48,6 +47,7 @@ pub fn find_pid<P: AsRef<std::path::Path>>(perf_file: P) -> anyhow::Result<i32> 
             }
         }
     }
+    debug!("Pid frequency: {pid_freq:?}");
 
     // Choose the pid with the highest frequency. However, we can only use a pid if more than N% of the
     // events are from that pid.

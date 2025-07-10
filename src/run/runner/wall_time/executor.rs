@@ -63,6 +63,25 @@ impl Drop for HookScriptsGuard {
     }
 }
 
+/// Returns a list of exported environment variables which can be loaded with `source` in a shell.
+///
+/// Example: `declare -x outputs="out"`
+fn get_exported_system_env() -> Result<String> {
+    let output = Command::new("bash")
+        .arg("-c")
+        .arg("export")
+        .output()
+        .context("Failed to run `export`")?;
+    if !output.status.success() {
+        bail!(
+            "Failed to get system environment variables: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    String::from_utf8(output.stdout).context("Failed to parse export output as UTF-8")
+}
+
 pub struct WallTimeExecutor {
     perf: Option<PerfRunner>,
 }
@@ -74,21 +93,31 @@ impl WallTimeExecutor {
         }
     }
 
-    fn walltime_bench_cmd(config: &Config, run_data: &RunData) -> Result<(NamedTempFile, String)> {
+    fn walltime_bench_cmd(
+        config: &Config,
+        run_data: &RunData,
+    ) -> Result<(NamedTempFile, NamedTempFile, String)> {
         let bench_cmd = get_bench_command(config)?;
 
-        let combined_env = std::env::vars()
-            .chain(
-                get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
-                    .into_iter()
-                    .map(|(k, v)| (k.into(), v)),
-            )
-            .map(|(env, value)| format!("{env}={value}"))
-            .collect::<Vec<_>>()
-            .join("\n");
+        let system_env = get_exported_system_env()?;
+        let base_injected_env =
+            get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
+                .into_iter()
+                .map(|(k, v)| format!("export {k}={v}",))
+                .collect::<Vec<_>>()
+                .join("\n");
+        let combined_env = format!("{system_env}\n{base_injected_env}");
 
         let mut env_file = NamedTempFile::new()?;
         env_file.write_all(combined_env.as_bytes())?;
+
+        let script_file = {
+            let mut file = NamedTempFile::new()?;
+            let bash_command = format!("source {} && {}", env_file.path().display(), bench_cmd);
+            debug!("Bash command: {bash_command}");
+            file.write_all(bash_command.as_bytes())?;
+            file
+        };
 
         let quiet_flag = if is_codspeed_debug_enabled() {
             "--quiet"
@@ -96,14 +125,19 @@ impl WallTimeExecutor {
             ""
         };
 
+        // Remarks:
+        // - We're using --scope so that perf is able to capture the events of the benchmark process.
+        // - We can't user `--user` here because we need to run in `codspeed.slice`, otherwise we'd run in
+        //   user.slice` (which is isolated). We can use `--gid` and `--uid` to run the command as the current user.
+        // - We must use `bash` here instead of `sh` since `source` isn't available when symlinked to `dash`.
+        // - We have to pass the environment variables because `--scope` only inherits the system and not the user environment variables.
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
         let cmd = format!(
-            "systemd-run {quiet_flag} --pipe --collect --wait --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} --property=EnvironmentFile={} -- sh -c '{}'",
-            env_file.path().display(),
-            bench_cmd.replace("'", "\"")
+            "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
+            script_file.path().display()
         );
-        Ok((env_file, cmd))
+        Ok((env_file, script_file, cmd))
     }
 }
 
@@ -138,7 +172,7 @@ impl Executor for WallTimeExecutor {
         let status = {
             let _guard = HookScriptsGuard::setup();
 
-            let (_env_file, bench_cmd) = Self::walltime_bench_cmd(config, run_data)?;
+            let (_env_file, _script_file, bench_cmd) = Self::walltime_bench_cmd(config, run_data)?;
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {

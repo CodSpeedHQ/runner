@@ -54,6 +54,7 @@ debugid = "0.8.0"
 memmap2 = "0.9.5"
 nix = { version = "0.29.0", features = ["fs", "user"] }
 futures = "0.3.31"
+shell-quote = "0.7.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 procfs = "0.17.0"
