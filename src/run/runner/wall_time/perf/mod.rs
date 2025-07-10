@@ -239,6 +239,21 @@ impl PerfRunner {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
                     bench_order_by_pid.entry(pid).or_default().push(uri);
 
+                    // Split the perf.data file
+                    let perf_pid = perf_pid.get_or_init(|| {
+                        let output = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg("pidof -s perf")
+                            .output()
+                            .expect("Failed to run pidof command");
+
+                        String::from_utf8_lossy(&output.stdout)
+                            .trim()
+                            .parse::<u32>()
+                            .expect("Failed to parse perf pid")
+                    });
+                    run_with_sudo(&["kill", "-USR2", &perf_pid.to_string()])?;
+
                     #[cfg(target_os = "linux")]
                     if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
                     {
@@ -300,22 +315,6 @@ impl PerfRunner {
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
-                    let perf_pid = perf_pid.get_or_init(|| {
-                        let output = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg("pidof -s perf")
-                            .output()
-                            .expect("Failed to run pidof command");
-
-                        String::from_utf8_lossy(&output.stdout)
-                            .trim()
-                            .parse::<u32>()
-                            .expect("Failed to parse perf pid")
-                    });
-
-                    // Split the perf.data file
-                    run_with_sudo(&["kill", "-USR2", &perf_pid.to_string()])?;
-
                     perf_fifo.start_events().await?;
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
