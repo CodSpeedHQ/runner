@@ -213,6 +213,62 @@ impl PerfRunner {
         Ok(())
     }
 
+    #[cfg(target_os = "linux")]
+    fn process_memory_mappings(
+        pid: u32,
+        symbols_by_pid: &mut HashMap<u32, ProcessSymbols>,
+        unwind_data_by_pid: &mut HashMap<u32, Vec<UnwindData>>,
+    ) -> anyhow::Result<()> {
+        use procfs::process::MMPermissions;
+
+        let bench_proc =
+            procfs::process::Process::new(pid as _).expect("Failed to find benchmark process");
+        let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
+
+        for map in &exe_maps {
+            let page_offset = map.offset;
+            let (base_addr, end_addr) = map.address;
+            let path = match &map.pathname {
+                procfs::process::MMapPath::Path(path) => Some(path.clone()),
+                _ => None,
+            };
+
+            if let Some(path) = &path {
+                symbols_by_pid
+                    .entry(pid)
+                    .or_insert(ProcessSymbols::new(pid))
+                    .add_mapping(pid, path, base_addr, end_addr);
+                debug!("Added mapping for module {path:?}");
+
+                if map.perms.contains(MMPermissions::EXECUTE) {
+                    match UnwindData::new(
+                        path.to_string_lossy().as_bytes(),
+                        page_offset,
+                        base_addr,
+                        end_addr - base_addr,
+                        None,
+                    ) {
+                        Ok(unwind_data) => {
+                            unwind_data_by_pid.entry(pid).or_default().push(unwind_data);
+                            debug!("Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})");
+                        }
+                        Err(error) => {
+                            debug!(
+                                "Failed to create unwind data for module {}: {}",
+                                path.display(),
+                                error
+                            );
+                        }
+                    }
+                }
+            } else if map.perms.contains(MMPermissions::EXECUTE) {
+                debug!("Found executable mapping without path: {base_addr:x} - {end_addr:x}");
+            }
+        }
+
+        Ok(())
+    }
+
     async fn handle_fifo(
         mut runner_fifo: RunnerFifo,
         mut perf_fifo: PerfFifo,
@@ -242,59 +298,11 @@ impl PerfRunner {
                     #[cfg(target_os = "linux")]
                     if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
                     {
-                        use procfs::process::MMPermissions;
-
-                        let bench_proc = procfs::process::Process::new(pid as _)
-                            .expect("Failed to find benchmark process");
-                        let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
-
-                        for map in &exe_maps {
-                            let page_offset = map.offset;
-                            let (base_addr, end_addr) = map.address;
-                            let path = match &map.pathname {
-                                procfs::process::MMapPath::Path(path) => Some(path.clone()),
-                                _ => None,
-                            };
-
-                            if let Some(path) = &path {
-                                symbols_by_pid
-                                    .entry(pid)
-                                    .or_insert(ProcessSymbols::new(pid))
-                                    .add_mapping(pid, path, base_addr, end_addr);
-                                debug!("Added mapping for module {path:?}");
-
-                                if map.perms.contains(MMPermissions::EXECUTE) {
-                                    match UnwindData::new(
-                                        path.to_string_lossy().as_bytes(),
-                                        page_offset,
-                                        base_addr,
-                                        end_addr - base_addr,
-                                        None,
-                                    ) {
-                                        Ok(unwind_data) => {
-                                            unwind_data_by_pid
-                                                .entry(pid)
-                                                .or_default()
-                                                .push(unwind_data);
-                                            debug!(
-                                                "Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})"
-                                            );
-                                        }
-                                        Err(error) => {
-                                            debug!(
-                                                "Failed to create unwind data for module {}: {}",
-                                                path.display(),
-                                                error
-                                            );
-                                        }
-                                    }
-                                }
-                            } else if map.perms.contains(MMPermissions::EXECUTE) {
-                                debug!(
-                                    "Found executable mapping without path: {base_addr:x} - {end_addr:x}"
-                                );
-                            }
-                        }
+                        Self::process_memory_mappings(
+                            pid,
+                            &mut symbols_by_pid,
+                            &mut unwind_data_by_pid,
+                        )?;
                     }
 
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
