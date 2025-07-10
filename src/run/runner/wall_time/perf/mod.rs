@@ -198,7 +198,10 @@ impl PerfRunner {
         let perf_map_pids = futures::future::try_join_all(copy_tasks)
             .await?
             .into_iter()
-            .filter_map(Result::ok)
+            .filter_map(|result| {
+                debug!("Copy task result: {result:?}");
+                result.ok()
+            })
             .collect::<HashSet<_>>();
         harvest_perf_maps_for_pids(profile_folder, &perf_map_pids).await?;
 
