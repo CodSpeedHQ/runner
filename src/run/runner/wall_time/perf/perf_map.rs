@@ -51,6 +51,20 @@ impl ModuleSymbols {
             return Err(anyhow::anyhow!("No symbols found"));
         }
 
+        // The base_addr from the mapping is where the module is actually loaded in memory (See ProcessSymbols::add_mapping),
+        // but the symbol addresses from the ELF file assume the module is loaded at its preferred virtual address. We need to:
+        // 1. Find the module's preferred base address from the ELF file or symbols
+        // 2. Calculate the offset: actual_base - preferred_base
+        // 3. Apply this offset to the symbol addresses
+
+        // Find the preferred base address from the minimum symbol address
+        let preferred_base = symbols.iter().map(|s| s.offset).min().unwrap_or(0) & !0xfff; // Align to page boundary
+
+        // Convert absolute addresses to relative offsets
+        for symbol in &mut symbols {
+            symbol.offset = symbol.offset.saturating_sub(preferred_base);
+        }
+
         Ok(Self {
             path: path.as_ref().to_path_buf(),
             symbols,
