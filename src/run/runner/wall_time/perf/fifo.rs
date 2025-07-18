@@ -20,17 +20,21 @@ pub struct RunnerFifo {
     ctl_fifo: TokioPipeReader,
 }
 
+fn get_pipe_open_options() -> TokioPipeOpenOptions {
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+    let mut options = TokioPipeOpenOptions::new();
+    #[cfg(target_os = "linux")]
+    options.read_write(true);
+    options
+}
+
 impl RunnerFifo {
     pub fn new() -> anyhow::Result<Self> {
         create_fifo(RUNNER_CTL_FIFO)?;
         create_fifo(RUNNER_ACK_FIFO)?;
 
-        let ack_fifo = TokioPipeOpenOptions::new()
-            .read_write(true)
-            .open_sender(RUNNER_ACK_FIFO)?;
-        let ctl_fifo = TokioPipeOpenOptions::new()
-            .read_write(true)
-            .open_receiver(RUNNER_CTL_FIFO)?;
+        let ack_fifo = get_pipe_open_options().open_sender(RUNNER_ACK_FIFO)?;
+        let ctl_fifo = get_pipe_open_options().open_receiver(RUNNER_CTL_FIFO)?;
 
         Ok(Self { ctl_fifo, ack_fifo })
     }
@@ -80,12 +84,8 @@ impl PerfFifo {
         create_fifo(&ctl_fifo_path)?;
         create_fifo(&ack_fifo_path)?;
 
-        let ack_fifo = TokioPipeOpenOptions::new()
-            .read_write(true)
-            .open_receiver(&ack_fifo_path)?;
-        let ctl_fifo = TokioPipeOpenOptions::new()
-            .read_write(true)
-            .open_sender(&ctl_fifo_path)?;
+        let ack_fifo = get_pipe_open_options().open_receiver(&ack_fifo_path)?;
+        let ctl_fifo = get_pipe_open_options().open_sender(&ctl_fifo_path)?;
 
         Ok(Self {
             ctl_fifo,
