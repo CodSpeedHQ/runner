@@ -5,6 +5,22 @@
 
 
 
+## [3.8.0] - 2025-07-18
+
+### <!-- 1 -->🐛 Bug Fixes
+- Adjust offset for symbols of module loaded at preferred base by @not-matthias in [#97](https://github.com/CodSpeedHQ/runner/pull/97)
+- Run with --scope to allow perf to trace the benchmark process by @not-matthias
+- Run with bash to support complex scripts by @not-matthias
+- Execute pre- and post-bench scripts for non-perf walltime runner by @not-matthias in [#96](https://github.com/CodSpeedHQ/runner/pull/96)
+
+### <!-- 2 -->🏗️ Refactor
+- Process memory mappings in separate function by @not-matthias
+
+### <!-- 7 -->⚙️ Internals
+- Add debug logs for perf.map collection by @not-matthias
+- Add complex cmd and env tests by @not-matthias
+
+
 ## [3.7.0] - 2025-07-08
 
 ### <!-- 0 -->🚀 Features
@@ -403,6 +419,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.8.0]: https://github.com/CodSpeedHQ/runner/compare/v3.7.0..v3.8.0
 [3.7.0]: https://github.com/CodSpeedHQ/runner/compare/v3.6.1..v3.7.0
 [3.6.1]: https://github.com/CodSpeedHQ/runner/compare/v3.6.0..v3.6.1
 [3.6.0]: https://github.com/CodSpeedHQ/runner/compare/v3.5.0..v3.6.0
