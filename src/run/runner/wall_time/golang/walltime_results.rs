@@ -1,8 +1,6 @@
-use anyhow::{Context, Result};
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-};
+// NOTE: This file was taken from `codspeed-rust` and modified a bit to fit this project.
+
+use anyhow::Result;
 
 use serde::{Deserialize, Serialize};
 use statrs::statistics::{Data, Distribution, Max, Min, OrderStatistics};
@@ -53,59 +51,6 @@ pub struct WalltimeBenchmark {
 }
 
 impl WalltimeBenchmark {
-    /// Entry point called in patched integration to harvest raw walltime data
-    ///
-    /// `CODSPEED_CARGO_WORKSPACE_ROOT` is expected to be set for this to work
-    ///
-    /// # Arguments
-    ///
-    /// - `scope`: The used integration, e.g. "divan" or "criterion"
-    /// - `name`: The name of the benchmark
-    /// - `uri`: The URI of the benchmark
-    /// - `iters_per_round`: The number of iterations for each round (=sample_size), e.g. `[1, 2, 3]` (variable) or `[2, 2, 2, 2]` (constant).
-    /// - `times_per_round_ns`: The measured time for each round in nanoseconds, e.g. `[1000, 2000, 3000]`
-    /// - `max_time_ns`: The time limit for the benchmark in nanoseconds (if defined)
-    ///
-    /// # Pseudo-code
-    ///
-    /// ```text
-    /// let sample_count = /* The number of executions for the same benchmark. */
-    /// let sample_size = iters_per_round = vec![/* The number of iterations within each sample. */];
-    /// for round in 0..sample_count {
-    ///     let times_per_round_ns = 0;
-    ///     for iteration in 0..sample_size[round] {
-    ///         run_benchmark();
-    ///         times_per_round_ns += /* measured execution time */;
-    ///     }
-    /// }
-    /// ```
-    ///
-    pub fn collect_raw_walltime_results(
-        scope: &str,
-        name: String,
-        uri: String,
-        iters_per_round: Vec<u128>,
-        times_per_round_ns: Vec<u128>,
-        max_time_ns: Option<u128>,
-    ) {
-        if !crate::utils::running_with_codspeed_runner() {
-            return;
-        }
-        let workspace_root = std::env::var("CODSPEED_CARGO_WORKSPACE_ROOT").map(PathBuf::from);
-        let Ok(workspace_root) = workspace_root else {
-            eprintln!("codspeed failed to get workspace root. skipping");
-            return;
-        };
-        let data = WalltimeBenchmark::from_runtime_data(
-            name,
-            uri,
-            iters_per_round,
-            times_per_round_ns,
-            max_time_ns,
-        );
-        data.dump_to_results(&workspace_root, scope);
-    }
-
     pub fn from_runtime_data(
         name: String,
         uri: String,
@@ -187,24 +132,6 @@ impl WalltimeBenchmark {
             stats,
         }
     }
-
-    fn dump_to_results(&self, workspace_root: &Path, scope: &str) {
-        let output_dir = result_dir_from_workspace_root(workspace_root).join(scope);
-        std::fs::create_dir_all(&output_dir).unwrap();
-        let bench_id = uuid::Uuid::new_v4().to_string();
-        let output_path = output_dir.join(format!("{bench_id}.json"));
-        let mut writer = std::fs::File::create(&output_path).expect("Failed to create the file");
-        serde_json::to_writer_pretty(&mut writer, self).expect("Failed to write the data");
-        writer.flush().expect("Failed to flush the writer");
-    }
-
-    pub fn is_invalid(&self) -> bool {
-        self.stats.min_ns < f64::EPSILON
-    }
-
-    pub fn name(&self) -> &str {
-        &self.metadata.name
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -214,10 +141,10 @@ struct Instrument {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Creator {
-    name: String,
-    version: String,
-    pid: u32,
+pub struct Creator {
+    pub name: String,
+    pub version: String,
+    pub pid: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -228,55 +155,15 @@ pub struct WalltimeResults {
 }
 
 impl WalltimeResults {
-    pub fn collect_walltime_results(workspace_root: &Path) -> Result<Self> {
-        // retrieve data from `{workspace_root}/target/codspeed/raw_results/{scope}/*.json
-        let benchmarks = glob::glob(&format!(
-            "{}/**/*.json",
-            result_dir_from_workspace_root(workspace_root)
-                .to_str()
-                .unwrap(),
-        ))?
-        .map(|sample| -> Result<_> {
-            let sample = sample?;
-            serde_json::from_reader::<_, WalltimeBenchmark>(std::fs::File::open(&sample)?)
-                .context("Failed to read benchmark data")
-        })
-        .collect::<Result<Vec<_>>>()?;
-
+    pub fn new(benchmarks: Vec<WalltimeBenchmark>, creator: Creator) -> Result<Self> {
         Ok(WalltimeResults {
             instrument: Instrument {
                 type_: "walltime".to_string(),
             },
-            creator: Creator {
-                name: "codspeed-rust".to_string(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                pid: std::process::id(),
-            },
+            creator,
             benchmarks,
         })
     }
-
-    pub fn clear(workspace_root: &Path) -> Result<()> {
-        let raw_results_dir = result_dir_from_workspace_root(workspace_root);
-        std::fs::remove_dir_all(&raw_results_dir).ok(); // ignore errors when the directory does not exist
-        std::fs::create_dir_all(&raw_results_dir)
-            .context("Failed to create raw_results directory")?;
-        Ok(())
-    }
-
-    pub fn benchmarks(&self) -> &[WalltimeBenchmark] {
-        &self.benchmarks
-    }
-}
-
-// FIXME: This assumes that the cargo target dir is `target`, and duplicates information with
-// `cargo-codspeed::helpers::get_codspeed_target_dir`
-fn result_dir_from_workspace_root(workspace_root: &Path) -> PathBuf {
-    workspace_root
-        .join("target")
-        .join("codspeed")
-        .join("walltime")
-        .join("raw_results")
 }
 
 #[cfg(test)]
