@@ -1,0 +1,2 @@
+src/run/runner/wall_time/golang/testdata/fuego.txt filter=lfs diff=lfs merge=lfs -text
+src/run/runner/wall_time/golang/testdata/simple.txt filter=lfs diff=lfs merge=lfs -text

@@ -5,7 +5,8 @@ use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
 use crate::run::runner::helpers::env::{get_base_injected_env, is_codspeed_debug_enabled};
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
-use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
+use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_capture_stdout;
+use crate::run::runner::wall_time::golang;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
@@ -181,7 +182,16 @@ impl Executor for WallTimeExecutor {
                 cmd.args(["sh", "-c", &bench_cmd]);
                 debug!("cmd: {cmd:?}");
 
-                run_command_with_log_pipe(cmd).await
+                let (status, stdout) = run_command_with_log_pipe_capture_stdout(cmd).await?;
+
+                if config.command.trim().starts_with("go test") {
+                    let results_folder = run_data.profile_folder.join("results");
+                    std::fs::create_dir_all(&results_folder)?;
+
+                    golang::collect_walltime_results(&stdout, &results_folder)?;
+                }
+
+                Ok(status)
             }
         };
 
