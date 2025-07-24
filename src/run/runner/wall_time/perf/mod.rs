@@ -133,7 +133,9 @@ impl PerfRunner {
 
             Ok(())
         };
-        run_command_with_log_pipe_and_callback(cmd, on_process_started).await
+        run_command_with_log_pipe_and_callback(cmd, on_process_started)
+            .await
+            .map(|(exit_status, _)| exit_status)
     }
 
     pub async fn save_files_to(&self, profile_folder: &PathBuf) -> anyhow::Result<()> {
