@@ -99,7 +99,11 @@ impl BenchmarkData {
             .map(|((package, name), measurements)| BenchmarkData {
                 package,
                 name,
-                times: measurements.iter().map(|(_, m)| m.time).collect(),
+                // WalltimeResults expects times to be the _total time_ for each round.
+                times: measurements
+                    .iter()
+                    .map(|(_, m)| m.time * m.iters as f64)
+                    .collect(),
                 iters: measurements.iter().map(|(_, m)| m.iters).collect(),
             })
             .collect()
