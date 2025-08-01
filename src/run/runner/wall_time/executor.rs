@@ -6,6 +6,7 @@ use crate::run::runner::executor::Executor;
 use crate::run::runner::helpers::env::{get_base_injected_env, is_codspeed_debug_enabled};
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
+use crate::run::runner::wall_time::introspected_golang::setup_introspected_go;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
@@ -106,7 +107,18 @@ impl WallTimeExecutor {
                 .map(|(k, v)| format!("export {k}={v}",))
                 .collect::<Vec<_>>()
                 .join("\n");
-        let combined_env = format!("{system_env}\n{base_injected_env}");
+
+        // We need to intercept the `go` command to ensure we can run it with our custom runner.
+        let path_env = std::env::var("PATH").unwrap_or_default();
+        let path_env = format!(
+            "export PATH={}:{}",
+            setup_introspected_go()
+                .map_err(|e| anyhow!("failed to setup Go introspection. {}", e))?
+                .to_string_lossy(),
+            path_env
+        );
+
+        let combined_env = format!("{system_env}\n{base_injected_env}\n{path_env}");
 
         let mut env_file = NamedTempFile::new()?;
         env_file.write_all(combined_env.as_bytes())?;
