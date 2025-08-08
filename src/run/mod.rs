@@ -133,7 +133,7 @@ pub struct RunArgs {
     pub command: Vec<String>,
 }
 
-#[derive(ValueEnum, Clone, Debug, Serialize)]
+#[derive(ValueEnum, Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RunnerMode {
     Instrumentation,
