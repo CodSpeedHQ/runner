@@ -8,6 +8,14 @@ pub fn get_base_injected_env(
 ) -> HashMap<&'static str, String> {
     HashMap::from([
         ("PYTHONHASHSEED", "0".into()),
+        (
+            "PYTHON_PERF_JIT_SUPPORT",
+            if mode == RunnerMode::Walltime {
+                "1".into()
+            } else {
+                "0".into()
+            },
+        ),
         ("ARCH", ARCH.into()),
         ("CODSPEED_ENV", "runner".into()),
         ("CODSPEED_RUNNER_MODE", mode.to_string()),
