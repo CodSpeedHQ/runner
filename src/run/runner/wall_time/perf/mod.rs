@@ -280,8 +280,11 @@ impl PerfRunner {
 
         let perf_pid = OnceCell::new();
         loop {
-            let perf_ping = tokio::time::timeout(Duration::from_secs(1), perf_fifo.ping()).await;
+            let perf_ping =
+                tokio::time::timeout(Duration::from_secs(perf_ping_timeout), perf_fifo.ping())
+                    .await;
             if let Ok(Err(_)) | Err(_) = perf_ping {
+                debug!("Failed to ping perf FIFO, ending perf fifo loop");
                 break;
             }
 
