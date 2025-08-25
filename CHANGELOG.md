@@ -5,6 +5,18 @@
 
 
 
+## [3.8.1] - 2025-08-25
+
+### <!-- 1 -->🐛 Bug Fixes
+- Dont show error when libpython is not found by @not-matthias
+
+### <!-- 2 -->🏗️ Refactor
+- Improve conditional compilation in get_pipe_open_options by @art049 in [#100](https://github.com/CodSpeedHQ/runner/pull/100)
+
+### <!-- 7 -->⚙️ Internals
+- Change log level to warn for venv_compat error by @not-matthias in [#104](https://github.com/CodSpeedHQ/runner/pull/104)
+
+
 ## [3.8.0] - 2025-07-18
 
 ### <!-- 1 -->🐛 Bug Fixes
@@ -419,6 +431,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[3.8.1]: https://github.com/CodSpeedHQ/runner/compare/v3.8.0..v3.8.1
 [3.8.0]: https://github.com/CodSpeedHQ/runner/compare/v3.7.0..v3.8.0
 [3.7.0]: https://github.com/CodSpeedHQ/runner/compare/v3.6.1..v3.7.0
 [3.6.1]: https://github.com/CodSpeedHQ/runner/compare/v3.6.0..v3.6.1
