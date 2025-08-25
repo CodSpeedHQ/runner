@@ -21,7 +21,8 @@ impl Executor for ValgrindExecutor {
         install_valgrind(system_info).await?;
 
         if let Err(error) = venv_compat::symlink_libpython(None) {
-            error!("Failed to symlink libpython: {error}");
+            warn!("Failed to symlink libpython");
+            debug!("Script error: {error}");
         }
 
         Ok(())
