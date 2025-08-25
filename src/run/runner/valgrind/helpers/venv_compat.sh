@@ -6,7 +6,7 @@ function add_symlink() {
     system_python="$(readlink -f "$venv_python")"
     if [ -z "$system_python" ]; then
         echo "Error: Failed to resolve real path for $venv_python" >&2
-        return 1
+        return 0
     fi
 
     system_path="$(dirname $(dirname "$system_python"))"
@@ -17,7 +17,7 @@ function add_symlink() {
     libpython_name="$(ldd "$venv_python" 2>/dev/null | grep -o -m1 'libpython[^[:space:]]*' || true)"
     if [ -z "$libpython_name" ]; then
         echo "Error: exact libpython name not found in $(ldd $venv_python)" >&2
-        return 1
+        return 0
     fi
     echo "Found linked libpython: $libpython_name"
 
