@@ -239,36 +239,41 @@ impl PerfRunner {
                 _ => None,
             };
 
-            if let Some(path) = &path {
-                symbols_by_pid
-                    .entry(pid)
-                    .or_insert(ProcessSymbols::new(pid))
-                    .add_mapping(pid, path, base_addr, end_addr);
-                debug!("Added mapping for module {path:?}");
-
+            let Some(path) = &path else {
                 if map.perms.contains(MMPermissions::EXECUTE) {
-                    match UnwindData::new(
-                        path.to_string_lossy().as_bytes(),
-                        page_offset,
-                        base_addr,
-                        end_addr - base_addr,
-                        None,
-                    ) {
-                        Ok(unwind_data) => {
-                            unwind_data_by_pid.entry(pid).or_default().push(unwind_data);
-                            debug!("Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})");
-                        }
-                        Err(error) => {
-                            debug!(
-                                "Failed to create unwind data for module {}: {}",
-                                path.display(),
-                                error
-                            );
-                        }
-                    }
+                    debug!("Found executable mapping without path: {base_addr:x} - {end_addr:x}");
                 }
-            } else if map.perms.contains(MMPermissions::EXECUTE) {
-                debug!("Found executable mapping without path: {base_addr:x} - {end_addr:x}");
+                continue;
+            };
+
+            if !map.perms.contains(MMPermissions::EXECUTE) {
+                continue;
+            }
+
+            symbols_by_pid
+                .entry(pid)
+                .or_insert(ProcessSymbols::new(pid))
+                .add_mapping(pid, path, base_addr, end_addr, map.offset);
+            debug!("Added mapping for module {path:?}");
+
+            match UnwindData::new(
+                path.to_string_lossy().as_bytes(),
+                page_offset,
+                base_addr,
+                end_addr - base_addr,
+                None,
+            ) {
+                Ok(unwind_data) => {
+                    unwind_data_by_pid.entry(pid).or_default().push(unwind_data);
+                    debug!("Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})");
+                }
+                Err(error) => {
+                    debug!(
+                        "Failed to create unwind data for module {}: {}",
+                        path.display(),
+                        error
+                    );
+                }
             }
         }
 
