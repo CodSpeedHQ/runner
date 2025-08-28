@@ -11,6 +11,13 @@ debug_log() {
 debug_log "Called with arguments: $*"
 debug_log "Number of arguments: $#"
 
+
+# Currently only walltime is supported
+if [ "${CODSPEED_RUNNER_MODE:-}" != "walltime" ]; then
+    echo "CRITICAL: Go benchmarks can only be run with the walltime instrument"
+    exit 1
+fi
+
 # Find the real go binary, so that we don't end up in infinite recursion
 REAL_GO=$(which -a go | grep -v "$(realpath "$0")" | head -1)
 if [ -z "$REAL_GO" ]; then

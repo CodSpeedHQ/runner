@@ -2,6 +2,7 @@ use crate::prelude::*;
 use crate::run::runner::RunnerMode;
 use crate::run::runner::helpers::env::get_base_injected_env;
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
+use crate::run::runner::helpers::introspected_golang;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::introspected_nodejs::setup_introspected_nodejs;
@@ -90,11 +91,13 @@ pub async fn measure(
     .env(
         "PATH",
         format!(
-            "{}:{}",
+            "{}:{}:{}",
             setup_introspected_nodejs()
                 .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
-                .to_str()
-                .unwrap(),
+                .to_string_lossy(),
+            introspected_golang::setup_introspected_go()
+                .map_err(|e| anyhow!("failed to setup Go introspection. {}", e))?
+                .to_string_lossy(),
             env::var("PATH").unwrap_or_default(),
         ),
     );
