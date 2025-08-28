@@ -26,8 +26,7 @@ You can check out the implementation of the [supported providers](https://github
 ## Installation
 
 ```bash
-CODSPEED_RUNNER_VERSION=<insert-version> # refer to https://github.com/CodSpeedHQ/runner/releases for available versions
-curl -fsSL https://github.com/CodSpeedHQ/runner/releases/download/$CODSPEED_RUNNER_VERSION/codspeed-runner-installer.sh | bash
+curl -fsSL https://github.com/CodSpeedHQ/runner/releases/latest/download/codspeed-runner-installer.sh | bash
 source "$HOME/.cargo/env"
 ```
 
