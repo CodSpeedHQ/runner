@@ -237,7 +237,7 @@ impl PerfRunner {
                 symbols_by_pid
                     .entry(pid)
                     .or_insert(ProcessSymbols::new(pid))
-                    .add_mapping(pid, path, base_addr, end_addr);
+                    .add_mapping(pid, path, base_addr, end_addr, map.offset);
                 debug!("Added mapping for module {path:?}");
 
                 if map.perms.contains(MMPermissions::EXECUTE) {
