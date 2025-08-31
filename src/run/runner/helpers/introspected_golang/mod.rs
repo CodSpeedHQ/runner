@@ -5,7 +5,7 @@ const INTROSPECTED_GO_SCRIPT: &str = include_str!("go.sh");
 
 /// Creates the `go` script that will replace the `go` binary while running
 /// Returns the path to the script folder, which should be added to the PATH environment variable
-pub fn setup_introspected_go() -> Result<PathBuf> {
+pub fn setup() -> Result<PathBuf> {
     let script_folder = env::temp_dir().join("codspeed_introspected_go");
     std::fs::create_dir_all(&script_folder)?;
     let script_path = script_folder.join("go");

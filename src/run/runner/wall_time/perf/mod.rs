@@ -277,6 +277,7 @@ impl PerfRunner {
         let mut symbols_by_pid = HashMap::<u32, ProcessSymbols>::new();
         let mut unwind_data_by_pid = HashMap::<u32, Vec<UnwindData>>::new();
         let mut integration = None;
+        let mut perf_ping_timeout = 5;
 
         let perf_pid = OnceCell::new();
         loop {
@@ -287,6 +288,8 @@ impl PerfRunner {
                 debug!("Failed to ping perf FIFO, ending perf fifo loop");
                 break;
             }
+            // Perf has started successfully, we can decrease the timeout for future pings
+            perf_ping_timeout = 1;
 
             let result = tokio::time::timeout(Duration::from_secs(5), runner_fifo.recv_cmd()).await;
             let Ok(Ok(cmd)) = result else {
