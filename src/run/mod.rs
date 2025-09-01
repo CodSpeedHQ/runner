@@ -88,7 +88,7 @@ pub struct RunArgs {
     pub working_directory: Option<String>,
 
     /// The mode to run the benchmarks in.
-    #[arg(long, default_value_t, value_enum, env = "CODSPEED_RUNNER_MODE")]
+    #[arg(long, value_enum, env = "CODSPEED_RUNNER_MODE")]
     pub mode: RunnerMode,
 
     /// Comma-separated list of instruments to enable. Possible values: mongodb.
@@ -133,10 +133,9 @@ pub struct RunArgs {
     pub command: Vec<String>,
 }
 
-#[derive(ValueEnum, Clone, Default, Debug, Serialize)]
+#[derive(ValueEnum, Clone, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RunnerMode {
-    #[default]
     Instrumentation,
     Walltime,
 }
