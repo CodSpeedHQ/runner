@@ -50,9 +50,9 @@ pub enum UnwindingMode {
 
 #[derive(Args, Debug, Clone)]
 pub struct PerfRunArgs {
-    /// Enable the performance runner, which uses `perf` to collect performance data.
+    /// Enable the linux perf profiler to collect granular performance data.
     /// This is only supported on Linux.
-    #[arg(long, env = "CODSPEED_PERF_ENABLED", default_value_t = false)]
+    #[arg(long, env = "CODSPEED_PERF_ENABLED", default_value_t = true)]
     enable_perf: bool,
 
     /// The unwinding mode that should be used with perf to collect the call stack.

@@ -206,7 +206,13 @@ impl PerfRunner {
         harvest_perf_maps_for_pids(profile_folder, &perf_map_pids).await?;
 
         // Append perf maps, unwind info and other metadata
-        bench_data.save_to(profile_folder).unwrap();
+        if let Err(BenchmarkDataSaveError::MissingIntegration) = bench_data.save_to(profile_folder)
+        {
+            warn!(
+                "Perf is enabled, but failed to detect benchmarks. If you wish to disable this warning, set CODSPEED_PERF_ENABLED=false"
+            );
+            return Ok(());
+        }
 
         let elapsed = start.elapsed();
         debug!("Perf teardown took: {elapsed:?}");
@@ -371,8 +377,16 @@ pub struct BenchmarkData {
     unwind_data_by_pid: HashMap<u32, Vec<UnwindData>>,
 }
 
+#[derive(Debug)]
+pub enum BenchmarkDataSaveError {
+    MissingIntegration,
+}
+
 impl BenchmarkData {
-    pub fn save_to<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
+    pub fn save_to<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), BenchmarkDataSaveError> {
         for proc_sym in self.symbols_by_pid.values() {
             proc_sym.save_to(&path).unwrap();
         }
@@ -387,7 +401,7 @@ impl BenchmarkData {
             integration: self
                 .integration
                 .clone()
-                .context("Couldn't find integration metadata")?,
+                .ok_or(BenchmarkDataSaveError::MissingIntegration)?,
             bench_order_by_pid: self.bench_order_by_pid.clone(),
             ignored_modules: {
                 let mut to_ignore = vec![];
