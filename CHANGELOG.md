@@ -5,6 +5,26 @@
 
 
 
+## [4.0.0] - 2025-09-01
+
+### <!-- 0 -->🚀 Features
+- Make perf enabled by default by @GuillaumeLagrange in [#110](https://github.com/CodSpeedHQ/runner/pull/110)
+- Make runner mode argument mandatory by @GuillaumeLagrange
+- Use introspected node in walltime mode by @GuillaumeLagrange in [#108](https://github.com/CodSpeedHQ/runner/pull/108)
+- Add instrumented go shell script by @not-matthias in [#102](https://github.com/CodSpeedHQ/runner/pull/102)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Compute proper load bias by @not-matthias in [#107](https://github.com/CodSpeedHQ/runner/pull/107)
+- Increase timeout for first perf ping by @GuillaumeLagrange
+- Prevent running with valgrind by @not-matthias in [#106](https://github.com/CodSpeedHQ/runner/pull/106)
+
+### <!-- 2 -->🏗️ Refactor
+- Change go-runner binary name by @not-matthias in [#111](https://github.com/CodSpeedHQ/runner/pull/111)
+
+### <!-- 7 -->⚙️ Internals
+- Add AGENTS.md by @GuillaumeLagrange
+
+
 ## [3.8.1] - 2025-08-25
 
 ### <!-- 1 -->🐛 Bug Fixes
@@ -431,6 +451,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.0.0]: https://github.com/CodSpeedHQ/runner/compare/v3.8.1..v4.0.0
 [3.8.1]: https://github.com/CodSpeedHQ/runner/compare/v3.8.0..v3.8.1
 [3.8.0]: https://github.com/CodSpeedHQ/runner/compare/v3.7.0..v3.8.0
 [3.7.0]: https://github.com/CodSpeedHQ/runner/compare/v3.6.1..v3.7.0
