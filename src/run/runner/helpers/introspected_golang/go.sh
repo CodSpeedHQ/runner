@@ -37,10 +37,10 @@ if [ "$1" = "test" ]; then
     debug_log "Detected 'test' command, routing to go-runner"
 
     # Find go-runner or install if not found
-    GO_RUNNER=$(which go-runner 2>/dev/null || true)
+    GO_RUNNER=$(which codspeed-go-runner 2>/dev/null || true)
     if [ -z "$GO_RUNNER" ]; then
         curl -fsSL http://github.com/CodSpeedHQ/runner/releases/latest/download/go-runner-installer.sh | bash -s -- --quiet
-        GO_RUNNER=$(which go-runner 2>/dev/null || true)
+        GO_RUNNER=$(which codspeed-go-runner 2>/dev/null || true)
     fi
 
     debug_log "Using go-runner at: $GO_RUNNER"
