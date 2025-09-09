@@ -39,7 +39,7 @@ if [ "$1" = "test" ]; then
     # Find go-runner or install if not found
     GO_RUNNER=$(which codspeed-go-runner 2>/dev/null || true)
     if [ -z "$GO_RUNNER" ]; then
-        curl -fsSL http://github.com/CodSpeedHQ/runner/releases/latest/download/go-runner-installer.sh | bash -s -- --quiet
+        curl -fsSL http://github.com/CodSpeedHQ/codspeed-go/releases/latest/download/codspeed-go-runner-installer.sh | bash -s -- --quiet
         GO_RUNNER=$(which codspeed-go-runner 2>/dev/null || true)
     fi
 
