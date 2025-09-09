@@ -140,3 +140,17 @@ pub async fn harvest_perf_jit_for_pids(profile_folder: &Path, pids: &HashSet<i32
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_node_jitdump() {
+        let path = PathBuf::from("testdata/jitdata/node.dump");
+        let jit_dump = JitDump::new(path);
+        let unwind_data = jit_dump.into_unwind_data().unwrap();
+
+        insta::assert_debug_snapshot!(unwind_data);
+    }
+}
