@@ -5,6 +5,12 @@
 
 
 
+## [4.0.1] - 2025-09-09
+
+### <!-- 1 -->🐛 Bug Fixes
+- Url for codspeed-go-runner installer by @not-matthias in [#112](https://github.com/CodSpeedHQ/runner/pull/112)
+
+
 ## [4.0.0] - 2025-09-01
 
 ### <!-- 0 -->🚀 Features
@@ -451,6 +457,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.0.1]: https://github.com/CodSpeedHQ/runner/compare/v4.0.0..v4.0.1
 [4.0.0]: https://github.com/CodSpeedHQ/runner/compare/v3.8.1..v4.0.0
 [3.8.1]: https://github.com/CodSpeedHQ/runner/compare/v3.8.0..v3.8.1
 [3.8.0]: https://github.com/CodSpeedHQ/runner/compare/v3.7.0..v3.8.0
