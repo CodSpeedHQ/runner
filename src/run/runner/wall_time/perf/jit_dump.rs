@@ -108,7 +108,7 @@ impl JitDump {
 pub async fn harvest_perf_jit_for_pids(profile_folder: &Path, pids: &HashSet<i32>) -> Result<()> {
     for pid in pids {
         let name = format!("jit-{pid}.dump");
-        let path = PathBuf::from("/tmp").join(&name);
+        let path = PathBuf::from(".").join(&name);
 
         if !path.exists() {
             continue;
