@@ -1,0 +1,15 @@
+---
+source: src/run/runner/wall_time/perf/unwind_data.rs
+expression: "UnwindData::new(MODULE_PATH.as_bytes(), 0x2000, start_addr, size, None)"
+---
+Ok(
+    UnwindData {
+        path: "testdata/perf_map/go_fib.bin",
+        avma_range: 402000..50f000,
+        base_avma: 0,
+        eh_frame_hdr_svma: 6498b0..649b94,
+        eh_frame_hdr_hash: f1f69beb959a08d7,
+        eh_frame_hash: a8727039dd21b51c,
+        eh_frame_svma: 649b98..64aa70,
+    },
+)
