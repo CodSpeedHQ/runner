@@ -1,4 +1,10 @@
-use crate::{prelude::*, run::runner::wall_time::perf::unwind_data::UnwindData};
+use crate::{
+    prelude::*,
+    run::runner::wall_time::perf::{
+        perf_map::{ModuleSymbols, Symbol},
+        unwind_data::UnwindData,
+    },
+};
 use linux_perf_data::jitdump::{JitDumpReader, JitDumpRecord};
 use std::{
     collections::HashSet,
@@ -12,6 +18,30 @@ struct JitDump {
 impl JitDump {
     pub fn new(path: PathBuf) -> Self {
         Self { path }
+    }
+
+    pub fn into_perf_map(self) -> Result<ModuleSymbols> {
+        let mut symbols = Vec::new();
+
+        let file = std::fs::File::open(self.path)?;
+        let mut reader = JitDumpReader::new(file)?;
+        while let Some(raw_record) = reader.next_record()? {
+            let JitDumpRecord::CodeLoad(record) = raw_record.parse()? else {
+                continue;
+            };
+
+            let name = record.function_name.as_slice();
+            let name = String::from_utf8_lossy(&name);
+
+            symbols.push(Symbol {
+                addr: record.vma,
+                size: record.code_bytes.len() as u64,
+                name: name.to_string(),
+            });
+        }
+        debug!("Extracted {} JIT symbols", symbols.len());
+
+        Ok(ModuleSymbols::from_symbols(symbols))
     }
 
     /// Parses the JIT dump file and converts it into a list of `UnwindData`.
@@ -84,6 +114,16 @@ pub async fn harvest_perf_jit_for_pids(profile_folder: &Path, pids: &HashSet<i32
             continue;
         }
         debug!("Found JIT dump file: {path:?}");
+
+        // Append the symbols to the existing perf map file
+        let symbols = match JitDump::new(path.clone()).into_perf_map() {
+            Ok(symbols) => symbols,
+            Err(error) => {
+                warn!("Failed to convert jit dump into perf map: {error:?}");
+                continue;
+            }
+        };
+        symbols.append_to_file(profile_folder.join(format!("perf-{pid}.map")))?;
 
         let unwind_data = match JitDump::new(path).into_unwind_data() {
             Ok(unwind_data) => unwind_data,

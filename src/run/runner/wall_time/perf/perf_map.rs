@@ -8,10 +8,10 @@ use std::{
 };
 
 #[derive(Hash, PartialEq, Eq, Clone)]
-struct Symbol {
-    addr: u64,
-    size: u64,
-    name: String,
+pub struct Symbol {
+    pub addr: u64,
+    pub size: u64,
+    pub name: String,
 }
 
 impl Debug for Symbol {
@@ -30,6 +30,10 @@ pub struct ModuleSymbols {
 }
 
 impl ModuleSymbols {
+    pub fn from_symbols(symbols: Vec<Symbol>) -> Self {
+        Self { symbols }
+    }
+
     pub fn new<P: AsRef<Path>>(
         path: P,
         runtime_start_addr: u64,
@@ -149,7 +153,7 @@ impl ModuleSymbols {
         Ok(runtime_start_addr.wrapping_sub(load_segment.address()))
     }
 
-    fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+    pub fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
