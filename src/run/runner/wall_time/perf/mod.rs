@@ -107,7 +107,7 @@ impl PerfRunner {
 
         let cg_mode = match cg_mode {
             UnwindingMode::FramePointer => "fp",
-            UnwindingMode::Dwarf => "dwarf",
+            UnwindingMode::Dwarf => "dwarf,65528",
         };
         debug!("Using call graph mode: {cg_mode:?}");
 
