@@ -1,12 +1,16 @@
 //! WARNING: This file has to be in sync with perf-parser!
 
 use anyhow::{Context, bail};
+use core::{
+    fmt::Debug,
+    hash::{Hash, Hasher},
+};
 use debugid::CodeId;
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{hash::DefaultHasher, ops::Range};
 
 /// Unwind data for a single module.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UnwindData {
     pub path: String,
 
@@ -18,6 +22,34 @@ pub struct UnwindData {
 
     pub eh_frame: Vec<u8>,
     pub eh_frame_svma: Range<u64>,
+}
+
+impl Debug for UnwindData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let eh_frame_hdr_hash = {
+            let mut hasher = DefaultHasher::new();
+            self.eh_frame_hdr.hash(&mut hasher);
+            hasher.finish()
+        };
+        let eh_frame_hash = {
+            let mut hasher = DefaultHasher::new();
+            self.eh_frame.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        f.debug_struct("UnwindData")
+            .field("path", &self.path)
+            .field("avma_range", &format_args!("{:x?}", self.avma_range))
+            .field("base_avma", &format_args!("{:x}", self.base_avma))
+            .field(
+                "eh_frame_hdr_svma",
+                &format_args!("{:x?}", self.eh_frame_hdr_svma),
+            )
+            .field("eh_frame_hdr_hash", &format_args!("{eh_frame_hdr_hash:x}"))
+            .field("eh_frame_hash", &format_args!("{eh_frame_hash:x}"))
+            .field("eh_frame_svma", &format_args!("{:x?}", self.eh_frame_svma))
+            .finish()
+    }
 }
 
 impl UnwindData {
@@ -136,5 +168,76 @@ impl UnwindData {
         let mut writer = std::fs::File::create(path.as_ref())?;
         bincode::serialize_into(&mut writer, self)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Note: You can double-check the values by getting the /proc/<pid>/maps via gdb:
+    // ```
+    // $ gdb testdata/perf_map/<sample>.bin -ex "break main" -ex "run" -ex "info proc mappings" -ex "continue" -ex "quit" -batch
+    // Start Addr         End Addr           Size               Offset             Perms File
+    // 0x0000555555554000 0x00005555555a2000 0x4e000            0x0                r--p  /runner/testdata/perf_map/divan_sleep_benches.bin
+    // 0x00005555555a2000 0x0000555555692000 0xf0000            0x4d000            r-xp  /runner/testdata/perf_map/divan_sleep_benches.bin
+    // 0x0000555555692000 0x000055555569d000 0xb000             0x13c000           r--p  /runner/testdata/perf_map/divan_sleep_benches.bin
+    // 0x000055555569d000 0x000055555569f000 0x2000             0x146000           rw-p  /runner/testdata/perf_map/divan_sleep_benches.bin
+    // 0x00007ffff7c00000 0x00007ffff7c28000 0x28000            0x0                r--p  /nix/store/g8zyryr9cr6540xsyg4avqkwgxpnwj2a-glibc-2.40-66/lib/libc.so.6
+    // 0x00007ffff7c28000 0x00007ffff7d9e000 0x176000           0x28000            r-xp  /nix/store/g8zyryr9cr6540xsyg4avqkwgxpnwj2a-glibc-2.40-66/lib/libc.so.6
+    // 0x00007ffff7d9e000 0x00007ffff7df4000 0x56000            0x19e000           r--p  /nix/store/g8zyryr9cr6540xsyg4avqkwgxpnwj2a-glibc-2.40-66/lib/libc.so.6
+    // 0x00007ffff7df4000 0x00007ffff7df8000 0x4000             0x1f3000           r--p  /nix/store/g8zyryr9cr6540xsyg4avqkwgxpnwj2a-glibc-2.40-66/lib/libc.so.6
+    // 0x00007ffff7df8000 0x00007ffff7dfa000 0x2000             0x1f7000           rw-p  /nix/store/g8zyryr9cr6540xsyg4avqkwgxpnwj2a-glibc-2.40-66/lib/libc.so.6
+    // 0x00007ffff7dfa000 0x00007ffff7e07000 0xd000             0x0                rw-p
+    // 0x00007ffff7f8a000 0x00007ffff7f8d000 0x3000             0x0                rw-p
+    // ...
+    // ```
+
+    #[test]
+    fn test_golang_unwind_data() {
+        const MODULE_PATH: &str = "testdata/perf_map/go_fib.bin";
+
+        let (start_addr, end_addr) = (0x0000000000402000_u64, 0x000000000050f000_u64);
+        let size: u64 = end_addr - start_addr;
+
+        insta::assert_debug_snapshot!(UnwindData::new(
+            MODULE_PATH.as_bytes(),
+            0x2000,
+            start_addr,
+            size,
+            None
+        ));
+    }
+
+    #[test]
+    fn test_cpp_unwind_data() {
+        const MODULE_PATH: &str = "testdata/perf_map/cpp_my_benchmark.bin";
+
+        let (start_addr, end_addr) = (0x0000000000400000_u64, 0x0000000000459000_u64);
+        let size: u64 = end_addr - start_addr;
+
+        insta::assert_debug_snapshot!(UnwindData::new(
+            MODULE_PATH.as_bytes(),
+            0x0,
+            start_addr,
+            size,
+            None
+        ));
+    }
+
+    #[test]
+    fn test_rust_divan_unwind_data() {
+        const MODULE_PATH: &str = "testdata/perf_map/divan_sleep_benches.bin";
+
+        let (start_addr, end_addr) = (0x00005555555a2000_u64, 0x0000555555692000_u64);
+        let size: u64 = end_addr - start_addr;
+
+        insta::assert_debug_snapshot!(UnwindData::new(
+            MODULE_PATH.as_bytes(),
+            0x4d000,
+            start_addr,
+            size,
+            None
+        ));
     }
 }
