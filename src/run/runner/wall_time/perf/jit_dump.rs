@@ -77,7 +77,7 @@ impl JitDump {
                     jit_unwind_data.push(UnwindData {
                         path: format!("jit_{name}"),
                         avma_range: avma_start..avma_end,
-                        base_avma: avma_start,
+                        base_avma: 0,
                         eh_frame_hdr,
                         eh_frame_hdr_svma: 0..0, // TODO: Do we need this?
                         eh_frame,
