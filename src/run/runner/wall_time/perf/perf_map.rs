@@ -213,6 +213,10 @@ impl ProcessSymbols {
             .push((start_addr, end_addr));
     }
 
+    pub fn loaded_modules(&self) -> impl Iterator<Item = &PathBuf> {
+        self.modules.keys()
+    }
+
     pub fn module_mapping<P: AsRef<std::path::Path>>(
         &self,
         module_path: P,
