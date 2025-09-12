@@ -94,20 +94,24 @@ impl PerfRunner {
             .tempfile_in(&self.perf_dir)?;
 
         // Infer the unwinding mode from the benchmark cmd
-        let cg_mode = match (config.perf_unwinding_mode, &bench_cmd) {
-            (Some(mode), _) => mode,
-            (None, cmd) if cmd.contains("pytest") => UnwindingMode::FramePointer,
-            (None, cmd) if cmd.contains("cargo") => UnwindingMode::Dwarf,
-            (None, _) => {
-                // Default to dwarf unwinding since it works well with most binaries.
-                debug!("No call graph mode detected, defaulting to dwarf");
-                UnwindingMode::Dwarf
-            }
+        let (cg_mode, stack_size) = if let Some(mode) = config.perf_unwinding_mode {
+            (mode, None)
+        } else if config.command.contains("cargo") {
+            (UnwindingMode::Dwarf, None)
+        } else if config.command.contains("pytest")
+            || config.command.contains("uv")
+            || config.command.contains("python")
+        {
+            (UnwindingMode::Dwarf, Some(65528))
+        } else {
+            // Default to dwarf unwinding since it works well with most binaries.
+            debug!("No call graph mode detected, defaulting to dwarf");
+            (UnwindingMode::Dwarf, None)
         };
 
         let cg_mode = match cg_mode {
             UnwindingMode::FramePointer => "fp",
-            UnwindingMode::Dwarf => "dwarf",
+            UnwindingMode::Dwarf => &format!("dwarf,{}", stack_size.unwrap_or(8192)),
         };
         debug!("Using call graph mode: {cg_mode:?}");
 
