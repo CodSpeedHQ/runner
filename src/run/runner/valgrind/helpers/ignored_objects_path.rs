@@ -10,6 +10,9 @@ fn find_uv_python_paths() -> anyhow::Result<Vec<String>> {
             "--output-format",
             "json",
         ])
+        // IMPORTANT: Set to the cwd, so that we also find python
+        // installations in virtual environments.
+        .current_dir(std::env::current_dir()?)
         .output()?;
     if !output.status.success() {
         bail!(
