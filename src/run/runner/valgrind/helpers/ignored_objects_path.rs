@@ -2,20 +2,9 @@ use crate::prelude::*;
 use std::{path::PathBuf, process::Command};
 
 fn find_venv_python_paths() -> anyhow::Result<Vec<String>> {
-    let venv_path = std::env::var("VIRTUAL_ENV").ok();
-    if venv_path.is_none() {
-        return Ok(vec![]);
-    }
-    let venv_path = venv_path.unwrap();
-    let python_path = PathBuf::from(venv_path).join("bin").join("python");
-    if !python_path.exists() {
-        return Ok(vec![]);
-    }
-    debug!("Found venv python path: {}", python_path.to_string_lossy());
-
-    // 'uv python find'
     let output = Command::new("uv")
-        .args(["python", "find", &python_path.to_string_lossy()])
+        .args(["python", "find"])
+        .current_dir(std::env::current_dir()?)
         .output()?;
     if !output.status.success() {
         bail!(
@@ -92,6 +81,8 @@ fn find_python_paths() -> anyhow::Result<Vec<String>> {
     debug!("system python paths: {system_paths:?}");
     let venv_paths = find_venv_python_paths().unwrap_or_default();
     debug!("venv python paths: {venv_paths:?}");
+
+    // For each python path, look at the folder to possibly identify more python versions
 
     let mut paths = uv_paths;
     paths.extend(system_paths);
