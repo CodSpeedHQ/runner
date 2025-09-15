@@ -445,30 +445,6 @@ impl BenchmarkData {
                     }
                 }
 
-                // When python is statically linked, we'll not find it in the ignored modules. Add it manually:
-                let python_modules = self.symbols_by_pid.values().filter_map(|proc| {
-                    proc.loaded_modules().find(|path| {
-                        path.file_name()
-                            .map(|name| name.to_string_lossy().starts_with("python"))
-                            .unwrap_or(false)
-                    })
-                });
-                for path in python_modules {
-                    if let Some(mapping) = self
-                        .symbols_by_pid
-                        .values()
-                        .find_map(|proc| proc.module_mapping(path))
-                    {
-                        let (Some((base_addr, _)), Some((_, end_addr))) = (
-                            mapping.iter().min_by_key(|(base_addr, _)| base_addr),
-                            mapping.iter().max_by_key(|(_, end_addr)| end_addr),
-                        ) else {
-                            continue;
-                        };
-                        to_ignore.push((path.to_string_lossy().into(), *base_addr, *end_addr));
-                    }
-                }
-
                 to_ignore
             },
         };
