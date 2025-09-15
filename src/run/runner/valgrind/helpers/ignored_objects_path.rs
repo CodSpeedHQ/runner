@@ -173,16 +173,15 @@ fn normalize_object_paths(objects_path_to_ignore: &mut [String]) {
 pub fn get_objects_path_to_ignore() -> Vec<String> {
     let mut objects_path_to_ignore = vec![];
     objects_path_to_ignore.extend(get_node_objects());
-    debug!("objects_path_to_ignore before normalization: {objects_path_to_ignore:?}");
-    normalize_object_paths(&mut objects_path_to_ignore);
-    debug!("objects_path_to_ignore after normalization: {objects_path_to_ignore:?}");
-
     objects_path_to_ignore.extend(get_python_objects());
     objects_path_to_ignore.extend(find_python_paths().unwrap_or_default());
 
     objects_path_to_ignore.sort();
     objects_path_to_ignore.dedup();
-    debug!("Final objects_path_to_ignore: {objects_path_to_ignore:#?}");
+
+    debug!("objects_path_to_ignore before normalization: {objects_path_to_ignore:#?}");
+    normalize_object_paths(&mut objects_path_to_ignore);
+    debug!("objects_path_to_ignore after normalization: {objects_path_to_ignore:#?}");
 
     objects_path_to_ignore
 }
