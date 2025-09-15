@@ -1,6 +1,40 @@
 use crate::prelude::*;
 use std::{path::PathBuf, process::Command};
 
+fn find_venv_python_paths() -> anyhow::Result<Vec<String>> {
+    let venv_path = std::env::var("VIRTUAL_ENV").ok();
+    if venv_path.is_none() {
+        return Ok(vec![]);
+    }
+    let venv_path = venv_path.unwrap();
+    let python_path = PathBuf::from(venv_path).join("bin").join("python");
+    if !python_path.exists() {
+        return Ok(vec![]);
+    }
+    debug!("Found venv python path: {}", python_path.to_string_lossy());
+
+    // 'uv python find'
+    let output = Command::new("uv")
+        .args(["python", "find", &python_path.to_string_lossy()])
+        .output()?;
+    if !output.status.success() {
+        bail!(
+            "Failed to get venv python path: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let python_path = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    if !python_path.exists() {
+        return Ok(vec![]);
+    }
+    debug!(
+        "Resolved venv python path: {}",
+        python_path.to_string_lossy()
+    );
+
+    Ok(vec![python_path.to_string_lossy().to_string()])
+}
+
 fn find_uv_python_paths() -> anyhow::Result<Vec<String>> {
     let output = Command::new("uv")
         .args([
@@ -53,10 +87,15 @@ fn find_system_python_paths() -> anyhow::Result<Vec<String>> {
 
 fn find_python_paths() -> anyhow::Result<Vec<String>> {
     let uv_paths = find_uv_python_paths().unwrap_or_default();
+    debug!("uv python paths: {uv_paths:?}");
     let system_paths = find_system_python_paths().unwrap_or_default();
+    debug!("system python paths: {system_paths:?}");
+    let venv_paths = find_venv_python_paths().unwrap_or_default();
+    debug!("venv python paths: {venv_paths:?}");
 
     let mut paths = uv_paths;
     paths.extend(system_paths);
+    paths.extend(venv_paths);
     paths.sort();
     paths.dedup();
     Ok(paths)
@@ -143,6 +182,7 @@ pub fn get_objects_path_to_ignore() -> Vec<String> {
 
     objects_path_to_ignore.sort();
     objects_path_to_ignore.dedup();
+    debug!("Final objects_path_to_ignore: {objects_path_to_ignore:#?}");
 
     objects_path_to_ignore
 }
