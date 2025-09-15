@@ -80,8 +80,7 @@ fn get_python_objects() -> Vec<String> {
             let file_name = entry.file_name();
             let file_name_str = file_name.to_string_lossy();
 
-            // Check if filename matches libpython*.so pattern
-            if !file_name_str.starts_with("libpython") || !file_name_str.ends_with(".so") {
+            if !file_name_str.starts_with("libpython") {
                 continue;
             }
 
@@ -137,5 +136,9 @@ pub fn get_objects_path_to_ignore() -> Vec<String> {
     debug!("objects_path_to_ignore before normalization: {objects_path_to_ignore:?}");
     normalize_object_paths(&mut objects_path_to_ignore);
     debug!("objects_path_to_ignore after normalization: {objects_path_to_ignore:?}");
+
+    objects_path_to_ignore.sort();
+    objects_path_to_ignore.dedup();
+
     objects_path_to_ignore
 }
