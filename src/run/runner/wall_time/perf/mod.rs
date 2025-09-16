@@ -167,9 +167,11 @@ impl PerfRunner {
                     .unwrap_or(false)
             })
             .sorted_by_key(|path| path.file_name().unwrap().to_string_lossy().to_string())
-            // The first perf.data will only contain metadata that is not relevant to the benchmarks. We
-            // capture the symbols and unwind data separately.
+            // We split the perf.data in SetExecutedBenchmark which will also split the last
+            // entry, which will add an extra perf.data file that is empty. We can just skip it.
+            .rev()
             .skip(1)
+            .rev()
             .map(|src_path| {
                 let profile_folder = profile_folder.clone();
                 tokio::task::spawn(async move {
@@ -330,6 +332,21 @@ impl PerfRunner {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
                     bench_order_by_pid.entry(pid).or_default().push(uri);
 
+                    // Split the perf.data file
+                    let perf_pid = perf_pid.get_or_init(|| {
+                        let output = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg("pidof -s perf")
+                            .output()
+                            .expect("Failed to run pidof command");
+
+                        String::from_utf8_lossy(&output.stdout)
+                            .trim()
+                            .parse::<u32>()
+                            .expect("Failed to parse perf pid")
+                    });
+                    run_with_sudo(&["kill", "-USR2", &perf_pid.to_string()])?;
+
                     #[cfg(target_os = "linux")]
                     if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
                     {
@@ -343,22 +360,6 @@ impl PerfRunner {
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
-                    let perf_pid = perf_pid.get_or_init(|| {
-                        let output = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg("pidof -s perf")
-                            .output()
-                            .expect("Failed to run pidof command");
-
-                        String::from_utf8_lossy(&output.stdout)
-                            .trim()
-                            .parse::<u32>()
-                            .expect("Failed to parse perf pid")
-                    });
-
-                    // Split the perf.data file
-                    run_with_sudo(&["kill", "-USR2", &perf_pid.to_string()])?;
-
                     perf_fifo.start_events().await?;
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
