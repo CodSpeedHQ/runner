@@ -52,3 +52,4 @@ else
     debug_log "Full command: $REAL_GO $*"
     "$REAL_GO" "$@"
 fi
+exit $?
