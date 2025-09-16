@@ -37,6 +37,13 @@ impl ProfileArchive {
             }
         }
     }
+
+    fn to_content_encoding(&self) -> Option<String> {
+        match self {
+            ProfileArchive::CompressedInMemory(_) => Some("gzip".to_string()),
+            ProfileArchive::UncompressedOnDisk(_) => None,
+        }
+    }
 }
 
 impl Drop for ProfileArchive {
@@ -249,8 +256,13 @@ pub async fn upload(
         provider.get_run_environment()
     );
 
-    let upload_metadata =
-        provider.get_upload_metadata(config, system_info, &archive_hash, executor_name)?;
+    let upload_metadata = provider.get_upload_metadata(
+        config,
+        system_info,
+        &archive_hash,
+        profile_archive.to_content_encoding(),
+        executor_name,
+    )?;
     debug!("Upload metadata: {upload_metadata:#?}");
     info!(
         "Linked repository: {}\n",

@@ -33,6 +33,7 @@ mod tests {
             version: Some(7),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
+            content_encoding: Some("gzip".into()),
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: "2.1.0".into(),

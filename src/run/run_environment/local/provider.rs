@@ -148,6 +148,7 @@ impl RunEnvironmentProvider for LocalProvider {
         config: &Config,
         system_info: &SystemInfo,
         archive_hash: &str,
+        content_encoding: Option<String>,
         executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
         let run_environment_metadata = self.get_run_environment_metadata()?;
@@ -159,6 +160,7 @@ impl RunEnvironmentProvider for LocalProvider {
             commit_hash: run_environment_metadata.ref_.clone(),
             run_environment_metadata,
             profile_md5: archive_hash.into(),
+            content_encoding,
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),

@@ -67,6 +67,7 @@ pub trait RunEnvironmentProvider {
         config: &Config,
         system_info: &SystemInfo,
         archive_hash: &str,
+        content_encoding: Option<String>,
         executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
         let run_environment_metadata = self.get_run_environment_metadata()?;
@@ -79,6 +80,7 @@ pub trait RunEnvironmentProvider {
             repository_provider: self.get_repository_provider(),
             run_environment_metadata,
             profile_md5: archive_hash.into(),
+            content_encoding,
             commit_hash,
             runner: Runner {
                 name: "codspeed-runner".into(),
