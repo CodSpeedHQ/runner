@@ -4,12 +4,31 @@ use crate::{
 };
 use log::*;
 use simplelog::SharedLogger;
-use std::io::Write;
+use std::{env, io::Write};
 
 /// A logger that prints logs in the format expected by GitHub Actions, with grouping support.
 ///
 /// See https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions
-pub struct GithubActionLogger;
+pub struct GithubActionLogger {
+    log_level: LevelFilter,
+}
+
+impl GithubActionLogger {
+    pub fn new() -> Self {
+        // Only enable debug logging if it's enabled in GitHub Actions.
+        // See: https://docs.github.com/en/actions/reference/workflows-and-actions/variables
+        let log_level = if env::var("RUNNER_DEBUG").unwrap_or_default() == "1" {
+            LevelFilter::Trace
+        } else {
+            env::var("CODSPEED_LOG")
+                .ok()
+                .and_then(|log_level| log_level.parse::<LevelFilter>().ok())
+                .unwrap_or(LevelFilter::Info)
+        };
+
+        Self { log_level }
+    }
+}
 
 impl Log for GithubActionLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {
@@ -40,6 +59,10 @@ impl Log for GithubActionLogger {
             return;
         }
 
+        if level > self.log_level {
+            return;
+        }
+
         let prefix = match level {
             Level::Error => "::error::",
             Level::Warn => "::warning::",
@@ -60,9 +83,7 @@ impl Log for GithubActionLogger {
 
 impl SharedLogger for GithubActionLogger {
     fn level(&self) -> LevelFilter {
-        // since TRACE and DEBUG use ::debug::, we always enable them and let GitHub handle the filtering
-        // thanks to https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/enabling-debug-logging#enabling-step-debug-logging
-        LevelFilter::Trace
+        self.log_level
     }
 
     fn config(&self) -> Option<&simplelog::Config> {

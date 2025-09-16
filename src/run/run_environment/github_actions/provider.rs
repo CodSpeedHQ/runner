@@ -126,7 +126,7 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
     }
 
     fn get_logger(&self) -> Box<dyn SharedLogger> {
-        Box::new(GithubActionLogger)
+        Box::new(GithubActionLogger::new())
     }
 
     fn get_run_environment(&self) -> RunEnvironment {
