@@ -14,7 +14,7 @@ pub struct UploadMetadata {
     pub version: Option<u32>,
     pub tokenless: bool,
     pub profile_md5: String,
-    pub content_encoding: Option<String>,
+    pub profile_encoding: Option<String>,
     pub runner: Runner,
     pub run_environment: RunEnvironment,
     pub run_part: Option<RunPart>,

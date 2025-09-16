@@ -8,7 +8,7 @@ use crate::run::config::RepositoryOverride;
 use crate::run::helpers::{GitRemote, parse_git_remote};
 use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::runner::ExecutorName;
-use crate::run::uploader::{Runner, UploadMetadata};
+use crate::run::uploader::{ProfileArchive, Runner, UploadMetadata};
 use crate::run::{
     config::Config,
     helpers::find_repository_root,
@@ -147,8 +147,7 @@ impl RunEnvironmentProvider for LocalProvider {
         &self,
         config: &Config,
         system_info: &SystemInfo,
-        archive_hash: &str,
-        content_encoding: Option<String>,
+        profile_archive: &ProfileArchive,
         executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
         let run_environment_metadata = self.get_run_environment_metadata()?;
@@ -159,8 +158,8 @@ impl RunEnvironmentProvider for LocalProvider {
             repository_provider: self.get_repository_provider(),
             commit_hash: run_environment_metadata.ref_.clone(),
             run_environment_metadata,
-            profile_md5: archive_hash.into(),
-            content_encoding,
+            profile_md5: profile_archive.hash.clone(),
+            profile_encoding: profile_archive.content.encoding(),
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),

@@ -5,7 +5,7 @@ use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
 use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
-use crate::run::uploader::{Runner, UploadMetadata};
+use crate::run::uploader::{ProfileArchive, Runner, UploadMetadata};
 
 use super::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart};
 
@@ -66,8 +66,7 @@ pub trait RunEnvironmentProvider {
         &self,
         config: &Config,
         system_info: &SystemInfo,
-        archive_hash: &str,
-        content_encoding: Option<String>,
+        profile_archive: &ProfileArchive,
         executor_name: ExecutorName,
     ) -> Result<UploadMetadata> {
         let run_environment_metadata = self.get_run_environment_metadata()?;
@@ -79,8 +78,8 @@ pub trait RunEnvironmentProvider {
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             run_environment_metadata,
-            profile_md5: archive_hash.into(),
-            content_encoding,
+            profile_md5: profile_archive.hash.clone(),
+            profile_encoding: profile_archive.content.encoding(),
             commit_hash,
             runner: Runner {
                 name: "codspeed-runner".into(),

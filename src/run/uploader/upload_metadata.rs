@@ -33,7 +33,7 @@ mod tests {
             version: Some(7),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
-            content_encoding: Some("gzip".into()),
+            profile_encoding: Some("gzip".into()),
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: "2.1.0".into(),
@@ -77,7 +77,7 @@ mod tests {
             hash,
             // Caution: when changing this value, we need to ensure that
             // the related backend snapshot remains the same
-            @"f827f6a834c26d39900c0a9e2dddfaaf22956494c8db911fc06fef72878b0c70"
+            @"7275243b4457a8fa70215c084210bea7518a3994b863e4437fa33c5ae2bd219e"
         );
         assert_json_snapshot!(upload_metadata);
     }
