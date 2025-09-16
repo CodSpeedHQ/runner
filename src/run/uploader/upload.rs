@@ -6,30 +6,123 @@ use crate::run::{
     runner::RunData,
     uploader::UploadError,
 };
-use crate::{prelude::*, request_client::REQUEST_CLIENT};
+use crate::{
+    prelude::*,
+    request_client::{REQUEST_CLIENT, STREAMING_CLIENT},
+};
 use async_compression::tokio::write::GzipEncoder;
 use base64::{Engine as _, engine::general_purpose};
 use console::style;
 use reqwest::StatusCode;
-use tokio::io::AsyncWriteExt;
+use std::path::PathBuf;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_tar::Builder;
 
 use super::interfaces::{UploadData, UploadMetadata};
 
-/// Create a tar.gz archive buffer of the profile folder and return its md5 hash encoded in base64
-async fn get_profile_archive_buffer(run_data: &RunData) -> Result<(Vec<u8>, String)> {
-    let enc = GzipEncoder::new(Vec::new());
-    let mut tar = Builder::new(enc);
-    tar.append_dir_all(".", run_data.profile_folder.clone())
-        .await?;
-    let mut gzip_encoder = tar.into_inner().await?;
-    gzip_encoder.shutdown().await?;
+#[derive(Debug)]
+enum ProfileArchive {
+    CompressedInMemory(Vec<u8>),
+    UncompressedOnDisk(PathBuf),
+}
 
-    let archive_buffer = gzip_encoder.into_inner();
-    let archive_digest = md5::compute(archive_buffer.as_slice());
+impl ProfileArchive {
+    async fn size(&self) -> Result<u64> {
+        match self {
+            ProfileArchive::CompressedInMemory(data) => Ok(data.len() as u64),
+            ProfileArchive::UncompressedOnDisk(path) => {
+                let metadata = tokio::fs::metadata(path).await?;
+                Ok(metadata.len())
+            }
+        }
+    }
+}
+
+impl Drop for ProfileArchive {
+    fn drop(&mut self) {
+        if let ProfileArchive::UncompressedOnDisk(path) = self {
+            if path.exists() {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+}
+
+/// Create a profile archive from the profile folder and return its md5 hash encoded in base64
+///
+/// For Valgrind, we create a gzip-compressed tar archive of the entire profile folder.
+/// For WallTime, we create an uncompressed tar archive of the entire profile folder.
+async fn create_profile_archive(
+    run_data: &RunData,
+    executor_name: ExecutorName,
+) -> Result<(ProfileArchive, String)> {
+    let time_start = std::time::Instant::now();
+    let profile_archive = match executor_name {
+        ExecutorName::Valgrind => {
+            debug!("Creating compressed tar archive for Valgrind");
+            let enc = GzipEncoder::new(Vec::new());
+            let mut tar = Builder::new(enc);
+            tar.append_dir_all(".", run_data.profile_folder.clone())
+                .await?;
+            let mut gzip_encoder = tar.into_inner().await?;
+            gzip_encoder.shutdown().await?;
+            ProfileArchive::CompressedInMemory(gzip_encoder.into_inner())
+        }
+        ExecutorName::WallTime => {
+            debug!("Creating uncompressed tar archive for WallTime on disk");
+            let temp_file = tempfile::NamedTempFile::new()?;
+            let temp_path = temp_file.path().to_path_buf();
+
+            // Create a tokio File handle to the temporary file
+            let file = File::create(&temp_path).await?;
+            {
+                let mut tar = Builder::new(file);
+                tar.append_dir_all(".", run_data.profile_folder.clone())
+                    .await?;
+                tar.into_inner().await?.sync_all().await?;
+            }
+
+            // Persist the temporary file to prevent deletion when temp_file goes out of scope
+            let persistent_path = temp_file.into_temp_path().keep()?;
+            ProfileArchive::UncompressedOnDisk(persistent_path)
+        }
+    };
+
+    let (archive_digest, archive_size) = match &profile_archive {
+        ProfileArchive::CompressedInMemory(data) => {
+            let digest = md5::compute(data.as_slice());
+            (digest, data.len() as u64)
+        }
+        ProfileArchive::UncompressedOnDisk(path) => {
+            let mut file = File::open(path).await.context(format!(
+                "Failed to open uncompressed file at path: {}",
+                path.display()
+            ))?;
+            let mut hasher = md5::Context::new();
+            let mut buffer = [0; 8192];
+            let mut total_size = 0u64;
+
+            loop {
+                let bytes_read = file.read(&mut buffer).await?;
+                if bytes_read == 0 {
+                    break;
+                }
+                hasher.consume(&buffer[..bytes_read]);
+                total_size += bytes_read as u64;
+            }
+            (hasher.compute(), total_size)
+        }
+    };
+
     let archive_hash = general_purpose::STANDARD.encode(archive_digest.0);
+    debug!(
+        "Created archive ({} bytes) in {:.2?}",
+        archive_size,
+        time_start.elapsed()
+    );
 
-    Ok((archive_buffer, archive_hash))
+    Ok((profile_archive, archive_hash))
 }
 
 async fn retrieve_upload_data(
@@ -84,19 +177,43 @@ async fn retrieve_upload_data(
     }
 }
 
-async fn upload_archive_buffer(
+async fn upload_profile_archive(
     upload_data: &UploadData,
-    archive_buffer: Vec<u8>,
+    profile_archive: ProfileArchive,
     archive_hash: &String,
 ) -> Result<()> {
-    let response = REQUEST_CLIENT
-        .put(upload_data.upload_url.clone())
-        .header("Content-Type", "application/gzip")
-        .header("Content-Length", archive_buffer.len())
-        .header("Content-MD5", archive_hash)
-        .body(archive_buffer)
-        .send()
-        .await?;
+    let archive_size = profile_archive.size().await?;
+
+    let response = match &profile_archive {
+        ProfileArchive::CompressedInMemory(data) => {
+            // Use regular client with retry middleware for compressed data
+            let request = REQUEST_CLIENT
+                .put(upload_data.upload_url.clone())
+                .header("Content-Type", "application/x-tar")
+                .header("Content-Length", archive_size)
+                .header("Content-MD5", archive_hash)
+                .header("Content-Encoding", "gzip");
+
+            request.body(data.clone()).send().await?
+        }
+        ProfileArchive::UncompressedOnDisk(path) => {
+            // Use streaming client without retry middleware for file streams
+            let file = File::open(path)
+                .await
+                .context(format!("Failed to open file at path: {}", path.display()))?;
+            let stream = tokio_util::io::ReaderStream::new(file);
+            let body = reqwest::Body::wrap_stream(stream);
+
+            STREAMING_CLIENT
+                .put(upload_data.upload_url.clone())
+                .header("Content-Type", "application/x-tar")
+                .header("Content-Length", archive_size)
+                .header("Content-MD5", archive_hash)
+                .body(body)
+                .send()
+                .await?
+        }
+    };
 
     if !response.status().is_success() {
         let status = response.status();
@@ -124,7 +241,8 @@ pub async fn upload(
     run_data: &RunData,
     executor_name: ExecutorName,
 ) -> Result<UploadResult> {
-    let (archive_buffer, archive_hash) = get_profile_archive_buffer(run_data).await?;
+    let (profile_archive, archive_hash) =
+        create_profile_archive(run_data, executor_name.clone()).await?;
 
     debug!(
         "Run Environment provider detected: {:?}",
@@ -153,8 +271,8 @@ pub async fn upload(
     debug!("runId: {}", upload_data.run_id);
 
     info!("Uploading performance data...");
-    debug!("Uploading {} bytes...", archive_buffer.len());
-    upload_archive_buffer(&upload_data, archive_buffer, &archive_hash).await?;
+    debug!("Uploading {} bytes...", profile_archive.size().await?);
+    upload_profile_archive(&upload_data, profile_archive, &archive_hash).await?;
     info!("Performance data uploaded");
 
     Ok(UploadResult {

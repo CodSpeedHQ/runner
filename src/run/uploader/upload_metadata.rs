@@ -30,7 +30,7 @@ mod tests {
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
             repository_provider: RepositoryProvider::GitHub,
-            version: Some(6),
+            version: Some(7),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
             runner: Runner {

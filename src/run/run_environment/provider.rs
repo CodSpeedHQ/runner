@@ -74,7 +74,7 @@ pub trait RunEnvironmentProvider {
         let commit_hash = get_commit_hash(&run_environment_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(6),
+            version: Some(7),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             run_environment_metadata,

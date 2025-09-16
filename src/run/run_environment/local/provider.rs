@@ -153,7 +153,7 @@ impl RunEnvironmentProvider for LocalProvider {
         let run_environment_metadata = self.get_run_environment_metadata()?;
 
         Ok(UploadMetadata {
-            version: Some(6),
+            version: Some(7),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             commit_hash: run_environment_metadata.ref_.clone(),

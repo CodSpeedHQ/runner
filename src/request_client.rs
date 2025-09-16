@@ -16,4 +16,10 @@ lazy_static! {
         ExponentialBackoff::builder().build_with_max_retries(UPLOAD_RETRY_COUNT)
     ))
     .build();
+
+    // Client without retry middleware for streaming uploads (can't be cloned)
+    pub static ref STREAMING_CLIENT: reqwest::Client = ClientBuilder::new()
+        .user_agent("codspeed-runner")
+        .build()
+        .unwrap();
 }
