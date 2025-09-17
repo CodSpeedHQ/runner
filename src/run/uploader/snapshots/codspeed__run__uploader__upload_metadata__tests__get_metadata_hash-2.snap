@@ -4,9 +4,10 @@ expression: upload_metadata
 ---
 {
   "repositoryProvider": "GITHUB",
-  "version": 6,
+  "version": 7,
   "tokenless": true,
   "profileMd5": "jp/k05RKuqP3ERQuIIvx4Q==",
+  "profileEncoding": "gzip",
   "runner": {
     "name": "codspeed-runner",
     "version": "2.1.0",

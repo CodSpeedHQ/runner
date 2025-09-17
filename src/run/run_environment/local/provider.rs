@@ -8,7 +8,9 @@ use crate::run::config::RepositoryOverride;
 use crate::run::helpers::{GitRemote, parse_git_remote};
 use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::runner::ExecutorName;
-use crate::run::uploader::{ProfileArchive, Runner, UploadMetadata};
+use crate::run::uploader::{
+    LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
+};
 use crate::run::{
     config::Config,
     helpers::find_repository_root,
@@ -153,7 +155,7 @@ impl RunEnvironmentProvider for LocalProvider {
         let run_environment_metadata = self.get_run_environment_metadata()?;
 
         Ok(UploadMetadata {
-            version: Some(7),
+            version: Some(LATEST_UPLOAD_METADATA_VERSION),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             commit_hash: run_environment_metadata.ref_.clone(),

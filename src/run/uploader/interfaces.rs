@@ -7,6 +7,8 @@ use crate::run::{
     runner::ExecutorName,
 };
 
+pub const LATEST_UPLOAD_METADATA_VERSION: u32 = 7;
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMetadata {

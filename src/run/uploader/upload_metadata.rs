@@ -23,14 +23,14 @@ mod tests {
             Sender,
         },
         runner::ExecutorName,
-        uploader::{Runner, UploadMetadata},
+        uploader::{LATEST_UPLOAD_METADATA_VERSION, Runner, UploadMetadata},
     };
 
     #[test]
     fn test_get_metadata_hash() {
         let upload_metadata = UploadMetadata {
             repository_provider: RepositoryProvider::GitHub,
-            version: Some(7),
+            version: Some(LATEST_UPLOAD_METADATA_VERSION),
             tokenless: true,
             profile_md5: "jp/k05RKuqP3ERQuIIvx4Q==".into(),
             profile_encoding: Some("gzip".into()),

@@ -5,7 +5,9 @@ use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
 use crate::run::config::Config;
 use crate::run::runner::ExecutorName;
-use crate::run::uploader::{ProfileArchive, Runner, UploadMetadata};
+use crate::run::uploader::{
+    LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
+};
 
 use super::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart};
 
@@ -74,7 +76,7 @@ pub trait RunEnvironmentProvider {
         let commit_hash = get_commit_hash(&run_environment_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
-            version: Some(7),
+            version: Some(LATEST_UPLOAD_METADATA_VERSION),
             tokenless: config.token.is_none(),
             repository_provider: self.get_repository_provider(),
             run_environment_metadata,
