@@ -125,7 +125,7 @@ impl PerfRunner {
             "sh",
             "-c",
             &format!(
-                "perf record {quiet_flag} -k CLOCK_MONOTONIC --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
+                "perf record {quiet_flag} --timestamp -k CLOCK_MONOTONIC --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy(),
