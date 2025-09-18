@@ -121,11 +121,16 @@ impl PerfRunner {
             ""
         };
 
+        // Option:
+        // -k: We need to ensure the timestamps are consistent and monotonic. Otherwise we can't
+        //     match the perf.data to the benchmark.
+        // --user-callchains: We're only interested in callchains of the benchmarked program.
+        // --delay: Start perf without sampling events, this will be controlled via the FIFO.
         cmd.args([
             "sh",
             "-c",
             &format!(
-                "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
+                "perf record {quiet_flag} -k CLOCK_MONOTONIC --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy(),
                 perf_file.path().to_string_lossy(),
