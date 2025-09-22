@@ -105,11 +105,18 @@ impl JitDump {
 pub async fn harvest_perf_jit_for_pids(profile_folder: &Path, pids: &HashSet<i32>) -> Result<()> {
     for pid in pids {
         let name = format!("jit-{pid}.dump");
-        let path = PathBuf::from("/tmp").join(&name);
 
-        if !path.exists() {
+        // Check both /tmp and current working directory
+        let paths = [
+            PathBuf::from("/tmp").join(&name),
+            std::env::current_dir()?.join(&name),
+        ];
+
+        let Some(path) = paths.into_iter().find(|p| p.exists()) else {
+            // No jit dump file for this pid
             continue;
-        }
+        };
+
         debug!("Found JIT dump file: {path:?}");
 
         // Append the symbols to the existing perf map file
