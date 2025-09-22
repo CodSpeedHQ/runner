@@ -6,7 +6,7 @@ Ok(
     UnwindData {
         path: "testdata/perf_map/go_fib.bin",
         avma_range: 402000..50f000,
-        base_avma: 0,
+        base_avma: 400000,
         eh_frame_hdr_svma: 6498b0..649b94,
         eh_frame_hdr_hash: f1f69beb959a08d7,
         eh_frame_hash: a8727039dd21b51c,

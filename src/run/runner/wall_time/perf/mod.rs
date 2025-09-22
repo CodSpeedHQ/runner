@@ -29,6 +29,7 @@ mod setup;
 mod shared;
 pub use shared::*;
 
+pub mod elf_helper;
 pub mod fifo;
 pub mod helpers;
 pub mod perf_map;
@@ -278,7 +279,7 @@ impl PerfRunner {
                 path.to_string_lossy().as_bytes(),
                 page_offset,
                 base_addr,
-                end_addr - base_addr,
+                end_addr,
                 None,
             ) {
                 Ok(unwind_data) => {

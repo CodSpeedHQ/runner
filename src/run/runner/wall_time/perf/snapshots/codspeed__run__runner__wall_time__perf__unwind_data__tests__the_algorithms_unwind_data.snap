@@ -1,0 +1,15 @@
+---
+source: src/run/runner/wall_time/perf/unwind_data.rs
+expression: "UnwindData::new(MODULE_PATH.as_bytes(), 0x52efc, start_addr, size, None)"
+---
+Ok(
+    UnwindData {
+        path: "testdata/perf_map/the_algorithms.bin",
+        avma_range: 5573e59fe000..5573e5b07000,
+        base_avma: 5573e59aa104,
+        eh_frame_hdr_svma: 2f0ec..33590,
+        eh_frame_hdr_hash: 277fbdb59e6decaa,
+        eh_frame_hash: 21d8b0c8da0d1029,
+        eh_frame_svma: 128a8..2f0ec,
+    },
+)

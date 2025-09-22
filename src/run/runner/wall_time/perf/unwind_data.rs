@@ -1,11 +1,13 @@
 //! WARNING: This file has to be in sync with perf-parser!
 
+use crate::run::runner::wall_time::perf::elf_helper;
 use anyhow::{Context, bail};
 use core::{
     fmt::Debug,
     hash::{Hash, Hasher},
 };
 use debugid::CodeId;
+use object::{Object, ObjectSection};
 use serde::{Deserialize, Serialize};
 use std::{hash::DefaultHasher, ops::Range};
 
@@ -56,14 +58,12 @@ impl UnwindData {
     // Based on this: https://github.com/mstange/linux-perf-stuff/blob/22ca6531b90c10dd2a4519351c843b8d7958a451/src/main.rs#L747-L893
     pub fn new(
         path_slice: &[u8],
-        mapping_start_file_offset: u64,
-        mapping_start_avma: u64,
-        mapping_size: u64,
+        runtime_file_offset: u64,
+        runtime_start_addr: u64,
+        runtime_end_addr: u64,
         build_id: Option<&[u8]>,
     ) -> anyhow::Result<Self> {
-        use object::{Object, ObjectSection, ObjectSegment};
-
-        let avma_range = mapping_start_avma..(mapping_start_avma + mapping_size);
+        let avma_range = runtime_start_addr..runtime_end_addr;
 
         let path = String::from_utf8_lossy(path_slice).to_string();
         let Some(file) = std::fs::File::open(&path).ok() else {
@@ -98,23 +98,12 @@ impl UnwindData {
             }
         };
 
-        let mapping_end_file_offset = mapping_start_file_offset + mapping_size;
-        let mapped_segment = file
-            .segments()
-            .find(|segment| {
-                let (segment_start_file_offset, segment_size) = segment.file_range();
-                let segment_end_file_offset = segment_start_file_offset + segment_size;
-                mapping_start_file_offset <= segment_start_file_offset
-                    && segment_end_file_offset <= mapping_end_file_offset
-            })
-            .context("Failed to find segment")?;
-
-        let (segment_start_file_offset, _segment_size) = mapped_segment.file_range();
-        let segment_start_svma = mapped_segment.address();
-        let segment_start_avma =
-            mapping_start_avma + (segment_start_file_offset - mapping_start_file_offset);
-
-        let base_avma = segment_start_avma - segment_start_svma;
+        let base_avma = elf_helper::compute_base_avma(
+            runtime_start_addr,
+            runtime_end_addr,
+            runtime_file_offset,
+            &file,
+        )?;
         let eh_frame = file.section_by_name(".eh_frame");
         let eh_frame_hdr = file.section_by_name(".eh_frame_hdr");
 
@@ -197,14 +186,13 @@ mod tests {
     fn test_golang_unwind_data() {
         const MODULE_PATH: &str = "testdata/perf_map/go_fib.bin";
 
-        let (start_addr, end_addr) = (0x0000000000402000_u64, 0x000000000050f000_u64);
-        let size: u64 = end_addr - start_addr;
-
+        let (start_addr, end_addr, file_offset) =
+            (0x0000000000402000_u64, 0x000000000050f000_u64, 0x2000);
         insta::assert_debug_snapshot!(UnwindData::new(
             MODULE_PATH.as_bytes(),
-            0x2000,
+            file_offset,
             start_addr,
-            size,
+            end_addr,
             None
         ));
     }
@@ -213,14 +201,13 @@ mod tests {
     fn test_cpp_unwind_data() {
         const MODULE_PATH: &str = "testdata/perf_map/cpp_my_benchmark.bin";
 
-        let (start_addr, end_addr) = (0x0000000000400000_u64, 0x0000000000459000_u64);
-        let size: u64 = end_addr - start_addr;
-
+        let (start_addr, end_addr, file_offset) =
+            (0x0000000000400000_u64, 0x0000000000459000_u64, 0x0);
         insta::assert_debug_snapshot!(UnwindData::new(
             MODULE_PATH.as_bytes(),
-            0x0,
+            file_offset,
             start_addr,
-            size,
+            end_addr,
             None
         ));
     }
@@ -229,14 +216,27 @@ mod tests {
     fn test_rust_divan_unwind_data() {
         const MODULE_PATH: &str = "testdata/perf_map/divan_sleep_benches.bin";
 
-        let (start_addr, end_addr) = (0x00005555555a2000_u64, 0x0000555555692000_u64);
-        let size: u64 = end_addr - start_addr;
-
+        let (start_addr, end_addr, file_offset) =
+            (0x00005555555a2000_u64, 0x0000555555692000_u64, 0x4d000);
         insta::assert_debug_snapshot!(UnwindData::new(
             MODULE_PATH.as_bytes(),
-            0x4d000,
+            file_offset,
             start_addr,
-            size,
+            end_addr,
+            None
+        ));
+    }
+
+    #[test]
+    fn test_the_algorithms_unwind_data() {
+        const MODULE_PATH: &str = "testdata/perf_map/the_algorithms.bin";
+
+        let (start_addr, end_addr, file_offset) = (0x00005573e59fe000, 0x00005573e5b07000, 0x52efc);
+        insta::assert_debug_snapshot!(UnwindData::new(
+            MODULE_PATH.as_bytes(),
+            file_offset,
+            start_addr,
+            end_addr,
             None
         ));
     }

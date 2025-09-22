@@ -1,5 +1,5 @@
-use crate::prelude::*;
-use object::{Object, ObjectSegment, ObjectSymbol, ObjectSymbolTable};
+use crate::{prelude::*, run::runner::wall_time::perf::elf_helper};
+use object::{Object, ObjectSymbol, ObjectSymbolTable};
 use std::{
     collections::HashMap,
     fmt::Debug,
@@ -37,6 +37,7 @@ impl ModuleSymbols {
     pub fn new<P: AsRef<Path>>(
         path: P,
         runtime_start_addr: u64,
+        runtime_end_addr: u64,
         runtime_offset: u64,
     ) -> anyhow::Result<Self> {
         let content = std::fs::read(path.as_ref())?;
@@ -69,88 +70,23 @@ impl ModuleSymbols {
             return Err(anyhow::anyhow!("No symbols found"));
         }
 
-        let load_bias = Self::compute_load_bias(runtime_start_addr, runtime_offset, &object)?;
+        let base_avma = elf_helper::compute_base_avma(
+            runtime_start_addr,
+            runtime_end_addr,
+            runtime_offset,
+            &object,
+        )?;
         for symbol in &mut symbols {
-            symbol.addr = symbol.addr.wrapping_add(load_bias);
+            // Only add the offset if the symbol address is not already an absolute address.
+            // This is the case for some Go and CPP binaries.
+            if symbol.addr >= base_avma {
+                continue;
+            }
+
+            symbol.addr = symbol.addr.wrapping_add(base_avma);
         }
 
         Ok(Self { symbols })
-    }
-
-    fn compute_load_bias(
-        runtime_start_addr: u64,
-        runtime_offset: u64,
-        object: &object::File,
-    ) -> anyhow::Result<u64> {
-        // The addresses of symbols read from an ELF file on disk are not their final runtime addresses.
-        // This is due to Address Space Layout Randomization (ASLR) and the way the OS loader maps
-        // file segments into virtual memory.
-        //
-        // Step 1: Find the corresponding ELF segment.
-        // We must find the `PT_LOAD` segment that corresponds to the executable memory region we found
-        // in /proc/<pid>/maps. We do this by comparing the `runtime_offset` against the offset in the file.
-        //
-        // For example, if we have the following `/proc/<pid>/maps` output:
-        // ```
-        // 00400000-00402000 r--p 00000000 fe:01 114429641            /runner/testdata/perf_map/go_fib.bin
-        // 00402000-0050f000 r-xp 00002000 fe:01 114429641            /runner/testdata/perf_map/go_fib.bin      <-- we find this
-        // 0050f000-0064b000 r--p 0010f000 fe:01 114429641            /runner/testdata/perf_map/go_fib.bin
-        // 0064b000-0064c000 r--p 0024a000 fe:01 114429641            /runner/testdata/perf_map/go_fib.bin
-        // 0064c000-0065e000 rw-p 0024b000 fe:01 114429641            /runner/testdata/perf_map/go_fib.bin
-        // 0065e000-00684000 rw-p 00000000 00:00 0
-        // ```
-        //
-        // We'll match the PT_LOAD segment with the same offset (0x2000):
-        // ```
-        // $ readelf -l testdata/perf_map/go_fib.bin
-        // Elf file type is EXEC (Executable file)
-        // Entry point 0x402490
-        // There are 15 program headers, starting at offset 64
-        //
-        // Program Headers:
-        //   Type           Offset             VirtAddr           PhysAddr
-        //   PHDR           0x0000000000000040 0x0000000000400040 0x0000000000400040
-        //                  0x0000000000000348 0x0000000000000348  R      0x8
-        //   INTERP         0x0000000000000430 0x0000000000400430 0x0000000000400430
-        //                  0x0000000000000053 0x0000000000000053  R      0x1
-        //   LOAD           0x0000000000000000 0x0000000000400000 0x0000000000400000
-        //                  0x0000000000001640 0x0000000000001640  R      0x1000
-        //   LOAD           0x0000000000002000 0x0000000000402000 0x0000000000402000        <-- we'll match this
-        //                  0x000000000010ceb1 0x000000000010ceb1  R E    0x1000
-        // ```
-        let load_segment = object
-            .segments()
-            .find(|segment| {
-                // When the kernel loads an ELF file, it maps entire pages (usually 4KB aligned),
-                // not just the exact segment boundaries. Here's what happens:
-                //
-                // **ELF File Structure**:
-                // - LOAD segment 1: file offset 0x0      - 0x4d26a  (data/code)
-                // - LOAD segment 2: file offset 0x4d26c  - 0x13c4b6 (executable code)
-                //
-                // **Kernel Memory Mapping**: The kernel rounds down to page boundaries when mapping:
-                // - Maps pages starting at offset 0x0     (covers segment 1)
-                // - Maps pages starting at offset 0x4d000 (page-aligned, covers segment 2)
-                //
-                // (the example values are based on the `test_rust_divan_symbols` test)
-                let (file_offset, file_size) = segment.file_range();
-                runtime_offset >= file_offset && runtime_offset < file_offset + file_size
-            })
-            .context("Failed to find a matching PT_LOAD segment")?;
-
-        // Step 2: Calculate the "load bias".
-        // The bias is the difference between where the segment *actually* is in memory versus where the
-        // ELF file *preferred* it to be.
-        //
-        //   load_bias = runtime_start_addr - segment_preferred_vaddr
-        //
-        //  - `runtime_start_addr`: The actual base address of this segment in memory (from `/proc/maps`).
-        //  - `load_segment.address()`: The preferred virtual address (`p_vaddr`) from the ELF file itself.
-        //
-        // This single calculation correctly handles both PIE/shared-objects and non-PIE executables:
-        //  - For PIE/.so files:   `0x7f... (random) - 0x... (small) = <large_bias>`
-        //  - For non-PIE files: `0x402000 (fixed) - 0x402000 (fixed) = 0`
-        Ok(runtime_start_addr.wrapping_sub(load_segment.address()))
     }
 
     pub fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
@@ -198,7 +134,7 @@ impl ProcessSymbols {
 
         debug!("Loading module symbols at {start_addr:x}-{end_addr:x} (offset: {file_offset:x})");
         let path = module_path.as_ref().to_path_buf();
-        match ModuleSymbols::new(module_path, start_addr, file_offset) {
+        match ModuleSymbols::new(module_path, start_addr, end_addr, file_offset) {
             Ok(symbol) => {
                 self.modules.entry(path.clone()).or_insert(symbol);
             }
@@ -246,15 +182,29 @@ mod tests {
 
     #[test]
     fn test_golang_symbols() {
-        let module_symbols =
-            ModuleSymbols::new("testdata/perf_map/go_fib.bin", 0x00402000, 0x00002000).unwrap();
+        let (start_addr, end_addr, file_offset) =
+            (0x0000000000402000_u64, 0x000000000050f000_u64, 0x2000);
+        let module_symbols = ModuleSymbols::new(
+            "testdata/perf_map/go_fib.bin",
+            start_addr,
+            end_addr,
+            file_offset,
+        )
+        .unwrap();
         insta::assert_debug_snapshot!(module_symbols.symbols);
     }
 
     #[test]
     fn test_cpp_symbols() {
-        const MODULE_PATH: &str = "testdata/perf_map/cpp_my_benchmark.bin";
-        let module_symbols = ModuleSymbols::new(MODULE_PATH, 0x00400000, 0x00000000).unwrap();
+        let (start_addr, end_addr, file_offset) =
+            (0x0000000000400000_u64, 0x0000000000459000_u64, 0x0);
+        let module_symbols = ModuleSymbols::new(
+            "testdata/perf_map/cpp_my_benchmark.bin",
+            start_addr,
+            end_addr,
+            file_offset,
+        )
+        .unwrap();
         insta::assert_debug_snapshot!(module_symbols.symbols);
     }
 
@@ -274,7 +224,23 @@ mod tests {
         // 0x0000555555692000 0x000055555569d000 0xb000             0x13c000           r--p
         // 0x000055555569d000 0x000055555569f000 0x2000             0x146000           rw-p
         //
-        let module_symbols = ModuleSymbols::new(MODULE_PATH, 0x00005555555a2000, 0x4d000).unwrap();
+        let module_symbols =
+            ModuleSymbols::new(MODULE_PATH, 0x00005555555a2000, 0x0000555555692000, 0x4d000)
+                .unwrap();
+        insta::assert_debug_snapshot!(module_symbols.symbols);
+    }
+
+    #[test]
+    fn test_the_algorithms_symbols() {
+        const MODULE_PATH: &str = "testdata/perf_map/the_algorithms.bin";
+
+        let module_symbols = ModuleSymbols::new(
+            MODULE_PATH,
+            0x00005573e59fe000,
+            0x00005573e5b07000,
+            0x00052000,
+        )
+        .unwrap();
         insta::assert_debug_snapshot!(module_symbols.symbols);
     }
 }

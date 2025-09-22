@@ -1,3 +1,4 @@
 testdata/perf_map/cpp_my_benchmark.bin filter=lfs diff=lfs merge=lfs -text
 testdata/perf_map/go_fib.bin filter=lfs diff=lfs merge=lfs -text
 testdata/perf_map/divan_sleep_benches.bin filter=lfs diff=lfs merge=lfs -text
+testdata/perf_map/the_algorithms.bin filter=lfs diff=lfs merge=lfs -text
