@@ -1,4 +1,5 @@
-use super::{FifoCommand, RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
+use super::FifoCommand;
+use runner_shared::fifo::{RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::unix::pipe::OpenOptions as TokioPipeOpenOptions;

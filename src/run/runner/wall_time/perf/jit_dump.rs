@@ -2,10 +2,11 @@ use crate::{
     prelude::*,
     run::runner::wall_time::perf::{
         perf_map::{ModuleSymbols, Symbol},
-        unwind_data::UnwindData,
+        unwind_data::UnwindDataExt,
     },
 };
 use linux_perf_data::jitdump::{JitDumpReader, JitDumpRecord};
+use runner_shared::unwind_data::UnwindData;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
