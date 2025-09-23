@@ -170,7 +170,7 @@ impl CodSpeedAPIClient {
             .await;
         match response {
             Ok(response) => Ok(response.create_login_session),
-            Err(err) => bail!("Failed to create login session: {}", err),
+            Err(err) => bail!("Failed to create login session: {err}"),
         }
     }
 
@@ -189,7 +189,7 @@ impl CodSpeedAPIClient {
             .await;
         match response {
             Ok(response) => Ok(response.consume_login_session),
-            Err(err) => bail!("Failed to use login session: {}", err),
+            Err(err) => bail!("Failed to use login session: {err}"),
         }
     }
 
@@ -212,7 +212,7 @@ impl CodSpeedAPIClient {
             Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
                 bail!("Your session has expired, please login again using `codspeed auth login`")
             }
-            Err(err) => bail!("Failed to fetch local run report: {}", err),
+            Err(err) => bail!("Failed to fetch local run report: {err}"),
         }
     }
 }

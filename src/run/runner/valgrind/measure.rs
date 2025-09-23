@@ -93,10 +93,10 @@ pub async fn measure(
         format!(
             "{}:{}:{}",
             introspected_nodejs::setup()
-                .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
+                .map_err(|e| anyhow!("failed to setup NodeJS introspection. {e}"))?
                 .to_string_lossy(),
             introspected_golang::setup()
-                .map_err(|e| anyhow!("failed to setup Go introspection. {}", e))?
+                .map_err(|e| anyhow!("failed to setup Go introspection. {e}"))?
                 .to_string_lossy(),
             env::var("PATH").unwrap_or_default(),
         ),
@@ -136,7 +136,7 @@ pub async fn measure(
     debug!("cmd: {cmd:?}");
     let status = run_command_with_log_pipe(cmd)
         .await
-        .map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
+        .map_err(|e| anyhow!("failed to execute the benchmark process. {e}"))?;
     debug!(
         "Valgrind exit code = {:?}, Valgrind signal = {:?}",
         status.code(),
@@ -157,14 +157,11 @@ pub async fn measure(
         let content = std::fs::read_to_string(&cmd_status_path)?;
         content
             .parse::<u32>()
-            .map_err(|e| anyhow!("unable to retrieve the program exit code. {}", e))?
+            .map_err(|e| anyhow!("unable to retrieve the program exit code. {e}"))?
     };
     debug!("Program exit code = {cmd_status}");
     if cmd_status != 0 {
-        bail!(
-            "failed to execute the benchmark process, exit code: {}",
-            cmd_status
-        );
+        bail!("failed to execute the benchmark process, exit code: {cmd_status}");
     }
 
     Ok(())

@@ -191,10 +191,7 @@ fn extract_provider_owner_and_repository_from_remote_url(
     let repository_provider = match domain.as_str() {
         "github.com" => RepositoryProvider::GitHub,
         "gitlab.com" => RepositoryProvider::GitLab,
-        domain => bail!(
-            "Repository provider {} is not supported by CodSpeed",
-            domain
-        ),
+        domain => bail!("Repository provider {domain} is not supported by CodSpeed"),
     };
 
     Ok((

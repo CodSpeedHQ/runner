@@ -3,7 +3,7 @@ use anyhow::anyhow;
 use std::env;
 
 pub fn get_env_variable(name: &str) -> Result<String> {
-    env::var(name).map_err(|_| anyhow!("{} environment variable not found", name))
+    env::var(name).map_err(|_| anyhow!("{name} environment variable not found"))
 }
 
 #[cfg(test)]

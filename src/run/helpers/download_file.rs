@@ -9,7 +9,7 @@ pub async fn download_file(url: &Url, path: &Path) -> Result<()> {
         .get(url.clone())
         .send()
         .await
-        .map_err(|e| anyhow!("Failed to download file: {}", e))?;
+        .map_err(|e| anyhow!("Failed to download file: {e}"))?;
     if !response.status().is_success() {
         bail!("Failed to download file: {}", response.status());
     }
@@ -18,13 +18,8 @@ pub async fn download_file(url: &Url, path: &Path) -> Result<()> {
     let content = response
         .bytes()
         .await
-        .map_err(|e| anyhow!("Failed to read response: {}", e))?;
-    std::io::copy(&mut content.as_ref(), &mut file).map_err(|e| {
-        anyhow!(
-            "Failed to write to file: {}, {}",
-            path.display(),
-            e.to_string()
-        )
-    })?;
+        .map_err(|e| anyhow!("Failed to read response: {e}"))?;
+    std::io::copy(&mut content.as_ref(), &mut file)
+        .map_err(|e| anyhow!("Failed to write to file: {}, {}", path.display(), e))?;
     Ok(())
 }

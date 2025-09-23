@@ -70,7 +70,7 @@ impl TryFrom<RunArgs> for Config {
         let instruments = Instruments::try_from(&args)?;
         let raw_upload_url = args.upload_url.unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
         let upload_url = Url::parse(&raw_upload_url)
-            .map_err(|e| anyhow!("Invalid upload URL: {}, {}", raw_upload_url, e))?;
+            .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
 
         Ok(Self {
             upload_url,

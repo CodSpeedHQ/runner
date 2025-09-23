@@ -113,10 +113,10 @@ impl WallTimeExecutor {
         let path_env = format!(
             "export PATH={}:{}:{}",
             introspected_nodejs::setup()
-                .map_err(|e| anyhow!("failed to setup NodeJS introspection. {}", e))?
+                .map_err(|e| anyhow!("failed to setup NodeJS introspection. {e}"))?
                 .to_string_lossy(),
             introspected_golang::setup()
-                .map_err(|e| anyhow!("failed to setup Go introspection. {}", e))?
+                .map_err(|e| anyhow!("failed to setup Go introspection. {e}"))?
                 .to_string_lossy(),
             path_env
         );
@@ -200,12 +200,11 @@ impl Executor for WallTimeExecutor {
             }
         };
 
-        let status =
-            status.map_err(|e| anyhow!("failed to execute the benchmark process. {}", e))?;
+        let status = status.map_err(|e| anyhow!("failed to execute the benchmark process. {e}"))?;
         debug!("cmd exit status: {:?}", status);
 
         if !status.success() {
-            bail!("failed to execute the benchmark process: {}", status);
+            bail!("failed to execute the benchmark process: {status}");
         }
 
         Ok(())

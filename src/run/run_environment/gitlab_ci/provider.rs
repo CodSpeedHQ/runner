@@ -101,7 +101,7 @@ impl TryFrom<&Config> for GitLabCIProvider {
                 None,
             ),
 
-            _ => bail!("Event {} is not supported by CodSpeed", ci_pipeline_source),
+            _ => bail!("Event {ci_pipeline_source} is not supported by CodSpeed"),
         };
 
         let run_id = get_env_variable("CI_JOB_ID")?;

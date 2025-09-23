@@ -17,10 +17,7 @@ pub struct GitRemote {
 
 pub fn parse_git_remote(remote: &str) -> Result<GitRemote> {
     let captures = REMOTE_REGEX.captures(remote).ok_or_else(|| {
-        anyhow!(
-            "Could not extract owner and repository from remote url: {}",
-            remote
-        )
+        anyhow!("Could not extract owner and repository from remote url: {remote}")
     })?;
 
     let domain = captures.name("domain").unwrap().as_str();

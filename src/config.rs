@@ -56,7 +56,7 @@ impl CodSpeedConfig {
                 debug!("Config file not found at {}", config_path.display());
                 CodSpeedConfig::default()
             }
-            Err(e) => bail!("Failed to load config: {}", e),
+            Err(e) => bail!("Failed to load config: {e}"),
         };
 
         if let Some(oauth_token) = oauth_token_override {

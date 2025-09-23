@@ -47,7 +47,7 @@ impl TryFrom<&RunArgs> for Instruments {
         for instrument_name in &args.instruments {
             match instrument_name.as_str() {
                 "mongodb" => validated_instrument_names.insert(InstrumentName::MongoDB),
-                _ => bail!("Invalid instrument name: {}", instrument_name),
+                _ => bail!("Invalid instrument name: {instrument_name}"),
             };
         }
 
