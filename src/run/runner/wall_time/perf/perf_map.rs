@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use libc::pid_t;
 use object::{Object, ObjectSegment, ObjectSymbol, ObjectSymbolTable};
 use std::{
     collections::HashMap,
@@ -169,13 +170,13 @@ impl ModuleSymbols {
 
 /// Represents all the modules inside a process and their symbols.
 pub struct ProcessSymbols {
-    pid: u32,
+    pid: pid_t,
     module_mappings: HashMap<PathBuf, Vec<(u64, u64)>>,
     modules: HashMap<PathBuf, ModuleSymbols>,
 }
 
 impl ProcessSymbols {
-    pub fn new(pid: u32) -> Self {
+    pub fn new(pid: pid_t) -> Self {
         Self {
             pid,
             module_mappings: HashMap::new(),
@@ -185,7 +186,7 @@ impl ProcessSymbols {
 
     pub fn add_mapping<P: AsRef<Path>>(
         &mut self,
-        pid: u32,
+        pid: pid_t,
         module_path: P,
         start_addr: u64,
         end_addr: u64,

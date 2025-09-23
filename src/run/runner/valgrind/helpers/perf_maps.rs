@@ -21,7 +21,10 @@ pub async fn harvest_perf_maps(profile_folder: &Path) -> Result<()> {
     harvest_perf_maps_for_pids(profile_folder, &pids).await
 }
 
-pub async fn harvest_perf_maps_for_pids(profile_folder: &Path, pids: &HashSet<i32>) -> Result<()> {
+pub async fn harvest_perf_maps_for_pids(
+    profile_folder: &Path,
+    pids: &HashSet<libc::pid_t>,
+) -> Result<()> {
     let perf_maps = pids
         .iter()
         .map(|pid| format!("perf-{pid}.map"))

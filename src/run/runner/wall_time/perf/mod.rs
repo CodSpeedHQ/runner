@@ -9,35 +9,34 @@ use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
 use crate::run::runner::wall_time::perf::jit_dump::harvest_perf_jit_for_pids;
+use crate::run::runner::wall_time::perf::unwind_data::UnwindDataExt;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
-use futures::stream::FuturesUnordered;
-use metadata::PerfMetadata;
+use libc::pid_t;
+use nix::sys::time::TimeValLike;
+use nix::time::clock_gettime;
 use perf_map::ProcessSymbols;
-use shared::Command as FifoCommand;
+use runner_shared::fifo::Command as FifoCommand;
+use runner_shared::fifo::MarkerType;
+use runner_shared::metadata::PerfMetadata;
+use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
-use tempfile::TempDir;
-use unwind_data::UnwindData;
 
 mod jit_dump;
-mod metadata;
 mod setup;
-mod shared;
-pub use shared::*;
 
 pub mod fifo;
-pub mod helpers;
 pub mod perf_map;
 pub mod unwind_data;
 
-const PERF_DATA_PREFIX: &str = "perf.data.";
+const PERF_METADATA_CURRENT_VERSION: u64 = 1;
+const PERF_DATA_PATH: &str = "/tmp/perf.data";
 
 pub struct PerfRunner {
-    perf_dir: TempDir,
     benchmark_data: OnceCell<BenchmarkData>,
 }
 
@@ -72,7 +71,6 @@ impl PerfRunner {
 
     pub fn new() -> Self {
         Self {
-            perf_dir: tempfile::tempdir().expect("Failed to create temporary directory"),
             benchmark_data: OnceCell::new(),
         }
     }
@@ -85,13 +83,6 @@ impl PerfRunner {
     ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
-
-        // We have to pass a file to perf, which will create `perf.data.<timestamp>` files
-        // when the output is split.
-        let perf_file = tempfile::Builder::new()
-            .keep(true)
-            .prefix(PERF_DATA_PREFIX)
-            .tempfile_in(&self.perf_dir)?;
 
         // Infer the unwinding mode from the benchmark cmd
         let (cg_mode, stack_size) = if let Some(mode) = config.perf_unwinding_mode {
@@ -115,22 +106,36 @@ impl PerfRunner {
         };
         debug!("Using call graph mode: {cg_mode:?}");
 
-        let quiet_flag = if is_codspeed_debug_enabled() {
+        let quiet_flag = if !is_codspeed_debug_enabled() {
             "--quiet"
         } else {
             ""
         };
 
-        cmd.args([
-            "sh",
-            "-c",
+        let perf_args = [
+            "perf",
+            "record",
+            quiet_flag,
+            "--timestamp",
+            // Required for matching the markers and URIs to the samples.
+            "-k",
+            "CLOCK_MONOTONIC",
+            "--freq=999",
+            "--delay=-1",
+            "-g",
+            "--user-callchains",
+            &format!("--call-graph={cg_mode}"),
             &format!(
-                "perf record {quiet_flag} --user-callchains --freq=999 --switch-output --control=fifo:{},{} --delay=-1 -g --call-graph={cg_mode} --output={} -- {bench_cmd}",
+                "--control=fifo:{},{}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
-                perf_fifo.ack_fifo_path.to_string_lossy(),
-                perf_file.path().to_string_lossy(),
+                perf_fifo.ack_fifo_path.to_string_lossy()
             ),
-        ]);
+            &format!("--output={PERF_DATA_PATH}"),
+            "--",
+            bench_cmd,
+        ];
+
+        cmd.args(["sh", "-c", &perf_args.join(" ")]);
         debug!("cmd: {cmd:?}");
 
         let on_process_started = async |_| -> anyhow::Result<()> {
@@ -145,7 +150,7 @@ impl PerfRunner {
     pub async fn save_files_to(&self, profile_folder: &PathBuf) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
 
-        // We ran perf with sudo, so we have to change the ownership of the perf data files
+        // We ran perf with sudo, so we have to change the ownership of the perf.data
         run_with_sudo(&[
             "chown",
             "-R",
@@ -154,63 +159,24 @@ impl PerfRunner {
                 nix::unistd::Uid::current(),
                 nix::unistd::Gid::current()
             ),
-            self.perf_dir.path().to_str().unwrap(),
+            PERF_DATA_PATH,
         ])?;
 
-        // Copy the perf data files to the profile folder
-        let copy_tasks = std::fs::read_dir(&self.perf_dir)?
-            .filter_map(|entry| entry.ok())
-            .map(|entry| entry.path().to_path_buf())
-            .filter(|path| {
-                path.file_name()
-                    .map(|name| name.to_string_lossy().starts_with(PERF_DATA_PREFIX))
-                    .unwrap_or(false)
-            })
-            .sorted_by_key(|path| path.file_name().unwrap().to_string_lossy().to_string())
-            // The first perf.data will only contain metadata that is not relevant to the benchmarks. We
-            // capture the symbols and unwind data separately.
-            .skip(1)
-            .map(|src_path| {
-                let profile_folder = profile_folder.clone();
-                tokio::task::spawn(async move {
-                    let pid = helpers::find_pid(&src_path)?;
-
-                    let dst_file_name = format!(
-                        "{}_{}.perf",
-                        pid,
-                        src_path.file_name().unwrap_or_default().to_string_lossy(),
-                    );
-                    let dst_path = profile_folder.join(dst_file_name);
-                    tokio::fs::copy(src_path, dst_path).await?;
-
-                    Ok::<_, anyhow::Error>(pid)
-                })
-            })
-            .collect::<FuturesUnordered<_>>();
+        // Copy the perf data to the profile folder
+        let perf_data_dest = profile_folder.join("perf.data");
+        std::fs::copy(PERF_DATA_PATH, &perf_data_dest)
+            .with_context(|| format!("Failed to copy perf data to {perf_data_dest:?}",))?;
 
         let bench_data = self
             .benchmark_data
             .get()
             .expect("Benchmark order is not available");
-        assert_eq!(
-            copy_tasks.len(),
-            bench_data.bench_count(),
-            "Benchmark count mismatch"
-        );
 
         // Harvest the perf maps generated by python. This will copy the perf
         // maps from /tmp to the profile folder. We have to write our own perf
         // maps to these files AFTERWARDS, otherwise it'll be overwritten!
-        let bench_pids = futures::future::try_join_all(copy_tasks)
-            .await?
-            .into_iter()
-            .filter_map(|result| {
-                debug!("Copy task result: {result:?}");
-                result.ok()
-            })
-            .collect::<HashSet<_>>();
-        harvest_perf_maps_for_pids(profile_folder, &bench_pids).await?;
-        harvest_perf_jit_for_pids(profile_folder, &bench_pids).await?;
+        harvest_perf_maps_for_pids(profile_folder, &bench_data.bench_pids).await?;
+        harvest_perf_jit_for_pids(profile_folder, &bench_data.bench_pids).await?;
 
         // Append perf maps, unwind info and other metadata
         if let Err(BenchmarkDataSaveError::MissingIntegration) = bench_data.save_to(profile_folder)
@@ -228,9 +194,9 @@ impl PerfRunner {
 
     #[cfg(target_os = "linux")]
     fn process_memory_mappings(
-        pid: u32,
-        symbols_by_pid: &mut HashMap<u32, ProcessSymbols>,
-        unwind_data_by_pid: &mut HashMap<u32, Vec<UnwindData>>,
+        pid: pid_t,
+        symbols_by_pid: &mut HashMap<pid_t, ProcessSymbols>,
+        unwind_data_by_pid: &mut HashMap<pid_t, Vec<UnwindData>>,
     ) -> anyhow::Result<()> {
         use procfs::process::MMPermissions;
 
@@ -302,13 +268,21 @@ impl PerfRunner {
         mut runner_fifo: RunnerFifo,
         mut perf_fifo: PerfFifo,
     ) -> anyhow::Result<BenchmarkData> {
-        let mut bench_order_by_pid = HashMap::<u32, Vec<String>>::new();
-        let mut symbols_by_pid = HashMap::<u32, ProcessSymbols>::new();
-        let mut unwind_data_by_pid = HashMap::<u32, Vec<UnwindData>>::new();
+        let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
+        let mut bench_pids = HashSet::<pid_t>::new();
+        let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
+        let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
+        let mut markers = Vec::<MarkerType>::new();
+
         let mut integration = None;
         let mut perf_ping_timeout = 5;
 
-        let perf_pid = OnceCell::new();
+        let current_time = || {
+            clock_gettime(nix::time::ClockId::CLOCK_MONOTONIC)
+                .unwrap()
+                .num_nanoseconds() as u64
+        };
+
         loop {
             let perf_ping =
                 tokio::time::timeout(Duration::from_secs(perf_ping_timeout), perf_fifo.ping())
@@ -328,7 +302,8 @@ impl PerfRunner {
 
             match cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
-                    bench_order_by_pid.entry(pid).or_default().push(uri);
+                    bench_order_by_timestamp.push((current_time(), uri));
+                    bench_pids.insert(pid);
 
                     #[cfg(target_os = "linux")]
                     if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
@@ -343,26 +318,14 @@ impl PerfRunner {
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
-                    let perf_pid = perf_pid.get_or_init(|| {
-                        let output = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg("pidof -s perf")
-                            .output()
-                            .expect("Failed to run pidof command");
-
-                        String::from_utf8_lossy(&output.stdout)
-                            .trim()
-                            .parse::<u32>()
-                            .expect("Failed to parse perf pid")
-                    });
-
-                    // Split the perf.data file
-                    run_with_sudo(&["kill", "-USR2", &perf_pid.to_string()])?;
+                    markers.push(MarkerType::SampleStart(current_time()));
 
                     perf_fifo.start_events().await?;
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StopBenchmark => {
+                    markers.push(MarkerType::SampleEnd(current_time()));
+
                     perf_fifo.stop_events().await?;
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
@@ -377,16 +340,39 @@ impl PerfRunner {
                     integration = Some((name, version));
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
-                FifoCommand::Ack => unreachable!(),
-                FifoCommand::Err => unreachable!(),
+                FifoCommand::AddMarker { marker, .. } => {
+                    markers.push(marker);
+                    runner_fifo.send_cmd(FifoCommand::Ack).await?;
+                }
+                FifoCommand::SetVersion(protocol_version) => {
+                    if protocol_version < runner_shared::fifo::CURRENT_PROTOCOL_VERSION {
+                        panic!(
+                            "Integration is using an incompatible protocol version ({protocol_version} < {}). Please update the integration to the latest version.",
+                            runner_shared::fifo::CURRENT_PROTOCOL_VERSION
+                        )
+                    } else if protocol_version > runner_shared::fifo::CURRENT_PROTOCOL_VERSION {
+                        panic!(
+                            "Runner is using an incompatible protocol version ({} < {protocol_version}). Please update the runner to the latest version.",
+                            runner_shared::fifo::CURRENT_PROTOCOL_VERSION
+                        )
+                    };
+
+                    runner_fifo.send_cmd(FifoCommand::Ack).await?;
+                }
+                _ => {
+                    warn!("Received unexpected command: {cmd:?}");
+                    runner_fifo.send_cmd(FifoCommand::Err).await?;
+                }
             }
         }
 
         Ok(BenchmarkData {
             integration,
-            bench_order_by_pid,
+            uri_by_ts: bench_order_by_timestamp,
+            bench_pids,
             symbols_by_pid,
             unwind_data_by_pid,
+            markers,
         })
     }
 }
@@ -395,9 +381,11 @@ pub struct BenchmarkData {
     /// Name and version of the integration
     integration: Option<(String, String)>,
 
-    bench_order_by_pid: HashMap<u32, Vec<String>>,
-    symbols_by_pid: HashMap<u32, ProcessSymbols>,
-    unwind_data_by_pid: HashMap<u32, Vec<UnwindData>>,
+    uri_by_ts: Vec<(u64, String)>,
+    bench_pids: HashSet<pid_t>,
+    symbols_by_pid: HashMap<pid_t, ProcessSymbols>,
+    unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
+    markers: Vec<MarkerType>,
 }
 
 #[derive(Debug)]
@@ -421,11 +409,12 @@ impl BenchmarkData {
         }
 
         let metadata = PerfMetadata {
+            version: PERF_METADATA_CURRENT_VERSION,
             integration: self
                 .integration
                 .clone()
                 .ok_or(BenchmarkDataSaveError::MissingIntegration)?,
-            bench_order_by_pid: self.bench_order_by_pid.clone(),
+            uri_by_ts: self.uri_by_ts.clone(),
             ignored_modules: {
                 let mut to_ignore = vec![];
 
@@ -471,13 +460,10 @@ impl BenchmarkData {
 
                 to_ignore
             },
+            markers: self.markers.clone(),
         };
         metadata.save_to(&path).unwrap();
 
         Ok(())
-    }
-
-    pub fn bench_count(&self) -> usize {
-        self.bench_order_by_pid.values().map(|v| v.len()).sum()
     }
 }

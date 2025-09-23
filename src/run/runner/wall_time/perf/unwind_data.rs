@@ -2,7 +2,7 @@
 
 use anyhow::{Context, bail};
 use debugid::CodeId;
-use object::{Object, ObjectSection};
+use libc::pid_t;
 use runner_shared::unwind_data::UnwindData;
 use std::ops::Range;
 
@@ -17,7 +17,7 @@ pub trait UnwindDataExt {
     where
         Self: Sized;
 
-    fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: u32) -> anyhow::Result<()>;
+    fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: pid_t) -> anyhow::Result<()>;
     fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()>;
 }
 
@@ -109,7 +109,7 @@ impl UnwindDataExt for UnwindData {
         })
     }
 
-    fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: u32) -> anyhow::Result<()> {
+    fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: pid_t) -> anyhow::Result<()> {
         let unwind_data_path = folder.as_ref().join(format!(
             "{}_{:x}_{:x}.unwind",
             pid, self.avma_range.start, self.avma_range.end
