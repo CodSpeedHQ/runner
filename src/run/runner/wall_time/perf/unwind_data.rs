@@ -146,15 +146,29 @@ impl UnwindData {
     }
 
     fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        if let Ok(true) = std::fs::exists(path.as_ref()) {
-            log::warn!(
-                "{} already exists, file will be truncated",
-                path.as_ref().display()
-            );
-            log::warn!("{} {:x?}", self.path, self.avma_range);
+        let mut current_path = path.as_ref().to_path_buf();
+
+        // Keep adding "new." prefix until we find a path that doesn't exist
+        while std::fs::exists(&current_path)? {
+            let parent = current_path.parent().unwrap_or(std::path::Path::new("."));
+            let filename = current_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("file");
+
+            let new_filename = format!("{filename}.new");
+            current_path = parent.join(new_filename);
         }
 
-        let mut writer = std::fs::File::create(path.as_ref())?;
+        if current_path != path.as_ref() {
+            log::info!(
+                "Original file {} exists, writing to {} instead",
+                path.as_ref().display(),
+                current_path.display()
+            );
+        }
+
+        let mut writer = std::fs::File::create(&current_path)?;
         bincode::serialize_into(&mut writer, self)?;
         Ok(())
     }

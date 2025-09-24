@@ -7,6 +7,7 @@ use crate::{
 };
 use linux_perf_data::jitdump::{JitDumpReader, JitDumpRecord};
 use std::{
+    // collections::HashMap,
     collections::HashSet,
     path::{Path, PathBuf},
 };
@@ -60,6 +61,7 @@ impl JitDump {
         while let Some(raw_record) = reader.next_record()? {
             // The first recording is always the unwind info, followed by the code load event
             // (see `perf_map_jit_write_entry` in https://github.com/python/cpython/blob/9743d069bd53e9d3a8f09df899ec1c906a79da24/Python/perf_jit_trampoline.c#L1163C13-L1163C37)
+            let timestamp = raw_record.timestamp;
             match raw_record.parse()? {
                 JitDumpRecord::CodeLoad(record) => {
                     let name = record.function_name.as_slice();
@@ -73,6 +75,10 @@ impl JitDump {
                         warn!("No unwind info available for JIT code load: {name}");
                         continue;
                     };
+
+                    debug!(
+                        "[{timestamp}] JIT dump code load: {avma_start:x} -> {avma_end:x} {name}"
+                    );
 
                     jit_unwind_data.push(UnwindData {
                         path: format!("jit_{name}"),
@@ -90,6 +96,20 @@ impl JitDump {
                         record.eh_frame.as_slice().to_vec(),
                         record.eh_frame_hdr.as_slice().to_vec(),
                     ));
+                }
+                JitDumpRecord::CodeDebugInfo(record) => {
+                    // debug!(
+                    //     "JIT dump debug info record for addr 0x{:x}",
+                    //     record.code_addr
+                    // );
+                    // for entry in record.entries {
+                    //     let name = entry.file_path.as_slice();
+                    //     let name = String::from_utf8_lossy(&name);
+                    //     debug!(
+                    //         "JIT dump debug info entry for addr 0x{:x} ({name})",
+                    //         entry.code_addr,
+                    //     );
+                    // }
                 }
                 _ => {
                     warn!("Unhandled JIT dump record: {raw_record:?}");
@@ -118,6 +138,7 @@ pub async fn harvest_perf_jit_for_pids(profile_folder: &Path, pids: &HashSet<i32
         };
 
         debug!("Found JIT dump file: {path:?}");
+        std::fs::copy(&path, profile_folder.join(&name))?;
 
         // Append the symbols to the existing perf map file
         let symbols = match JitDump::new(path.clone()).into_perf_map() {
