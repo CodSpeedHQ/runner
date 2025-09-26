@@ -3,7 +3,6 @@
 use crate::run::runner::wall_time::perf::elf_helper;
 use anyhow::{Context, bail};
 use debugid::CodeId;
-use libc::pid_t;
 use object::Object;
 use object::ObjectSection;
 use runner_shared::unwind_data::UnwindData;
@@ -19,9 +18,6 @@ pub trait UnwindDataExt {
     ) -> anyhow::Result<Self>
     where
         Self: Sized;
-
-    fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: pid_t) -> anyhow::Result<()>;
-    fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()>;
 }
 
 impl UnwindDataExt for UnwindData {
@@ -68,6 +64,7 @@ impl UnwindDataExt for UnwindData {
             runtime_file_offset,
             &file,
         )?;
+        let base_svma = elf_helper::relative_address_base(&file);
         let eh_frame = file.section_by_name(".eh_frame");
         let eh_frame_hdr = file.section_by_name(".eh_frame_hdr");
 
@@ -82,10 +79,11 @@ impl UnwindDataExt for UnwindData {
             section.address()..section.address() + section.size()
         }
 
-        Ok(Self {
+        Ok(UnwindData {
             path,
             avma_range,
             base_avma,
+            base_svma,
             eh_frame_hdr: eh_frame_hdr_data.context("Failed to find eh_frame hdr data")?,
             eh_frame_hdr_svma: eh_frame_hdr
                 .as_ref()
@@ -97,30 +95,6 @@ impl UnwindDataExt for UnwindData {
                 .map(svma_range)
                 .context("Failed to find eh_frame section")?,
         })
-    }
-
-    fn save_to<P: AsRef<std::path::Path>>(&self, folder: P, pid: pid_t) -> anyhow::Result<()> {
-        let unwind_data_path = folder.as_ref().join(format!(
-            "{}_{:x}_{:x}.unwind",
-            pid, self.avma_range.start, self.avma_range.end
-        ));
-        self.to_file(unwind_data_path)?;
-
-        Ok(())
-    }
-
-    fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
-        if let Ok(true) = std::fs::exists(path.as_ref()) {
-            log::warn!(
-                "{} already exists, file will be truncated",
-                path.as_ref().display()
-            );
-            log::warn!("{} {:x?}", self.path, self.avma_range);
-        }
-
-        let mut writer = std::fs::File::create(path.as_ref())?;
-        bincode::serialize_into(&mut writer, self)?;
-        Ok(())
     }
 }
 

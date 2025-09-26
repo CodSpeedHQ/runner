@@ -7,6 +7,7 @@ Ok(
         path: "testdata/perf_map/ty_walltime",
         avma_range: 555555e6d000..555556813000,
         base_avma: 555555554000,
+        base_svma: 0,
         eh_frame_hdr_svma: 7ec298..80f67c,
         eh_frame_hdr_hash: 6d6dd1e2c782318a,
         eh_frame_hash: ee27244db791265a,

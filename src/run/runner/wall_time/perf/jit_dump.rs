@@ -1,9 +1,6 @@
 use crate::{
     prelude::*,
-    run::runner::wall_time::perf::{
-        perf_map::{ModuleSymbols, Symbol},
-        unwind_data::UnwindDataExt,
-    },
+    run::runner::wall_time::perf::perf_map::{ModuleSymbols, Symbol},
 };
 use linux_perf_data::jitdump::{JitDumpReader, JitDumpRecord};
 use runner_shared::unwind_data::UnwindData;
@@ -83,6 +80,7 @@ impl JitDump {
                         eh_frame_hdr_svma: 0..0,
                         eh_frame,
                         eh_frame_svma: 0..0,
+                        base_svma: 0,
                     });
                 }
                 JitDumpRecord::CodeUnwindingInfo(record) => {

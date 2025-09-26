@@ -1,12 +1,13 @@
 ---
 source: src/run/runner/wall_time/perf/unwind_data.rs
-expression: "UnwindData::new(MODULE_PATH.as_bytes(), 0x4d000, start_addr, end_addr, None)"
+expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, end_addr,\nNone)"
 ---
 Ok(
     UnwindData {
         path: "testdata/perf_map/divan_sleep_benches.bin",
         avma_range: 5555555a2000..555555692000,
         base_avma: 555555554000,
+        base_svma: 0,
         eh_frame_hdr_svma: 2ac74..2ea60,
         eh_frame_hdr_hash: f579da4368e627c1,
         eh_frame_hash: 791501d5a9c438d,
