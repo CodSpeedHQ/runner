@@ -1,6 +1,6 @@
 ---
 source: src/run/runner/wall_time/perf/unwind_data.rs
-expression: unwind_data
+expression: "UnwindData::new(MODULE_PATH.as_bytes(), 0x4d000, start_addr, end_addr, None)"
 ---
 Ok(
     UnwindData {

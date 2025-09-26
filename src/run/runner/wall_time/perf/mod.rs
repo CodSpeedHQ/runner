@@ -29,6 +29,7 @@ use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 mod jit_dump;
 mod setup;
 
+pub mod elf_helper;
 pub mod fifo;
 pub mod perf_map;
 pub mod unwind_data;
@@ -244,7 +245,7 @@ impl PerfRunner {
                 path.to_string_lossy().as_bytes(),
                 page_offset,
                 base_addr,
-                end_addr - base_addr,
+                end_addr,
                 None,
             ) {
                 Ok(unwind_data) => {
