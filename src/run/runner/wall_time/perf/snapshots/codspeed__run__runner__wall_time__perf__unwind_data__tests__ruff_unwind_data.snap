@@ -5,6 +5,7 @@ expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, en
 Ok(
     UnwindData {
         path: "testdata/perf_map/ty_walltime",
+        timestamp: None,
         avma_range: 555555e6d000..555556813000,
         base_avma: 555555554000,
         base_svma: 0,

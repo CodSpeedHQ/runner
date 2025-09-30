@@ -5,6 +5,7 @@ expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, en
 Ok(
     UnwindData {
         path: "testdata/perf_map/go_fib.bin",
+        timestamp: None,
         avma_range: 402000..50f000,
         base_avma: 400000,
         base_svma: 400000,

@@ -74,6 +74,7 @@ impl JitDump {
 
                     jit_unwind_data.push(UnwindData {
                         path: format!("jit_{name}"),
+                        timestamp: Some(raw_record.timestamp),
                         avma_range: avma_start..avma_end,
                         base_avma: 0,
                         eh_frame_hdr,

@@ -5,6 +5,7 @@ expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, en
 Ok(
     UnwindData {
         path: "testdata/perf_map/cpp_my_benchmark.bin",
+        timestamp: None,
         avma_range: 400000..459000,
         base_avma: 400000,
         base_svma: 400000,

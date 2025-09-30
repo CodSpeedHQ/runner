@@ -81,6 +81,7 @@ impl UnwindDataExt for UnwindData {
 
         Ok(UnwindData {
             path,
+            timestamp: None,
             avma_range,
             base_avma,
             base_svma,

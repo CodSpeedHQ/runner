@@ -1,10 +1,11 @@
 ---
 source: src/run/runner/wall_time/perf/unwind_data.rs
-expression: "UnwindData::new(MODULE_PATH.as_bytes(), 0x52efc, 0x00005555555a7000, 0x00005555556b0000,\nNone)"
+expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, end_addr,\nNone)"
 ---
 Ok(
     UnwindData {
         path: "testdata/perf_map/the_algorithms.bin",
+        timestamp: None,
         avma_range: 5555555a7000..5555556b0000,
         base_avma: 555555554000,
         base_svma: 0,
