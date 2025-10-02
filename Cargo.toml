@@ -74,7 +74,9 @@ members = ["crates/runner-shared"]
 [workspace.metadata.release]
 sign-tag = true
 sign-commit = true
+shared-version = true
 pre-release-hook = ["./scripts/pre-release.sh", "v{{version}}"]
+pre-release-commit-message = "chore: Release runner version {{version}} 🎉"
 
 [profile.dist]
 inherits = "release"
