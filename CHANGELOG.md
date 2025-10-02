@@ -5,6 +5,38 @@
 
 
 
+## [4.1.0] - 2025-10-02
+
+### <!-- 0 -->🚀 Features
+- Add timestamp to unwind data by @not-matthias in [#120](https://github.com/CodSpeedHQ/runner/pull/120)
+- Add unwind data v2 format with base_svma by @not-matthias
+- Add perf v2 support by @not-matthias in [#119](https://github.com/CodSpeedHQ/runner/pull/119)
+- Add runner-shared crate by @not-matthias
+- Add content encoding to upload metadata by @adriencaccia
+- Do not compress profile archive for walltime runs by @adriencaccia
+- Detect stack size at runtime by @not-matthias in [#103](https://github.com/CodSpeedHQ/runner/pull/103)
+- Add unwind data tests by @not-matthias
+- Run python with perf jit dump by @not-matthias
+
+### <!-- 1 -->🐛 Bug Fixes
+- Use shared elf_helper for unwind and symbol information by @not-matthias
+- Cargo clippy lints by @not-matthias
+- Only enable debug logs GH action is debugged by @not-matthias in [#118](https://github.com/CodSpeedHQ/runner/pull/118)
+- Forward go runner exit status by @not-matthias in [#115](https://github.com/CodSpeedHQ/runner/pull/115)
+- Ignore statically linked python by @not-matthias
+- Codspeed debug check by @not-matthias
+- Create perf map for jitdump by @not-matthias
+
+### <!-- 2 -->🏗️ Refactor
+- Store upload metadata latest version in a const by @adriencaccia in [#117](https://github.com/CodSpeedHQ/runner/pull/117)
+- Refactor profile-archive by @adriencaccia
+
+### <!-- 7 -->⚙️ Internals
+- Fix the release commit message by @art049
+- Make runner-shared not publishable by @art049
+- Add debug log for /proc/<pid>/maps by @not-matthias
+
+
 ## [4.0.1] - 2025-09-09
 
 ### <!-- 1 -->🐛 Bug Fixes
@@ -457,6 +489,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.1.0]: https://github.com/CodSpeedHQ/runner/compare/v4.0.1..v4.1.0
 [4.0.1]: https://github.com/CodSpeedHQ/runner/compare/v4.0.0..v4.0.1
 [4.0.0]: https://github.com/CodSpeedHQ/runner/compare/v3.8.1..v4.0.0
 [3.8.1]: https://github.com/CodSpeedHQ/runner/compare/v3.8.0..v3.8.1
