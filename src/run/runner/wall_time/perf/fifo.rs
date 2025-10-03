@@ -1,4 +1,5 @@
 use super::FifoCommand;
+use anyhow::Context;
 use runner_shared::fifo::{RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -52,7 +53,9 @@ impl RunnerFifo {
             }
         }
 
-        let decoded = bincode::deserialize(&buffer)?;
+        let decoded = bincode::deserialize(&buffer).with_context(|| {
+            format!("Failed to deserialize FIFO command (len: {message_len}, data: {buffer:?})")
+        })?;
         Ok(decoded)
     }
 

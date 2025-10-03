@@ -296,8 +296,13 @@ impl PerfRunner {
             perf_ping_timeout = 1;
 
             let result = tokio::time::timeout(Duration::from_secs(5), runner_fifo.recv_cmd()).await;
-            let Ok(Ok(cmd)) = result else {
-                continue;
+            let cmd = match result {
+                Ok(Ok(cmd)) => cmd,
+                Ok(Err(e)) => {
+                    warn!("Failed to parse FIFO command: {e}");
+                    break;
+                }
+                Err(_) => continue,
             };
             debug!("Received command: {cmd:?}");
 
