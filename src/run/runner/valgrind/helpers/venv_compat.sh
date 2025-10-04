@@ -14,7 +14,7 @@ function add_symlink() {
     echo "Python installation (system): $system_path"
     echo "Python installation (venv): $venv_path"
 
-    libpython_name="$(ldd "$venv_python" 2>/dev/null | grep -o -m1 'libpython[^[:space:]]*' || true)"
+    libpython_name="$(ldd "$venv_python" 2>/dev/null | grep -o 'libpython[^[:space:]]*' | head -1 | tr -d '\n' || true)"
     if [ -z "$libpython_name" ]; then
         echo "Error: exact libpython name not found in $(ldd $venv_python)" >&2
         return 0
