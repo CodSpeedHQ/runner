@@ -148,10 +148,27 @@ impl WallTimeExecutor {
         // - We have to pass the environment variables because `--scope` only inherits the system and not the user environment variables.
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
-        let cmd = format!(
-            "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
-            script_file.path().display()
-        );
+        // Prefer using systemd-run on Linux hosts when available since it
+        // provides the `--scope` isolation we need. On macOS (or when
+        // systemd isn't installed) fall back to invoking `bash <script>`
+        // directly.
+        let use_systemd = cfg!(target_os = "linux")
+            && std::process::Command::new("which")
+                .arg("systemd-run")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+
+        let cmd = if use_systemd {
+            format!(
+                "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
+                script_file.path().display()
+            )
+        } else {
+            // Directly invoke bash with the script path. The command will
+            // be executed via `sh -c '<bench_cmd>'` or `sudo sh -c '<bench_cmd>'`.
+            format!("bash {}", script_file.path().display())
+        };
         Ok((env_file, script_file, cmd))
     }
 }
