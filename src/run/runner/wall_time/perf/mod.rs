@@ -9,6 +9,7 @@ use crate::run::runner::helpers::setup::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
 use crate::run::runner::wall_time::perf::jit_dump::harvest_perf_jit_for_pids;
+#[cfg(target_os = "linux")]
 use crate::run::runner::wall_time::perf::unwind_data::UnwindDataExt;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
@@ -271,8 +272,15 @@ impl PerfRunner {
     ) -> anyhow::Result<BenchmarkData> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
+        #[cfg(target_os = "linux")]
         let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
+        #[cfg(not(target_os = "linux"))]
+        let symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
+
+        #[cfg(target_os = "linux")]
         let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
+        #[cfg(not(target_os = "linux"))]
+        let unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
         let mut markers = Vec::<MarkerType>::new();
 
         let mut integration = None;

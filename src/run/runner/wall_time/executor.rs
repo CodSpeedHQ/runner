@@ -21,7 +21,7 @@ fn shell_quote(value: &str) -> String {
     if value.is_empty() {
         "''".to_string()
     } else if !value.contains('\'') {
-        format!("'{}'", value)
+        format!("'{value}'")
     } else {
         let mut quoted = String::with_capacity(value.len() + 2);
         quoted.push('\'');
