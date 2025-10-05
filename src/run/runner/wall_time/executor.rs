@@ -17,6 +17,25 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::NamedTempFile;
 
+fn shell_quote(value: &str) -> String {
+    if value.is_empty() {
+        "''".to_string()
+    } else if !value.contains('\'') {
+        format!("'{}'", value)
+    } else {
+        let mut quoted = String::with_capacity(value.len() + 2);
+        quoted.push('\'');
+        for (idx, part) in value.split('\'').enumerate() {
+            if idx > 0 {
+                quoted.push_str("'\"'\"'");
+            }
+            quoted.push_str(part);
+        }
+        quoted.push('\'');
+        quoted
+    }
+}
+
 struct HookScriptsGuard {
     post_bench_script: PathBuf,
 }
@@ -101,17 +120,23 @@ impl WallTimeExecutor {
     ) -> Result<(NamedTempFile, NamedTempFile, String)> {
         let bench_cmd = get_bench_command(config)?;
 
-        let system_env = get_exported_system_env()?;
+        let use_systemd = cfg!(target_os = "linux")
+            && std::process::Command::new("which")
+                .arg("systemd-run")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+
         let base_injected_env =
             get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
                 .into_iter()
-                .map(|(k, v)| format!("export {k}={v}",))
+                .map(|(k, v)| format!("export {k}={}", shell_quote(&v)))
                 .collect::<Vec<_>>()
                 .join("\n");
 
         let path_env = std::env::var("PATH").unwrap_or_default();
-        let path_env = format!(
-            "export PATH={}:{}:{}",
+        let path_value = format!(
+            "{}:{}:{}",
             introspected_nodejs::setup()
                 .map_err(|e| anyhow!("failed to setup NodeJS introspection. {e}"))?
                 .to_string_lossy(),
@@ -120,8 +145,14 @@ impl WallTimeExecutor {
                 .to_string_lossy(),
             path_env
         );
+        let path_env = format!("export PATH={}", shell_quote(&path_value));
 
-        let combined_env = format!("{system_env}\n{base_injected_env}\n{path_env}");
+        let combined_env = if use_systemd {
+            let system_env = get_exported_system_env()?;
+            format!("{system_env}\n{base_injected_env}\n{path_env}")
+        } else {
+            format!("{base_injected_env}\n{path_env}")
+        };
 
         let mut env_file = NamedTempFile::new()?;
         env_file.write_all(combined_env.as_bytes())?;
@@ -152,13 +183,6 @@ impl WallTimeExecutor {
         // provides the `--scope` isolation we need. On macOS (or when
         // systemd isn't installed) fall back to invoking `bash <script>`
         // directly.
-        let use_systemd = cfg!(target_os = "linux")
-            && std::process::Command::new("which")
-                .arg("systemd-run")
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false);
-
         let cmd = if use_systemd {
             format!(
                 "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
@@ -341,6 +365,16 @@ impl WallTimeExecutor {
         effective_cwd: &Path,
         target_root: &Path,
     ) -> Result<()> {
+        // When running unit tests on macOS we synthesize the benchmark command but do not
+        // produce CodSpeed walltime artifacts. Invoking `cargo codspeed build` from tests would
+        // fail (no project state, no benches) and make the suite extremely slow, so we skip the
+        // rebuild in that scenario only. The production binary still performs the rebuild check on
+        // macOS because the guard is behind `cfg!(test)`.
+        if cfg!(all(test, target_os = "macos")) {
+            trace!("Skipping walltime rebuild during macOS tests");
+            return Ok(());
+        }
+
         let codspeed_dir = target_root.join("codspeed");
         let walltime_dir = codspeed_dir.join("walltime");
         if has_any_files(&walltime_dir)? {
