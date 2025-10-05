@@ -214,6 +214,58 @@ impl Executor for WallTimeExecutor {
             cmd.current_dir(abs_cwd);
         }
 
+        // Pre-run diagnostics: log the effective cwd and the cargo target
+        // directory contents so CI logs show exactly where we're looking for
+        // bench artifacts. This helps diagnose cases where `cargo codspeed
+        // build` was executed but `cargo codspeed run` can't find the
+        // resulting binaries.
+        if is_codspeed_debug_enabled() {
+            if let Some(dir) = cmd.get_current_dir() {
+                debug!("Effective bench working directory: {}", dir.display());
+                // Try to list the target dir in that workspace
+                if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+                    debug!("CARGO_TARGET_DIR env: {}", target_dir);
+                    let release_deps = std::path::Path::new(&target_dir)
+                        .join("release")
+                        .join("deps");
+                    if release_deps.exists() {
+                        if let Ok(entries) = std::fs::read_dir(&release_deps) {
+                            debug!("Listing {}", release_deps.display());
+                            for e in entries.flatten().take(50) {
+                                if let Ok(md) = e.metadata() {
+                                    debug!(" - {} (len: {})", e.path().display(), md.len());
+                                }
+                            }
+                        }
+                    } else {
+                        debug!(
+                            "Expected release deps path not found: {}",
+                            release_deps.display()
+                        );
+                    }
+                } else {
+                    debug!("CARGO_TARGET_DIR not set; using default target dir");
+                    let default_target =
+                        std::path::Path::new("target").join("release").join("deps");
+                    if default_target.exists() {
+                        if let Ok(entries) = std::fs::read_dir(&default_target) {
+                            debug!("Listing {}", default_target.display());
+                            for e in entries.flatten().take(50) {
+                                if let Ok(md) = e.metadata() {
+                                    debug!(" - {} (len: {})", e.path().display(), md.len());
+                                }
+                            }
+                        }
+                    } else {
+                        debug!(
+                            "Default release deps path not found: {}",
+                            default_target.display()
+                        );
+                    }
+                }
+            }
+        }
+
         let status = {
             let _guard = HookScriptsGuard::setup();
 
