@@ -365,16 +365,6 @@ impl WallTimeExecutor {
         effective_cwd: &Path,
         target_root: &Path,
     ) -> Result<()> {
-        // When running unit tests on macOS we synthesize the benchmark command but do not
-        // produce CodSpeed walltime artifacts. Invoking `cargo codspeed build` from tests would
-        // fail (no project state, no benches) and make the suite extremely slow, so we skip the
-        // rebuild in that scenario only. The production binary still performs the rebuild check on
-        // macOS because the guard is behind `cfg!(test)`.
-        if cfg!(all(test, target_os = "macos")) {
-            trace!("Skipping walltime rebuild during macOS tests");
-            return Ok(());
-        }
-
         let codspeed_dir = target_root.join("codspeed");
         let walltime_dir = codspeed_dir.join("walltime");
         if has_any_files(&walltime_dir)? {

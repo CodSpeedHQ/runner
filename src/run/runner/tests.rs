@@ -6,6 +6,7 @@ use crate::run::runner::valgrind::executor::ValgrindExecutor;
 use crate::run::{RunnerMode, runner::wall_time::executor::WallTimeExecutor};
 use rstest_reuse::{self, *};
 use shell_quote::{Bash, QuoteRefExt};
+use std::fs;
 use tempfile::TempDir;
 use tokio::sync::{OnceCell, Semaphore, SemaphorePermit};
 
@@ -123,6 +124,13 @@ async fn create_test_setup() -> (SystemInfo, RunData, TempDir) {
     let system_info = SystemInfo::new().unwrap();
 
     let temp_dir = TempDir::new().unwrap();
+    let walltime_dir = temp_dir
+        .path()
+        .join("target")
+        .join("codspeed")
+        .join("walltime");
+    fs::create_dir_all(&walltime_dir).unwrap();
+    fs::write(walltime_dir.join(".placeholder"), b"codspeed").unwrap();
     let run_data = RunData {
         profile_folder: temp_dir.path().to_path_buf(),
     };
@@ -223,10 +231,11 @@ mod walltime {
     #[rstest::rstest]
     #[tokio::test]
     async fn test_walltime_executor(#[case] cmd: &str, #[values(false, true)] enable_perf: bool) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
+        let (system_info, run_data, temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
-        let config = walltime_config(cmd, enable_perf);
+        let mut config = walltime_config(cmd, enable_perf);
+        config.working_directory = Some(temp_dir.path().to_string_lossy().into_owned());
         executor
             .run(&config, &system_info, &run_data, &None)
             .await
@@ -240,17 +249,21 @@ mod walltime {
         #[case] env_case: (&str, &str),
         #[values(false, true)] enable_perf: bool,
     ) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
+        let (system_info, run_data, temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
         let (env_var, env_value) = env_case;
-        temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
-            let cmd = env_var_validation_script(env_var, env_value);
-            let config = walltime_config(&cmd, enable_perf);
-            executor
-                .run(&config, &system_info, &run_data, &None)
-                .await
-                .unwrap();
+        temp_env::async_with_vars(&[(env_var, Some(env_value))], {
+            let workspace = temp_dir.path().to_path_buf();
+            async move {
+                let cmd = env_var_validation_script(env_var, env_value);
+                let mut config = walltime_config(&cmd, enable_perf);
+                config.working_directory = Some(workspace.to_string_lossy().into_owned());
+                executor
+                    .run(&config, &system_info, &run_data, &None)
+                    .await
+                    .unwrap();
+            }
         })
         .await;
     }
