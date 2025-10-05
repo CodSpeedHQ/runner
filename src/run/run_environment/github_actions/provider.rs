@@ -90,22 +90,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
                 path.push("");
                 path.to_string_lossy().to_string()
             }
-            None => {
-                let workspace = std::env::var("GITHUB_WORKSPACE").ok().and_then(|p| {
-                    let mut path = std::path::PathBuf::from(p);
-                    if path.is_dir() {
-                        path.push("");
-                        Some(path)
-                    } else {
-                        None
-                    }
-                });
-
-                match workspace {
-                    Some(path) => path.to_string_lossy().to_string(),
-                    None => format!("/home/runner/work/{repository}/{repository}/"),
-                }
-            }
+            None => format!("/home/runner/work/{repository}/{repository}/"),
         };
 
         Ok(Self {
