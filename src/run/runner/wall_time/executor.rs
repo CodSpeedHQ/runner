@@ -184,6 +184,8 @@ impl Executor for WallTimeExecutor {
         // TODO: There is also a `run_with_sudo` in `setup.rs` that might be a
         // better way to approach this
         let use_sudo = self.perf.is_some() && config.enable_perf;
+        // If we need sudo, the command will be `sudo sh -c '<bench_cmd>'`.
+        // Otherwise we invoke the shell directly as `sh -c '<bench_cmd>'`.
         let mut cmd = if use_sudo {
             Command::new("sudo")
         } else {
@@ -202,9 +204,21 @@ impl Executor for WallTimeExecutor {
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
+                // Perf runner expects the `cmd` to be either `sudo` (so that
+                // it becomes `sudo sh -c ...`) or `sh` (in which case the
+                // perf runner will arrange execution itself). Pass through.
                 perf.run(cmd, &bench_cmd, config).await
             } else {
-                cmd.args(["sh", "-c", &bench_cmd]);
+                // Add the appropriate arguments depending on whether we're
+                // invoking via sudo or directly. When using sudo, the args
+                // must be: `sh -c '<bench_cmd>'`. When not using sudo, the
+                // args are just `-c '<bench_cmd>'` because the program is
+                // already `sh`.
+                if use_sudo {
+                    cmd.args(["sh", "-c", &bench_cmd]);
+                } else {
+                    cmd.args(["-c", &bench_cmd]);
+                }
                 debug!("cmd: {cmd:?}");
 
                 run_command_with_log_pipe(cmd).await
