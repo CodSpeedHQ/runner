@@ -149,36 +149,7 @@ impl WallTimeExecutor {
 
         let combined_env = if use_systemd {
             let system_env = get_exported_system_env()?;
-            // Sanitize system `export` output to only include valid shell identifiers.
-            // Some environments (editor integrations, IDEs) can inject nonsense names
-            // which `bash` rejects when `source`-ing the env file. Filter them out.
-            let mut sanitized = String::new();
-            for line in system_env.lines() {
-                // strip leading `declare -x ` if present (bash `export` prints that form)
-                let mut l = line.trim();
-                if let Some(rest) = l.strip_prefix("declare -x ") {
-                    l = rest.trim();
-                }
-                if let Some(rest) = l.strip_prefix("export ") {
-                    l = rest.trim();
-                }
-
-                // left of '=' is the var name; ensure it's a valid identifier: [A-Za-z_][A-Za-z0-9_]*
-                if let Some(eq) = l.find('=') {
-                    let name = &l[..eq].trim();
-                    let mut chars = name.chars();
-                    if let Some(first) = chars.next() {
-                        if (first == '_' || first.is_ascii_alphabetic())
-                            && chars.clone().all(|c| c == '_' || c.is_ascii_alphanumeric())
-                        {
-                            sanitized.push_str(line);
-                            sanitized.push('\n');
-                        }
-                    }
-                }
-            }
-
-            format!("{sanitized}{base_injected_env}\n{path_env}")
+            format!("{system_env}\n{base_injected_env}\n{path_env}")
         } else {
             format!("{base_injected_env}\n{path_env}")
         };
