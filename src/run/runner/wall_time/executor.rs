@@ -275,8 +275,8 @@ impl Executor for WallTimeExecutor {
             }
         }
 
-        if cfg!(target_os = "macos") && config.mode == RunnerMode::Instrumentation {
-            Self::ensure_walltime_bench_artifacts(&effective_cwd, &target_root)?;
+        if cfg!(target_os = "macos") {
+            Self::ensure_walltime_bench_artifacts(config, &effective_cwd, &target_root)?;
         }
 
         let status = {
@@ -336,7 +336,11 @@ impl Executor for WallTimeExecutor {
 }
 
 impl WallTimeExecutor {
-    fn ensure_walltime_bench_artifacts(effective_cwd: &Path, target_root: &Path) -> Result<()> {
+    fn ensure_walltime_bench_artifacts(
+        config: &Config,
+        effective_cwd: &Path,
+        target_root: &Path,
+    ) -> Result<()> {
         let codspeed_dir = target_root.join("codspeed");
         let walltime_dir = codspeed_dir.join("walltime");
         if has_any_files(&walltime_dir)? {
@@ -354,10 +358,15 @@ impl WallTimeExecutor {
             );
         }
 
+        let mut args = vec!["codspeed", "build", "--measurement-mode", "walltime"];
+        if config.command.contains("--workspace") {
+            args.push("--workspace");
+        }
+
         let status = Command::new("cargo")
             .current_dir(effective_cwd)
             .env("CODSPEED_RUNNER_MODE", "walltime")
-            .args(["codspeed", "build", "--measurement-mode", "walltime"])
+            .args(&args)
             .status()
             .context("failed to invoke `cargo codspeed build --measurement-mode walltime`")?;
 
