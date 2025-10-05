@@ -177,7 +177,16 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = Command::new("sudo");
+        // Note: (jzombie) Workaround for asking for `sudo password` on macOS
+        // Only use sudo when perf is enabled and available; otherwise run the
+        // benchmark directly to avoid prompting for passwords on CI (macOS
+        // runners, etc.).
+        let use_sudo = self.perf.is_some() && config.enable_perf;
+        let mut cmd = if use_sudo {
+            Command::new("sudo")
+        } else {
+            Command::new("sh")
+        };
 
         if let Some(cwd) = &config.working_directory {
             let abs_cwd = canonicalize(cwd)?;
