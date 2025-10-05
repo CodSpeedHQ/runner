@@ -219,43 +219,47 @@ impl Executor for WallTimeExecutor {
         // PWD env var instead of calling getcwd(), so set it explicitly.
         cmd.env("PWD", &effective_cwd);
 
-        // Pre-run diagnostics: log the effective cwd and the cargo target
-        // directory contents so CI logs show exactly where we're looking for
-        // bench artifacts. This helps diagnose cases where `cargo codspeed
-        // build` was executed but `cargo codspeed run` can't find the
-        // resulting binaries.
-        if is_codspeed_debug_enabled() {
+        let debug_enabled = is_codspeed_debug_enabled();
+        if debug_enabled {
             debug!(
                 "Effective bench working directory: {}",
                 effective_cwd.display()
             );
+        }
 
-            let target_root = match std::env::var("CARGO_TARGET_DIR") {
-                Ok(dir) => {
-                    let path = PathBuf::from(&dir);
-                    if path.is_absolute() {
+        let target_root = match std::env::var("CARGO_TARGET_DIR") {
+            Ok(dir) => {
+                let path = PathBuf::from(&dir);
+                if path.is_absolute() {
+                    if debug_enabled {
                         debug!("CARGO_TARGET_DIR env: {}", path.display());
-                        path
-                    } else {
-                        let abs = effective_cwd.join(&path);
+                    }
+                    path
+                } else {
+                    let abs = effective_cwd.join(&path);
+                    if debug_enabled {
                         debug!(
                             "CARGO_TARGET_DIR env (relative): {} -> {}",
                             path.display(),
                             abs.display()
                         );
-                        abs
                     }
+                    abs
                 }
-                Err(_) => {
-                    let default = effective_cwd.join("target");
+            }
+            Err(_) => {
+                let default = effective_cwd.join("target");
+                if debug_enabled {
                     debug!(
                         "CARGO_TARGET_DIR not set; defaulting to {}",
                         default.display()
                     );
-                    default
                 }
-            };
+                default
+            }
+        };
 
+        if debug_enabled {
             let release_deps = target_root.join("release").join("deps");
             if release_deps.exists() {
                 if let Ok(entries) = std::fs::read_dir(&release_deps) {
@@ -269,6 +273,10 @@ impl Executor for WallTimeExecutor {
             } else {
                 debug!("Release deps directory missing: {}", release_deps.display());
             }
+        }
+
+        if cfg!(target_os = "macos") && config.mode == RunnerMode::Instrumentation {
+            Self::ensure_walltime_bench_artifacts(&effective_cwd, &target_root)?;
         }
 
         let status = {
@@ -325,6 +333,66 @@ impl Executor for WallTimeExecutor {
 
         Ok(())
     }
+}
+
+impl WallTimeExecutor {
+    fn ensure_walltime_bench_artifacts(effective_cwd: &Path, target_root: &Path) -> Result<()> {
+        let codspeed_dir = target_root.join("codspeed");
+        let walltime_dir = codspeed_dir.join("walltime");
+        if has_any_files(&walltime_dir)? {
+            return Ok(());
+        }
+
+        let instrumentation_dir = codspeed_dir.join("instrumentation");
+        if has_any_files(&instrumentation_dir)? {
+            info!(
+                "No walltime CodSpeed artifacts found; instrumentation artifacts detected. Rebuilding benchmarks in walltime mode."
+            );
+        } else {
+            info!(
+                "No CodSpeed walltime artifacts detected; running `cargo codspeed build --measurement-mode walltime`."
+            );
+        }
+
+        let status = Command::new("cargo")
+            .current_dir(effective_cwd)
+            .env("CODSPEED_RUNNER_MODE", "walltime")
+            .args(["codspeed", "build", "--measurement-mode", "walltime"])
+            .status()
+            .context("failed to invoke `cargo codspeed build --measurement-mode walltime`")?;
+
+        if !status.success() {
+            bail!("`cargo codspeed build --measurement-mode walltime` exited with status {status}");
+        }
+
+        if !has_any_files(&walltime_dir)? {
+            bail!(
+                "`cargo codspeed build --measurement-mode walltime` completed but no walltime artifacts were produced"
+            );
+        }
+
+        Ok(())
+    }
+}
+
+fn has_any_files(path: &Path) -> Result<bool> {
+    let Ok(read_dir) = std::fs::read_dir(path) else {
+        return Ok(false);
+    };
+
+    for entry in read_dir.flatten() {
+        if entry.path().is_file() {
+            return Ok(true);
+        }
+        if entry.path().is_dir() {
+            // If the directory contains anything (recursively), treat it as non-empty.
+            if has_any_files(&entry.path())? {
+                return Ok(true);
+            }
+        }
+    }
+
+    Ok(false)
 }
 
 #[cfg(test)]
