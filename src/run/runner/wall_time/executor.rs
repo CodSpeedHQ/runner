@@ -209,10 +209,15 @@ impl Executor for WallTimeExecutor {
             Command::new("sh")
         };
 
-        if let Some(cwd) = &config.working_directory {
-            let abs_cwd = canonicalize(cwd)?;
-            cmd.current_dir(abs_cwd);
-        }
+        let effective_cwd = if let Some(cwd) = &config.working_directory {
+            canonicalize(cwd)?
+        } else {
+            std::env::current_dir().context("failed to determine current working directory")?
+        };
+        cmd.current_dir(&effective_cwd);
+        // Ensure the spawned shell inherits the same PWD. Some shells rely on the
+        // PWD env var instead of calling getcwd(), so set it explicitly.
+        cmd.env("PWD", &effective_cwd);
 
         // Pre-run diagnostics: log the effective cwd and the cargo target
         // directory contents so CI logs show exactly where we're looking for
@@ -220,49 +225,49 @@ impl Executor for WallTimeExecutor {
         // build` was executed but `cargo codspeed run` can't find the
         // resulting binaries.
         if is_codspeed_debug_enabled() {
-            if let Some(dir) = cmd.get_current_dir() {
-                debug!("Effective bench working directory: {}", dir.display());
-                // Try to list the target dir in that workspace
-                if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
-                    debug!("CARGO_TARGET_DIR env: {}", target_dir);
-                    let release_deps = std::path::Path::new(&target_dir)
-                        .join("release")
-                        .join("deps");
-                    if release_deps.exists() {
-                        if let Ok(entries) = std::fs::read_dir(&release_deps) {
-                            debug!("Listing {}", release_deps.display());
-                            for e in entries.flatten().take(50) {
-                                if let Ok(md) = e.metadata() {
-                                    debug!(" - {} (len: {})", e.path().display(), md.len());
-                                }
-                            }
-                        }
+            debug!(
+                "Effective bench working directory: {}",
+                effective_cwd.display()
+            );
+
+            let target_root = match std::env::var("CARGO_TARGET_DIR") {
+                Ok(dir) => {
+                    let path = PathBuf::from(&dir);
+                    if path.is_absolute() {
+                        debug!("CARGO_TARGET_DIR env: {}", path.display());
+                        path
                     } else {
+                        let abs = effective_cwd.join(&path);
                         debug!(
-                            "Expected release deps path not found: {}",
-                            release_deps.display()
+                            "CARGO_TARGET_DIR env (relative): {} -> {}",
+                            path.display(),
+                            abs.display()
                         );
-                    }
-                } else {
-                    debug!("CARGO_TARGET_DIR not set; using default target dir");
-                    let default_target =
-                        std::path::Path::new("target").join("release").join("deps");
-                    if default_target.exists() {
-                        if let Ok(entries) = std::fs::read_dir(&default_target) {
-                            debug!("Listing {}", default_target.display());
-                            for e in entries.flatten().take(50) {
-                                if let Ok(md) = e.metadata() {
-                                    debug!(" - {} (len: {})", e.path().display(), md.len());
-                                }
-                            }
-                        }
-                    } else {
-                        debug!(
-                            "Default release deps path not found: {}",
-                            default_target.display()
-                        );
+                        abs
                     }
                 }
+                Err(_) => {
+                    let default = effective_cwd.join("target");
+                    debug!(
+                        "CARGO_TARGET_DIR not set; defaulting to {}",
+                        default.display()
+                    );
+                    default
+                }
+            };
+
+            let release_deps = target_root.join("release").join("deps");
+            if release_deps.exists() {
+                if let Ok(entries) = std::fs::read_dir(&release_deps) {
+                    debug!("Listing {} (first 50 entries)", release_deps.display());
+                    for e in entries.flatten().take(50) {
+                        if let Ok(md) = e.metadata() {
+                            debug!(" - {} (len: {})", e.path().display(), md.len());
+                        }
+                    }
+                }
+            } else {
+                debug!("Release deps directory missing: {}", release_deps.display());
             }
         }
 
