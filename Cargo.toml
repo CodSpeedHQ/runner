@@ -97,7 +97,7 @@ installers = ["shell"]
 targets = [
     "aarch64-unknown-linux-musl",
     "x86_64-unknown-linux-musl",
-    # macOS targets (Apple Silicon and Intel)
+    # macOS targets (Apple Silicon)
     "aarch64-apple-darwin",
 ]
 # The archive format to use for non-windows builds (defaults .tar.xz)
