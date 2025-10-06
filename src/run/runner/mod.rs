@@ -31,7 +31,20 @@ pub const EXECUTOR_TARGET: &str = "executor";
 
 pub fn get_executor_from_mode(mode: &RunnerMode) -> Box<dyn Executor> {
     match mode {
-        RunnerMode::Instrumentation => Box::new(ValgrindExecutor),
+        RunnerMode::Instrumentation => {
+            // Valgrind/Callgrind is not available on macOS (notably arm64 macOS).
+            // If the user requested Instrumentation mode on macOS, fall back to
+            // the WallTime executor so the produced archive and upload metadata
+            // accurately reflect what was collected (no Callgrind profiles).
+            #[cfg(target_os = "macos")]
+            {
+                Box::new(WallTimeExecutor::new())
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                Box::new(ValgrindExecutor)
+            }
+        }
         RunnerMode::Walltime => Box::new(WallTimeExecutor::new()),
     }
 }

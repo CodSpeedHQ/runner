@@ -31,6 +31,7 @@ pub struct ModuleSymbols {
     symbols: Vec<Symbol>,
 }
 
+#[allow(dead_code)]
 impl ModuleSymbols {
     pub fn from_symbols(symbols: Vec<Symbol>) -> Self {
         Self { symbols }
@@ -106,6 +107,7 @@ pub struct ProcessSymbols {
     modules: HashMap<PathBuf, ModuleSymbols>,
 }
 
+#[allow(dead_code)]
 impl ProcessSymbols {
     pub fn new(pid: pid_t) -> Self {
         Self {

@@ -8,6 +8,7 @@ use object::ObjectSection;
 use runner_shared::unwind_data::UnwindData;
 use std::ops::Range;
 
+#[allow(dead_code)]
 pub trait UnwindDataExt {
     fn new(
         path_slice: &[u8],

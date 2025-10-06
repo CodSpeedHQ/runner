@@ -17,6 +17,25 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::NamedTempFile;
 
+fn shell_quote(value: &str) -> String {
+    if value.is_empty() {
+        "''".to_string()
+    } else if !value.contains('\'') {
+        format!("'{value}'")
+    } else {
+        let mut quoted = String::with_capacity(value.len() + 2);
+        quoted.push('\'');
+        for (idx, part) in value.split('\'').enumerate() {
+            if idx > 0 {
+                quoted.push_str("'\"'\"'");
+            }
+            quoted.push_str(part);
+        }
+        quoted.push('\'');
+        quoted
+    }
+}
+
 struct HookScriptsGuard {
     post_bench_script: PathBuf,
 }
@@ -101,17 +120,23 @@ impl WallTimeExecutor {
     ) -> Result<(NamedTempFile, NamedTempFile, String)> {
         let bench_cmd = get_bench_command(config)?;
 
-        let system_env = get_exported_system_env()?;
+        let use_systemd = cfg!(target_os = "linux")
+            && std::process::Command::new("which")
+                .arg("systemd-run")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+
         let base_injected_env =
             get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
                 .into_iter()
-                .map(|(k, v)| format!("export {k}={v}",))
+                .map(|(k, v)| format!("export {k}={}", shell_quote(&v)))
                 .collect::<Vec<_>>()
                 .join("\n");
 
         let path_env = std::env::var("PATH").unwrap_or_default();
-        let path_env = format!(
-            "export PATH={}:{}:{}",
+        let path_value = format!(
+            "{}:{}:{}",
             introspected_nodejs::setup()
                 .map_err(|e| anyhow!("failed to setup NodeJS introspection. {e}"))?
                 .to_string_lossy(),
@@ -120,8 +145,14 @@ impl WallTimeExecutor {
                 .to_string_lossy(),
             path_env
         );
+        let path_env = format!("export PATH={}", shell_quote(&path_value));
 
-        let combined_env = format!("{system_env}\n{base_injected_env}\n{path_env}");
+        let combined_env = if use_systemd {
+            let system_env = get_exported_system_env()?;
+            format!("{system_env}\n{base_injected_env}\n{path_env}")
+        } else {
+            format!("{base_injected_env}\n{path_env}")
+        };
 
         let mut env_file = NamedTempFile::new()?;
         env_file.write_all(combined_env.as_bytes())?;
@@ -148,10 +179,20 @@ impl WallTimeExecutor {
         // - We have to pass the environment variables because `--scope` only inherits the system and not the user environment variables.
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
-        let cmd = format!(
-            "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
-            script_file.path().display()
-        );
+        // Prefer using systemd-run on Linux hosts when available since it
+        // provides the `--scope` isolation we need. On macOS (or when
+        // systemd isn't installed) fall back to invoking `bash <script>`
+        // directly.
+        let cmd = if use_systemd {
+            format!(
+                "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
+                script_file.path().display()
+            )
+        } else {
+            // Directly invoke bash with the script path. The command will
+            // be executed via `sh -c '<bench_cmd>'` or `sudo sh -c '<bench_cmd>'`.
+            format!("bash {}", script_file.path().display())
+        };
         Ok((env_file, script_file, cmd))
     }
 }
@@ -177,11 +218,89 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = Command::new("sudo");
+        // Note: (jzombie) Workaround for asking for `sudo password` on macOS.
+        // Only use sudo when perf is enabled and available; otherwise run the
+        // benchmark directly to avoid prompting for passwords on CI (macOS
+        // runners, etc.).
+        // TODO: There is also a `run_with_sudo` in `setup.rs` that might be a
+        // better way to approach this
+        let use_sudo = self.perf.is_some() && config.enable_perf;
+        // If we need sudo, the command will be `sudo sh -c '<bench_cmd>'`.
+        // Otherwise we invoke the shell directly as `sh -c '<bench_cmd>'`.
+        let mut cmd = if use_sudo {
+            Command::new("sudo")
+        } else {
+            Command::new("sh")
+        };
 
-        if let Some(cwd) = &config.working_directory {
-            let abs_cwd = canonicalize(cwd)?;
-            cmd.current_dir(abs_cwd);
+        let effective_cwd = if let Some(cwd) = &config.working_directory {
+            canonicalize(cwd)?
+        } else {
+            std::env::current_dir().context("failed to determine current working directory")?
+        };
+        cmd.current_dir(&effective_cwd);
+        // Ensure the spawned shell inherits the same PWD. Some shells rely on the
+        // PWD env var instead of calling getcwd(), so set it explicitly.
+        cmd.env("PWD", &effective_cwd);
+
+        let debug_enabled = is_codspeed_debug_enabled();
+        if debug_enabled {
+            debug!(
+                "Effective bench working directory: {}",
+                effective_cwd.display()
+            );
+        }
+
+        let target_root = match std::env::var("CARGO_TARGET_DIR") {
+            Ok(dir) => {
+                let path = PathBuf::from(&dir);
+                if path.is_absolute() {
+                    if debug_enabled {
+                        debug!("CARGO_TARGET_DIR env: {}", path.display());
+                    }
+                    path
+                } else {
+                    let abs = effective_cwd.join(&path);
+                    if debug_enabled {
+                        debug!(
+                            "CARGO_TARGET_DIR env (relative): {} -> {}",
+                            path.display(),
+                            abs.display()
+                        );
+                    }
+                    abs
+                }
+            }
+            Err(_) => {
+                let default = effective_cwd.join("target");
+                if debug_enabled {
+                    debug!(
+                        "CARGO_TARGET_DIR not set; defaulting to {}",
+                        default.display()
+                    );
+                }
+                default
+            }
+        };
+
+        if debug_enabled {
+            let release_deps = target_root.join("release").join("deps");
+            if release_deps.exists() {
+                if let Ok(entries) = std::fs::read_dir(&release_deps) {
+                    debug!("Listing {} (first 50 entries)", release_deps.display());
+                    for e in entries.flatten().take(50) {
+                        if let Ok(md) = e.metadata() {
+                            debug!(" - {} (len: {})", e.path().display(), md.len());
+                        }
+                    }
+                }
+            } else {
+                debug!("Release deps directory missing: {}", release_deps.display());
+            }
+        }
+
+        if cfg!(target_os = "macos") {
+            Self::ensure_walltime_bench_artifacts(config, &effective_cwd, &target_root)?;
         }
 
         let status = {
@@ -191,9 +310,21 @@ impl Executor for WallTimeExecutor {
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
+                // Perf runner expects the `cmd` to be either `sudo` (so that
+                // it becomes `sudo sh -c ...`) or `sh` (in which case the
+                // perf runner will arrange execution itself). Pass through.
                 perf.run(cmd, &bench_cmd, config).await
             } else {
-                cmd.args(["sh", "-c", &bench_cmd]);
+                // Add the appropriate arguments depending on whether we're
+                // invoking via sudo or directly. When using sudo, the args
+                // must be: `sh -c '<bench_cmd>'`. When not using sudo, the
+                // args are just `-c '<bench_cmd>'` because the program is
+                // already `sh`.
+                if use_sudo {
+                    cmd.args(["sh", "-c", &bench_cmd]);
+                } else {
+                    cmd.args(["-c", &bench_cmd]);
+                }
                 debug!("cmd: {cmd:?}");
 
                 run_command_with_log_pipe(cmd).await
@@ -226,6 +357,75 @@ impl Executor for WallTimeExecutor {
 
         Ok(())
     }
+}
+
+impl WallTimeExecutor {
+    fn ensure_walltime_bench_artifacts(
+        config: &Config,
+        effective_cwd: &Path,
+        target_root: &Path,
+    ) -> Result<()> {
+        let codspeed_dir = target_root.join("codspeed");
+        let walltime_dir = codspeed_dir.join("walltime");
+        if has_any_files(&walltime_dir)? {
+            return Ok(());
+        }
+
+        let instrumentation_dir = codspeed_dir.join("instrumentation");
+        if has_any_files(&instrumentation_dir)? {
+            info!(
+                "No walltime CodSpeed artifacts found; instrumentation artifacts detected. Rebuilding benchmarks in walltime mode."
+            );
+        } else {
+            info!(
+                "No CodSpeed walltime artifacts detected; running `cargo codspeed build --measurement-mode walltime`."
+            );
+        }
+
+        let mut args = vec!["codspeed", "build", "--measurement-mode", "walltime"];
+        if config.command.contains("--workspace") {
+            args.push("--workspace");
+        }
+
+        let status = Command::new("cargo")
+            .current_dir(effective_cwd)
+            .env("CODSPEED_RUNNER_MODE", "walltime")
+            .args(&args)
+            .status()
+            .context("failed to invoke `cargo codspeed build --measurement-mode walltime`")?;
+
+        if !status.success() {
+            bail!("`cargo codspeed build --measurement-mode walltime` exited with status {status}");
+        }
+
+        if !has_any_files(&walltime_dir)? {
+            bail!(
+                "`cargo codspeed build --measurement-mode walltime` completed but no walltime artifacts were produced"
+            );
+        }
+
+        Ok(())
+    }
+}
+
+fn has_any_files(path: &Path) -> Result<bool> {
+    let Ok(read_dir) = std::fs::read_dir(path) else {
+        return Ok(false);
+    };
+
+    for entry in read_dir.flatten() {
+        if entry.path().is_file() {
+            return Ok(true);
+        }
+        if entry.path().is_dir() {
+            // If the directory contains anything (recursively), treat it as non-empty.
+            if has_any_files(&entry.path())? {
+                return Ok(true);
+            }
+        }
+    }
+
+    Ok(false)
 }
 
 #[cfg(test)]

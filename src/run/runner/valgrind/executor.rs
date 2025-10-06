@@ -18,7 +18,18 @@ impl Executor for ValgrindExecutor {
     }
 
     async fn setup(&self, system_info: &SystemInfo) -> Result<()> {
-        install_valgrind(system_info).await?;
+        // Valgrind / Callgrind is not supported on macOS (notably arm64 macOS).
+        // Instead of failing fast, allow the executor to run but skip installing
+        // Valgrind. The measure implementation contains a macOS fallback that
+        // runs the benchmark without instrumentation so users can still run
+        // benchmarks locally on macOS.
+        if cfg!(target_os = "macos") {
+            warn!(
+                "Valgrind/Callgrind is not supported on macOS: skipping Valgrind installation. Benchmarks will run without instrumentation."
+            );
+        } else {
+            install_valgrind(system_info).await?;
+        }
 
         if let Err(error) = venv_compat::symlink_libpython(None) {
             warn!("Failed to symlink libpython");
@@ -35,7 +46,16 @@ impl Executor for ValgrindExecutor {
         run_data: &RunData,
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        //TODO: add valgrind version check
+        // On macOS, callgrind is not available. Let the measure function handle
+        // the macOS fallback (it will run the benchmark without instrumentation)
+        // so users can still run benchmarks locally. On non-macOS platforms we
+        // proceed with the regular Valgrind-based instrumentation.
+        // TODO: add valgrind version check for non-macOS platforms
+        if cfg!(target_os = "macos") {
+            info!(
+                "Running Valgrind executor on macOS: benchmarks will run without Callgrind instrumentation."
+            );
+        }
         measure::measure(config, &run_data.profile_folder, mongo_tracer).await?;
 
         Ok(())

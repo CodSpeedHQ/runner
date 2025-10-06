@@ -79,6 +79,69 @@ pub async fn measure(
     profile_folder: &Path,
     mongo_tracer: &Option<MongoTracer>,
 ) -> Result<()> {
+    // valgrind (callgrind) is a Linux-only tool and is not available on macOS
+    // (notably arm64 macOS). On macOS we fall back to running the benchmark
+    // without instrumentation so users can still run benchmarks locally.
+    if cfg!(target_os = "macos") {
+        warn!(
+            "Valgrind/Callgrind is not available on macOS: running the benchmark without instrumentation. Results will not include callgrind profiles."
+        );
+
+        // Create the wrapper script and status file
+        let script_path = create_run_script()?;
+        let cmd_status_path = tempfile::NamedTempFile::new()?.into_temp_path();
+
+        // Prepare the command that will execute the benchmark wrapper
+        let bench_cmd = get_bench_command(config)?;
+        let mut cmd = Command::new(script_path.to_str().unwrap());
+        cmd.args([bench_cmd.as_str(), cmd_status_path.to_str().unwrap()]);
+
+        // Configure the environment similar to other runners, but use Walltime
+        // mode since we don't have instrumentation available.
+        cmd.envs(get_base_injected_env(RunnerMode::Walltime, profile_folder))
+            .env("PYTHONMALLOC", "malloc")
+            .env(
+                "PATH",
+                format!(
+                    "{}:{}:{}",
+                    introspected_nodejs::setup()
+                        .map_err(|e| anyhow!("failed to setup NodeJS introspection. {e}"))?
+                        .to_string_lossy(),
+                    introspected_golang::setup()
+                        .map_err(|e| anyhow!("failed to setup Go introspection. {e}"))?
+                        .to_string_lossy(),
+                    env::var("PATH").unwrap_or_default(),
+                ),
+            );
+
+        if let Some(cwd) = &config.working_directory {
+            let abs_cwd = canonicalize(cwd)?;
+            cmd.current_dir(abs_cwd);
+        }
+
+        if let Some(mongo_tracer) = mongo_tracer {
+            mongo_tracer.apply_run_command_transformations(&mut cmd)?;
+        }
+
+        debug!("cmd: {cmd:?}");
+        let _status = run_command_with_log_pipe(cmd)
+            .await
+            .map_err(|e| anyhow!("failed to execute the benchmark process. {e}"))?;
+
+        // Check the exit code which was written to the file by the wrapper script.
+        let cmd_status = {
+            let content = std::fs::read_to_string(&cmd_status_path)?;
+            content
+                .parse::<u32>()
+                .map_err(|e| anyhow!("unable to retrieve the program exit code. {e}"))?
+        };
+        debug!("Program exit code = {cmd_status}");
+        if cmd_status != 0 {
+            bail!("failed to execute the benchmark process, exit code: {cmd_status}");
+        }
+
+        return Ok(());
+    }
     // Create the command
     let mut cmd = Command::new("setarch");
     cmd.arg(ARCH).arg("-R");

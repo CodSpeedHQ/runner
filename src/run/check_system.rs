@@ -135,7 +135,14 @@ pub fn check_system(system_info: &SystemInfo) -> Result<()> {
         return Ok(());
     }
 
-    match system_info.arch.as_str() {
+    // Normalize common architecture strings (macOS reports `arm64` on Apple
+    // Silicon; treat it as `aarch64` which the rest of the codebase expects).
+    let arch = match system_info.arch.as_str() {
+        "arm64" => "aarch64",
+        other => other,
+    };
+
+    match arch {
         "x86_64" | "aarch64" => {
             warn!(
                 "Unofficially supported system: {} {}. Continuing with best effort support.",
