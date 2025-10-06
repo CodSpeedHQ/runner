@@ -5,6 +5,13 @@
 
 
 
+## [4.1.1] - 2025-10-06
+
+### <!-- 1 -->🐛 Bug Fixes
+- Decrease stack sampling size for python (#125) by @not-matthias in [#125](https://github.com/CodSpeedHQ/runner/pull/125)
+- Break when parsing invalid command by @not-matthias in [#122](https://github.com/CodSpeedHQ/runner/pull/122)
+
+
 ## [4.1.0] - 2025-10-02
 
 ### <!-- 0 -->🚀 Features
@@ -489,6 +496,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.1.1]: https://github.com/CodSpeedHQ/runner/compare/v4.1.0..v4.1.1
 [4.1.0]: https://github.com/CodSpeedHQ/runner/compare/v4.0.1..v4.1.0
 [4.0.1]: https://github.com/CodSpeedHQ/runner/compare/v4.0.0..v4.0.1
 [4.0.0]: https://github.com/CodSpeedHQ/runner/compare/v3.8.1..v4.0.0
