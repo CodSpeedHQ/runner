@@ -4,3 +4,6 @@ testdata/perf_map/divan_sleep_benches.bin filter=lfs diff=lfs merge=lfs -text
 testdata/perf_map/the_algorithms.bin filter=lfs diff=lfs merge=lfs -text
 src/run/runner/wall_time/perf/snapshots/codspeed__run__runner__wall_time__perf__perf_map__tests__ruff_symbols.snap filter=lfs diff=lfs merge=lfs -text
 testdata/perf_map/ty_walltime filter=lfs diff=lfs merge=lfs -text
+src/run/runner/wall_time/perf/snapshots/codspeed__run__runner__wall_time__perf__debug_info__tests__rust_divan_debug_info.snap filter=lfs diff=lfs merge=lfs -text
+src/run/runner/wall_time/perf/snapshots/codspeed__run__runner__wall_time__perf__debug_info__tests__ruff_debug_info.snap filter=lfs diff=lfs merge=lfs -text
+src/run/runner/wall_time/perf/snapshots/codspeed__run__runner__wall_time__perf__debug_info__tests__the_algorithms_debug_info.snap filter=lfs diff=lfs merge=lfs -text

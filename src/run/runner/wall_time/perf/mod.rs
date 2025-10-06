@@ -29,6 +29,7 @@ use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 mod jit_dump;
 mod setup;
 
+pub mod debug_info;
 pub mod elf_helper;
 pub mod fifo;
 pub mod perf_map;
@@ -408,6 +409,12 @@ impl BenchmarkData {
     ) -> Result<(), BenchmarkDataSaveError> {
         for proc_sym in self.symbols_by_pid.values() {
             proc_sym.save_to(&path).unwrap();
+        }
+
+        // Save debug info for each process by looking up file/line for symbols
+        for (pid, proc_sym) in &self.symbols_by_pid {
+            let proc_debug_info = debug_info::ProcessDebugInfo::new(*pid, proc_sym);
+            proc_debug_info.save_to(&path).unwrap();
         }
 
         for (pid, modules) in &self.unwind_data_by_pid {
