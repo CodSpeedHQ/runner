@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use log::{debug, info};
 use std::process::{Command, Stdio};
 
 /// Run a command with sudo if available

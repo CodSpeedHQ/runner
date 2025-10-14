@@ -139,7 +139,7 @@ mod valgrind {
             .get_or_init(|| async {
                 let executor = ValgrindExecutor;
                 let system_info = SystemInfo::new().unwrap();
-                executor.setup(&system_info).await.unwrap();
+                executor.setup(&system_info, None).await.unwrap();
                 executor
             })
             .await
@@ -196,7 +196,7 @@ mod walltime {
             .get_or_init(|| async {
                 let executor = WallTimeExecutor::new();
                 let system_info = SystemInfo::new().unwrap();
-                executor.setup(&system_info).await.unwrap();
+                executor.setup(&system_info, None).await.unwrap();
             })
             .await;
 

@@ -1,7 +1,7 @@
-use crate::run::runner::helpers::setup::run_with_sudo;
+use crate::run::runner::helpers::apt;
 use crate::{VALGRIND_CODSPEED_DEB_VERSION, run::check_system::SystemInfo};
 use crate::{VALGRIND_CODSPEED_VERSION, prelude::*, run::helpers::download_file};
-use std::{env, process::Command};
+use std::{env, path::Path, process::Command};
 use url::Url;
 
 fn get_codspeed_valgrind_filename(system_info: &SystemInfo) -> Result<String> {
@@ -54,30 +54,30 @@ fn is_valgrind_installed() -> bool {
     }
 }
 
-pub async fn install_valgrind(system_info: &SystemInfo) -> Result<()> {
-    if is_valgrind_installed() {
-        info!("Valgrind is already installed with the correct version, skipping installation");
-        return Ok(());
-    }
-    debug!("Installing valgrind");
-    let valgrind_deb_url = format!(
-        "https://github.com/CodSpeedHQ/valgrind-codspeed/releases/download/{}/{}",
-        VALGRIND_CODSPEED_DEB_VERSION.as_str(),
-        get_codspeed_valgrind_filename(system_info)?
-    );
-    let deb_path = env::temp_dir().join("valgrind-codspeed.deb");
-    download_file(&Url::parse(valgrind_deb_url.as_str()).unwrap(), &deb_path).await?;
+pub async fn install_valgrind(
+    system_info: &SystemInfo,
+    setup_cache_dir: Option<&Path>,
+) -> Result<()> {
+    apt::install_cached(
+        system_info,
+        setup_cache_dir,
+        is_valgrind_installed,
+        || async {
+            debug!("Installing valgrind");
+            let valgrind_deb_url = format!(
+                "https://github.com/CodSpeedHQ/valgrind-codspeed/releases/download/{}/{}",
+                VALGRIND_CODSPEED_DEB_VERSION.as_str(),
+                get_codspeed_valgrind_filename(system_info)?
+            );
+            let deb_path = env::temp_dir().join("valgrind-codspeed.deb");
+            download_file(&Url::parse(valgrind_deb_url.as_str()).unwrap(), &deb_path).await?;
+            apt::install(system_info, &[deb_path.to_str().unwrap()])?;
 
-    run_with_sudo(&["apt-get", "update"])?;
-    run_with_sudo(&[
-        "apt-get",
-        "install",
-        "--allow-downgrades",
-        "-y",
-        deb_path.to_str().unwrap(),
-    ])?;
-
-    info!("Valgrind installation completed successfully");
+            // Return package names for caching
+            Ok(vec!["valgrind".to_string()])
+        },
+    )
+    .await?;
 
     Ok(())
 }

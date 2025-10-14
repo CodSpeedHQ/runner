@@ -3,12 +3,17 @@ use crate::prelude::*;
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
+use std::path::Path;
 
 #[async_trait(?Send)]
 pub trait Executor {
     fn name(&self) -> ExecutorName;
 
-    async fn setup(&self, _system_info: &SystemInfo) -> Result<()> {
+    async fn setup(
+        &self,
+        _system_info: &SystemInfo,
+        _setup_cache_dir: Option<&Path>,
+    ) -> Result<()> {
         Ok(())
     }
 

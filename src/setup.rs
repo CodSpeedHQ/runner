@@ -1,8 +1,9 @@
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
 use crate::run::runner::get_all_executors;
+use std::path::Path;
 
-pub async fn setup() -> Result<()> {
+pub async fn setup(setup_cache_dir: Option<&Path>) -> Result<()> {
     let system_info = SystemInfo::new()?;
     let executors = get_all_executors();
     start_group!("Setting up the environment for all executors");
@@ -11,7 +12,7 @@ pub async fn setup() -> Result<()> {
             "Setting up the environment for the executor: {}",
             executor.name().to_string()
         );
-        executor.setup(&system_info).await?;
+        executor.setup(&system_info, setup_cache_dir).await?;
     }
     info!("Environment setup completed");
     end_group!();

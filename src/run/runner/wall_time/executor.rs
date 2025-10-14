@@ -13,7 +13,8 @@ use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
 use std::fs::canonicalize;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use tempfile::NamedTempFile;
 
@@ -162,9 +163,9 @@ impl Executor for WallTimeExecutor {
         ExecutorName::WallTime
     }
 
-    async fn setup(&self, _system_info: &SystemInfo) -> Result<()> {
+    async fn setup(&self, system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
         if self.perf.is_some() {
-            PerfRunner::setup_environment()?;
+            PerfRunner::setup_environment(system_info, setup_cache_dir).await?;
         }
 
         Ok(())

@@ -1,5 +1,7 @@
-use crate::{prelude::*, run::runner::helpers::setup::run_with_sudo};
-use std::process::Command;
+use crate::run::runner::helpers::apt;
+use crate::{prelude::*, run::check_system::SystemInfo};
+
+use std::{path::Path, process::Command};
 
 fn cmd_version(cmd: &str) -> anyhow::Result<String> {
     let is_installed = Command::new("which")
@@ -23,32 +25,30 @@ fn is_perf_installed() -> bool {
     version_str.is_ok()
 }
 
-pub fn install_perf() -> Result<()> {
-    if is_perf_installed() {
-        info!("Perf is already installed, skipping installation");
-        return Ok(());
-    }
+pub async fn install_perf(system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
+    apt::install_cached(system_info, setup_cache_dir, is_perf_installed, || async {
+        debug!("Installing perf");
+        let cmd = Command::new("uname")
+            .arg("-r")
+            .output()
+            .expect("Failed to execute uname");
+        let kernel_release = String::from_utf8_lossy(&cmd.stdout);
+        let kernel_release = kernel_release.trim();
+        let linux_tools_kernel_release = format!("linux-tools-{kernel_release}");
 
-    let cmd = Command::new("uname")
-        .arg("-r")
-        .output()
-        .expect("Failed to execute uname");
-    let kernel_release = String::from_utf8_lossy(&cmd.stdout);
-    debug!("Kernel release: {}", kernel_release.trim());
+        let packages = vec![
+            "linux-tools-common".to_string(),
+            "linux-tools-generic".to_string(),
+            linux_tools_kernel_release,
+        ];
+        let package_refs: Vec<&str> = packages.iter().map(|s| s.as_str()).collect();
 
-    debug!("Installing perf");
-    run_with_sudo(&["apt-get", "update"])?;
-    run_with_sudo(&[
-        "apt-get",
-        "install",
-        "--allow-downgrades",
-        "-y",
-        "linux-tools-common",
-        "linux-tools-generic",
-        &format!("linux-tools-{}", kernel_release.trim()),
-    ])?;
+        apt::install(system_info, &package_refs)?;
 
-    info!("Perf installation completed successfully");
+        // Return package names for caching
+        Ok(packages)
+    })
+    .await?;
 
     Ok(())
 }

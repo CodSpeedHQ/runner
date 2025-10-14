@@ -5,7 +5,7 @@ use crate::run::UnwindingMode;
 use crate::run::config::Config;
 use crate::run::runner::helpers::env::is_codspeed_debug_enabled;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
-use crate::run::runner::helpers::setup::run_with_sudo;
+use crate::run::runner::helpers::run_with_sudo::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
 use crate::run::runner::wall_time::perf::jit_dump::harvest_perf_jit_for_pids;
@@ -21,7 +21,7 @@ use runner_shared::fifo::MarkerType;
 use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
@@ -42,8 +42,11 @@ pub struct PerfRunner {
 }
 
 impl PerfRunner {
-    pub fn setup_environment() -> anyhow::Result<()> {
-        setup::install_perf()?;
+    pub async fn setup_environment(
+        system_info: &crate::run::check_system::SystemInfo,
+        setup_cache_dir: Option<&Path>,
+    ) -> anyhow::Result<()> {
+        setup::install_perf(system_info, setup_cache_dir).await?;
 
         let sysctl_read = |name: &str| -> anyhow::Result<i64> {
             let output = std::process::Command::new("sysctl").arg(name).output()?;

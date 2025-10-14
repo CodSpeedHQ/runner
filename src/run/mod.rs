@@ -9,6 +9,7 @@ use instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use run_environment::interfaces::{RepositoryProvider, RunEnvironment};
 use runner::get_run_data;
 use serde::Serialize;
+use std::path::Path;
 use std::path::PathBuf;
 
 pub mod check_system;
@@ -176,6 +177,7 @@ pub async fn run(
     args: RunArgs,
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
+    setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
     let mut config = Config::try_from(args)?;
@@ -202,7 +204,7 @@ pub async fn run(
 
     if !config.skip_setup {
         start_group!("Preparing the environment");
-        executor.setup(&system_info).await?;
+        executor.setup(&system_info, setup_cache_dir).await?;
         // TODO: refactor and move directly in the Instruments struct as a `setup` method
         if config.instruments.is_mongodb_enabled() {
             install_mongodb_tracer().await?;

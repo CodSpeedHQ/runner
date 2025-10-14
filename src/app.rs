@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     api_client::CodSpeedAPIClient,
     auth,
@@ -38,6 +40,13 @@ pub struct Cli {
     #[arg(long, env = "CODSPEED_OAUTH_TOKEN", global = true, hide = true)]
     pub oauth_token: Option<String>,
 
+    /// The directory to use for caching installed tools
+    /// The runner will restore cached tools from this directory before installing them.
+    /// After successful installation, the runner will cache the installed tools to this directory.
+    /// Only supported on ubuntu and debian systems.
+    #[arg(long, env = "CODSPEED_SETUP_CACHE_DIR", global = true)]
+    pub setup_cache_dir: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -56,6 +65,12 @@ pub async fn run() -> Result<()> {
     let cli = Cli::parse();
     let codspeed_config = CodSpeedConfig::load_with_override(cli.oauth_token.as_deref())?;
     let api_client = CodSpeedAPIClient::try_from((&cli, &codspeed_config))?;
+    // In the context of the CI, it is likely that a ~ made its way here without being expanded by the shell
+    let setup_cache_dir = cli
+        .setup_cache_dir
+        .as_ref()
+        .map(|d| PathBuf::from(shellexpand::tilde(d).as_ref()));
+    let setup_cache_dir = setup_cache_dir.as_deref();
 
     match cli.command {
         Commands::Run(_) => {} // Run is responsible for its own logger initialization
@@ -65,9 +80,11 @@ pub async fn run() -> Result<()> {
     }
 
     match cli.command {
-        Commands::Run(args) => run::run(args, &api_client, &codspeed_config).await?,
+        Commands::Run(args) => {
+            run::run(args, &api_client, &codspeed_config, setup_cache_dir).await?
+        }
         Commands::Auth(args) => auth::run(args, &api_client).await?,
-        Commands::Setup => setup::setup().await?,
+        Commands::Setup => setup::setup(setup_cache_dir).await?,
     }
     Ok(())
 }

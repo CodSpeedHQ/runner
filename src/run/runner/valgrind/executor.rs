@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::path::Path;
 
 use crate::prelude::*;
 use crate::run::instruments::mongo_tracer::MongoTracer;
@@ -17,8 +18,8 @@ impl Executor for ValgrindExecutor {
         ExecutorName::Valgrind
     }
 
-    async fn setup(&self, system_info: &SystemInfo) -> Result<()> {
-        install_valgrind(system_info).await?;
+    async fn setup(&self, system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
+        install_valgrind(system_info, setup_cache_dir).await?;
 
         if let Err(error) = venv_compat::symlink_libpython(None) {
             warn!("Failed to symlink libpython");
