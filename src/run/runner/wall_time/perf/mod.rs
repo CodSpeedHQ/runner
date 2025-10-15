@@ -306,7 +306,7 @@ impl PerfRunner {
                 }
                 Err(_) => continue,
             };
-            debug!("Received command: {cmd:?}");
+            trace!("Received command: {cmd:?}");
 
             match cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
