@@ -13,6 +13,7 @@ pub struct ProfileArchive {
 pub enum ProfileArchiveContent {
     CompressedInMemory { data: Vec<u8> },
     UncompressedOnDisk { path: PathBuf },
+    CompressedOnDisk { path: PathBuf },
 }
 
 impl ProfileArchive {
@@ -39,13 +40,30 @@ impl ProfileArchive {
             content: ProfileArchiveContent::UncompressedOnDisk { path },
         })
     }
+
+    pub fn new_compressed_on_disk(path: PathBuf) -> Result<Self> {
+        let metadata = std::fs::metadata(&path)?;
+        if !metadata.is_file() {
+            return Err(anyhow!("The provided path is not a file"));
+        }
+        let mut file = std::fs::File::open(&path)?;
+        let mut buffer = Vec::new();
+        use std::io::Read;
+        file.read_to_end(&mut buffer)?;
+        let hash = general_purpose::STANDARD.encode(md5::compute(&buffer).0);
+        Ok(ProfileArchive {
+            hash,
+            content: ProfileArchiveContent::CompressedOnDisk { path },
+        })
+    }
 }
 
 impl ProfileArchiveContent {
     pub async fn size(&self) -> Result<u64> {
         match &self {
             ProfileArchiveContent::CompressedInMemory { data } => Ok(data.len() as u64),
-            ProfileArchiveContent::UncompressedOnDisk { path } => {
+            ProfileArchiveContent::UncompressedOnDisk { path }
+            | ProfileArchiveContent::CompressedOnDisk { path } => {
                 let metadata = tokio::fs::metadata(path).await?;
                 Ok(metadata.len())
             }
@@ -55,6 +73,7 @@ impl ProfileArchiveContent {
     pub fn encoding(&self) -> Option<String> {
         match self {
             ProfileArchiveContent::CompressedInMemory { .. } => Some("gzip".to_string()),
+            ProfileArchiveContent::CompressedOnDisk { .. } => Some("gzip".to_string()),
             _ => None,
         }
     }
@@ -62,7 +81,9 @@ impl ProfileArchiveContent {
 
 impl Drop for ProfileArchiveContent {
     fn drop(&mut self) {
-        if let ProfileArchiveContent::UncompressedOnDisk { path } = self {
+        if let ProfileArchiveContent::UncompressedOnDisk { path }
+        | ProfileArchiveContent::CompressedOnDisk { path } = self
+        {
             if path.exists() {
                 let _ = std::fs::remove_file(path);
             }
