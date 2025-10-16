@@ -5,6 +5,19 @@
 
 
 
+## [4.2.0] - 2025-10-16
+
+### <!-- 0 -->🚀 Features
+- Allow caching installed executor instruments on ubuntu/debian by @GuillaumeLagrange in [#129](https://github.com/CodSpeedHQ/runner/pull/129)
+- Automatically compress archive if profile folder is above a certain threshold by @GuillaumeLagrange
+
+### <!-- 1 -->🐛 Bug Fixes
+- Bump git2 to latest to support sparse checkout by @adriencaccia in [#131](https://github.com/CodSpeedHQ/runner/pull/131)
+
+### <!-- 7 -->⚙️ Internals
+- Make fifo command dump trace level by @GuillaumeLagrange in [#130](https://github.com/CodSpeedHQ/runner/pull/130)
+
+
 ## [4.1.1] - 2025-10-06
 
 ### <!-- 1 -->🐛 Bug Fixes
@@ -496,6 +509,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.2.0]: https://github.com/CodSpeedHQ/runner/compare/v4.1.1..v4.2.0
 [4.1.1]: https://github.com/CodSpeedHQ/runner/compare/v4.1.0..v4.1.1
 [4.1.0]: https://github.com/CodSpeedHQ/runner/compare/v4.0.1..v4.1.0
 [4.0.1]: https://github.com/CodSpeedHQ/runner/compare/v4.0.0..v4.0.1
