@@ -126,7 +126,7 @@ impl PerfRunner {
             // Required for matching the markers and URIs to the samples.
             "-k",
             "CLOCK_MONOTONIC",
-            "--freq=999",
+            "--freq=997", // Use a prime number to avoid synchronization with periodic tasks
             "--delay=-1",
             "-g",
             "--user-callchains",
