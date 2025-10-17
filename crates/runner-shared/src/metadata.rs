@@ -2,6 +2,7 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+use crate::debug_info::ModuleDebugInfo;
 use crate::fifo::MarkerType;
 
 #[derive(Serialize, Deserialize)]
@@ -20,6 +21,10 @@ pub struct PerfMetadata {
 
     /// Marker for certain regions in the profiling data
     pub markers: Vec<MarkerType>,
+
+    /// Debug info for all modules across all processes, mapping PID to module debug info
+    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub debug_info_by_pid: std::collections::HashMap<i32, Vec<ModuleDebugInfo>>,
 }
 
 impl PerfMetadata {

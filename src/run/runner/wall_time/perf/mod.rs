@@ -8,6 +8,7 @@ use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log
 use crate::run::runner::helpers::run_with_sudo::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
+use crate::run::runner::wall_time::perf::debug_info::ProcessDebugInfo;
 use crate::run::runner::wall_time::perf::jit_dump::harvest_perf_jit_for_pids;
 use crate::run::runner::wall_time::perf::perf_executable::get_working_perf_executable;
 use crate::run::runner::wall_time::perf::unwind_data::UnwindDataExt;
@@ -17,6 +18,7 @@ use libc::pid_t;
 use nix::sys::time::TimeValLike;
 use nix::time::clock_gettime;
 use perf_map::ProcessSymbols;
+use runner_shared::debug_info::ModuleDebugInfo;
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::MarkerType;
 use runner_shared::metadata::PerfMetadata;
@@ -30,6 +32,7 @@ use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 mod jit_dump;
 mod setup;
 
+pub mod debug_info;
 pub mod elf_helper;
 pub mod fifo;
 pub mod perf_executable;
@@ -418,6 +421,15 @@ impl BenchmarkData {
             proc_sym.save_to(&path).unwrap();
         }
 
+        // Collect debug info for each process by looking up file/line for symbols
+        let mut debug_info_by_pid = HashMap::<i32, Vec<ModuleDebugInfo>>::new();
+        for (pid, proc_sym) in &self.symbols_by_pid {
+            debug_info_by_pid
+                .entry(*pid)
+                .or_default()
+                .extend(ProcessDebugInfo::new(proc_sym).modules());
+        }
+
         for (pid, modules) in &self.unwind_data_by_pid {
             for module in modules {
                 module.save_to(&path, *pid).unwrap();
@@ -477,6 +489,7 @@ impl BenchmarkData {
                 to_ignore
             },
             markers: self.markers.clone(),
+            debug_info_by_pid,
         };
         metadata.save_to(&path).unwrap();
 

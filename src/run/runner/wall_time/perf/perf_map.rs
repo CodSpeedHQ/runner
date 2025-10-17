@@ -28,12 +28,24 @@ impl Debug for Symbol {
 
 #[derive(Debug, Clone)]
 pub struct ModuleSymbols {
+    load_bias: u64,
     symbols: Vec<Symbol>,
 }
 
 impl ModuleSymbols {
     pub fn from_symbols(symbols: Vec<Symbol>) -> Self {
-        Self { symbols }
+        Self {
+            symbols,
+            load_bias: 0,
+        }
+    }
+
+    pub fn symbols(&self) -> &[Symbol] {
+        &self.symbols
+    }
+
+    pub fn load_bias(&self) -> u64 {
+        self.load_bias
     }
 
     pub fn new<P: AsRef<Path>>(
@@ -78,11 +90,8 @@ impl ModuleSymbols {
             runtime_offset,
             &object,
         )?;
-        for symbol in &mut symbols {
-            symbol.addr = symbol.addr.wrapping_add(load_bias);
-        }
 
-        Ok(Self { symbols })
+        Ok(Self { load_bias, symbols })
     }
 
     pub fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
@@ -92,7 +101,13 @@ impl ModuleSymbols {
             .open(path)?;
 
         for symbol in &self.symbols {
-            writeln!(file, "{:x} {:x} {}", symbol.addr, symbol.size, symbol.name)?;
+            writeln!(
+                file,
+                "{:x} {:x} {}",
+                symbol.addr.wrapping_add(self.load_bias),
+                symbol.size,
+                symbol.name
+            )?;
         }
 
         Ok(())
@@ -149,6 +164,10 @@ impl ProcessSymbols {
         self.modules.keys()
     }
 
+    pub fn modules_with_symbols(&self) -> impl Iterator<Item = (&PathBuf, &ModuleSymbols)> {
+        self.modules.iter()
+    }
+
     pub fn module_mapping<P: AsRef<std::path::Path>>(
         &self,
         module_path: P,
@@ -187,7 +206,7 @@ mod tests {
             file_offset,
         )
         .unwrap();
-        insta::assert_debug_snapshot!(module_symbols.symbols);
+        insta::assert_debug_snapshot!(module_symbols);
     }
 
     #[test]
@@ -201,7 +220,7 @@ mod tests {
             file_offset,
         )
         .unwrap();
-        insta::assert_debug_snapshot!(module_symbols.symbols);
+        insta::assert_debug_snapshot!(module_symbols);
     }
 
     #[test]
@@ -223,7 +242,7 @@ mod tests {
         let module_symbols =
             ModuleSymbols::new(MODULE_PATH, 0x00005555555a2000, 0x0000555555692000, 0x4d000)
                 .unwrap();
-        insta::assert_debug_snapshot!(module_symbols.symbols);
+        insta::assert_debug_snapshot!(module_symbols);
     }
 
     #[test]
@@ -237,7 +256,7 @@ mod tests {
             0x00052000,
         )
         .unwrap();
-        insta::assert_debug_snapshot!(module_symbols.symbols);
+        insta::assert_debug_snapshot!(module_symbols);
     }
 
     #[test]
@@ -248,6 +267,6 @@ mod tests {
             (0x0000555555e6d000_u64, 0x0000555556813000_u64, 0x918000);
         let module_symbols =
             ModuleSymbols::new(MODULE_PATH, start_addr, end_addr, file_offset).unwrap();
-        insta::assert_debug_snapshot!(module_symbols.symbols);
+        insta::assert_debug_snapshot!(module_symbols);
     }
 }
