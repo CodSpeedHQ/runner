@@ -4,6 +4,8 @@ use crate::run::check_system::SystemInfo;
 use std::path::Path;
 use std::process::Command;
 
+const METADATA_FILENAME: &str = "./tmp/codspeed-cache-metadata.txt";
+
 fn is_system_compatible(system_info: &SystemInfo) -> bool {
     system_info.os == "ubuntu" || system_info.os == "debian"
 }
@@ -92,7 +94,7 @@ pub fn install(system_info: &SystemInfo, packages: &[&str]) -> Result<()> {
         );
     }
 
-    debug!("Installing packages: {packages:?}");
+    info!("Installing packages: {}", packages.join(", "));
 
     run_with_sudo(&["apt-get", "update"])?;
     let mut install_cmd = vec!["apt-get", "install", "-y", "--allow-downgrades"];
@@ -129,6 +131,24 @@ fn restore_from_cache(system_info: &SystemInfo, cache_dir: &Path) -> Result<()> 
         "Restoring tools from cache directory: {}",
         cache_dir.display()
     );
+
+    // Read and log the metadata file if it exists
+    let metadata_path = cache_dir.join(METADATA_FILENAME);
+    if metadata_path.exists() {
+        match std::fs::read_to_string(&metadata_path) {
+            Ok(content) => {
+                info!(
+                    "Packages restored from cache: {}",
+                    content.lines().join(", ")
+                );
+            }
+            Err(e) => {
+                warn!("Failed to read metadata file: {e}");
+            }
+        }
+    } else {
+        debug!("No metadata file found in cache directory");
+    }
 
     // Use bash to properly handle glob expansion
     let cache_dir_str = cache_dir
@@ -181,6 +201,27 @@ fn save_to_cache(system_info: &SystemInfo, cache_dir: &Path, packages: &[&str]) 
         let stderr = String::from_utf8_lossy(&output.stderr);
         error!("stderr: {stderr}");
         bail!("Failed to save packages to cache");
+    }
+
+    // Create metadata file containing the installed packages
+    let metadata_path = cache_dir.join(METADATA_FILENAME);
+    let metadata_content = packages.join("\n"); // TODO: add package versions as well, by using the output of the install command for example
+    if let Ok(()) = std::fs::create_dir_all(metadata_path.parent().unwrap()) {
+        if let Ok(()) =
+            std::fs::write(&metadata_path, metadata_content).context("Failed to write metadata file")
+        {
+            debug!("Metadata file created at: {}", metadata_path.display());
+        } else {
+            warn!(
+                "Failed to create metadata file at: {}",
+                metadata_path.display()
+            );
+        }
+    } else {
+        warn!(
+            "Failed to create metadata file parent directory for: {}",
+            metadata_path.display()
+        );
     }
 
     debug!("Packages cached successfully");
