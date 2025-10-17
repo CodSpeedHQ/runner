@@ -5,6 +5,19 @@
 
 
 
+## [4.2.1] - 2025-10-17
+
+### <!-- 0 -->🚀 Features
+- Use a prime number as frequency to avoid synchronization with periodic tasks by @adriencaccia
+
+### <!-- 1 -->🐛 Bug Fixes
+- Ensure perf is always found on the machine by @adriencaccia in [#132](https://github.com/CodSpeedHQ/runner/pull/132)
+- Correctly check if perf is installed by @adriencaccia
+
+### <!-- 7 -->⚙️ Internals
+- Add a metadata file in the cache that lists the installed packages by @adriencaccia
+
+
 ## [4.2.0] - 2025-10-16
 
 ### <!-- 0 -->🚀 Features
@@ -509,6 +522,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.2.1]: https://github.com/CodSpeedHQ/runner/compare/v4.2.0..v4.2.1
 [4.2.0]: https://github.com/CodSpeedHQ/runner/compare/v4.1.1..v4.2.0
 [4.1.1]: https://github.com/CodSpeedHQ/runner/compare/v4.1.0..v4.1.1
 [4.1.0]: https://github.com/CodSpeedHQ/runner/compare/v4.0.1..v4.1.0
