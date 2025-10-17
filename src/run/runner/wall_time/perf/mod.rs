@@ -9,6 +9,7 @@ use crate::run::runner::helpers::run_with_sudo::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
 use crate::run::runner::wall_time::perf::jit_dump::harvest_perf_jit_for_pids;
+use crate::run::runner::wall_time::perf::perf_executable::get_working_perf_executable;
 use crate::run::runner::wall_time::perf::unwind_data::UnwindDataExt;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
@@ -31,6 +32,7 @@ mod setup;
 
 pub mod elf_helper;
 pub mod fifo;
+pub mod perf_executable;
 pub mod perf_map;
 pub mod unwind_data;
 
@@ -118,8 +120,11 @@ impl PerfRunner {
             ""
         };
 
+        let working_perf_executable =
+            get_working_perf_executable().context("Failed to find a working perf executable")?;
+
         let perf_args = [
-            "perf",
+            working_perf_executable.as_str(),
             "record",
             quiet_flag,
             "--timestamp",

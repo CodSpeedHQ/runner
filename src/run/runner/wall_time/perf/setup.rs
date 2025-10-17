@@ -1,33 +1,11 @@
 use crate::run::runner::helpers::apt;
+use crate::run::runner::wall_time::perf::perf_executable::get_working_perf_executable;
 use crate::{prelude::*, run::check_system::SystemInfo};
 
 use std::{path::Path, process::Command};
 
 fn is_perf_installed() -> bool {
-    let is_installed = Command::new("which")
-        .arg("perf")
-        .output()
-        .is_ok_and(|output| output.status.success());
-    if !is_installed {
-        debug!("perf is not installed");
-        return false;
-    }
-
-    if let Ok(version_output) = Command::new("perf").arg("--version").output() {
-        if !version_output.status.success() {
-            debug!(
-                "Failed to get perf version. stderr: {}",
-                String::from_utf8_lossy(&version_output.stderr)
-            );
-            return false;
-        }
-
-        let version = String::from_utf8_lossy(&version_output.stdout);
-        debug!("Found perf version: {}", version.trim());
-        true
-    } else {
-        false
-    }
+    get_working_perf_executable().is_some()
 }
 
 pub async fn install_perf(system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
