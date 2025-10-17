@@ -207,8 +207,8 @@ fn save_to_cache(system_info: &SystemInfo, cache_dir: &Path, packages: &[&str]) 
     let metadata_path = cache_dir.join(METADATA_FILENAME);
     let metadata_content = packages.join("\n"); // TODO: add package versions as well, by using the output of the install command for example
     if let Ok(()) = std::fs::create_dir_all(metadata_path.parent().unwrap()) {
-        if let Ok(()) =
-            std::fs::write(&metadata_path, metadata_content).context("Failed to write metadata file")
+        if let Ok(()) = std::fs::write(&metadata_path, metadata_content)
+            .context("Failed to write metadata file")
         {
             debug!("Metadata file created at: {}", metadata_path.display());
         } else {
