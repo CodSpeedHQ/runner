@@ -31,11 +31,16 @@ fn is_valgrind_installed() -> bool {
         .output()
         .is_ok_and(|output| output.status.success());
     if !is_valgrind_installed {
+        debug!("valgrind is not installed");
         return false;
     }
 
     if let Ok(version_output) = Command::new("valgrind").arg("--version").output() {
         if !version_output.status.success() {
+            debug!(
+                "Failed to get valgrind version. stderr: {}",
+                String::from_utf8_lossy(&version_output.stderr)
+            );
             return false;
         }
 

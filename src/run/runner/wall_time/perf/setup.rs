@@ -3,26 +3,31 @@ use crate::{prelude::*, run::check_system::SystemInfo};
 
 use std::{path::Path, process::Command};
 
-fn cmd_version(cmd: &str) -> anyhow::Result<String> {
+fn is_perf_installed() -> bool {
     let is_installed = Command::new("which")
-        .arg(cmd)
+        .arg("perf")
         .output()
         .is_ok_and(|output| output.status.success());
     if !is_installed {
-        bail!("{cmd} is not installed")
+        debug!("perf is not installed");
+        return false;
     }
 
-    Ok(Command::new(cmd)
-        .arg("--version")
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())?)
-}
+    if let Ok(version_output) = Command::new("perf").arg("--version").output() {
+        if !version_output.status.success() {
+            debug!(
+                "Failed to get perf version. stderr: {}",
+                String::from_utf8_lossy(&version_output.stderr)
+            );
+            return false;
+        }
 
-fn is_perf_installed() -> bool {
-    let version_str = cmd_version("perf");
-    debug!("Perf version: {version_str:?}");
-
-    version_str.is_ok()
+        let version = String::from_utf8_lossy(&version_output.stdout);
+        debug!("Found perf version: {}", version.trim());
+        true
+    } else {
+        false
+    }
 }
 
 pub async fn install_perf(system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
