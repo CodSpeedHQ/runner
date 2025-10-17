@@ -40,6 +40,14 @@ impl ModuleSymbols {
         }
     }
 
+    pub fn symbols(&self) -> &[Symbol] {
+        &self.symbols
+    }
+
+    pub fn load_bias(&self) -> u64 {
+        self.load_bias
+    }
+
     pub fn new<P: AsRef<Path>>(
         path: P,
         runtime_start_addr: u64,
@@ -154,6 +162,10 @@ impl ProcessSymbols {
 
     pub fn loaded_modules(&self) -> impl Iterator<Item = &PathBuf> {
         self.modules.keys()
+    }
+
+    pub fn modules_with_symbols(&self) -> impl Iterator<Item = (&PathBuf, &ModuleSymbols)> {
+        self.modules.iter()
     }
 
     pub fn module_mapping<P: AsRef<std::path::Path>>(
