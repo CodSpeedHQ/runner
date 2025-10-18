@@ -8,6 +8,7 @@ use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::introspected_golang;
 use crate::run::runner::helpers::introspected_nodejs;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
+use crate::run::runner::helpers::run_with_sudo::validated_sudo_command;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
@@ -178,7 +179,7 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = Command::new("sudo");
+        let mut cmd = validated_sudo_command()?;
 
         if let Some(cwd) = &config.working_directory {
             let abs_cwd = canonicalize(cwd)?;

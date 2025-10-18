@@ -32,8 +32,13 @@ async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
     let login_session_payload = api_client.create_login_session().await?;
     end_group!();
 
+    if open::that(&login_session_payload.callback_url).is_ok() {
+        info!("Your browser has been opened to complete the login process");
+    } else {
+        warn!("Failed to open the browser automatically, please open the URL manually");
+    }
     info!(
-        "Login session created, open the following URL in your browser: {}\n",
+        "Authentication URL: {}\n",
         style(login_session_payload.callback_url)
             .blue()
             .bold()
