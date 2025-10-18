@@ -27,7 +27,8 @@ lazy_static! {
 pub fn suspend_progress_bar<F: FnOnce() -> R, R>(f: F) -> R {
     // If the output is a TTY, and there is a spinner, suspend it
     if *IS_TTY {
-        if let Ok(mut spinner) = SPINNER.lock() {
+        // Use try_lock to avoid deadlock on reentrant calls
+        if let Ok(mut spinner) = SPINNER.try_lock() {
             if let Some(spinner) = spinner.as_mut() {
                 return spinner.suspend(f);
             }
