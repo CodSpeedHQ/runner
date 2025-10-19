@@ -19,12 +19,12 @@ use log::log_enabled;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
 
-const VALGRIND_CODSPEED_BASE_VERSION: &str = "3.24.0";
+const VALGRIND_CODSPEED_BASE_VERSION: &str = "3.25.1";
 lazy_static! {
     pub static ref VALGRIND_CODSPEED_VERSION: String =
         format!("{VALGRIND_CODSPEED_BASE_VERSION}.codspeed");
     pub static ref VALGRIND_CODSPEED_DEB_VERSION: String =
-        format!("{VALGRIND_CODSPEED_BASE_VERSION}-0codspeed1");
+        format!("{VALGRIND_CODSPEED_BASE_VERSION}-3codspeed1");
 }
 
 #[tokio::main(flavor = "current_thread")]

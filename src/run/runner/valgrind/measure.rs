@@ -25,6 +25,7 @@ lazy_static! {
                 "-q",
                 "--tool=callgrind",
                 "--trace-children=yes",
+                "--read-inline-info=yes",
                 "--cache-sim=yes",
                 "--I1=32768,8,64",
                 "--D1=32768,8,64",
