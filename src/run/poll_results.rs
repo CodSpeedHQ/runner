@@ -1,6 +1,8 @@
 use std::time::Duration;
 
 use console::style;
+use tabled::settings::Style;
+use tabled::{Table, Tabled};
 use tokio::time::{Instant, sleep};
 
 use crate::api_client::{
@@ -13,6 +15,26 @@ use super::run_environment::RunEnvironmentProvider;
 
 const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
 const POLLING_INTERVAL: Duration = Duration::from_secs(1);
+
+#[derive(Tabled)]
+struct BenchmarkRow {
+    #[tabled(rename = "Benchmark")]
+    name: String,
+    #[tabled(rename = "Time")]
+    time: String,
+}
+
+fn build_benchmark_table(results: &[crate::api_client::FetchLocalRunBenchmarkResult]) -> String {
+    let table_rows: Vec<BenchmarkRow> = results
+        .iter()
+        .map(|result| BenchmarkRow {
+            name: result.benchmark.name.clone(),
+            time: helpers::format_duration(result.time, Some(2)),
+        })
+        .collect();
+
+    Table::new(&table_rows).with(Style::modern()).to_string()
+}
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
@@ -100,21 +122,65 @@ pub async fn poll_results(
 
     if !response.run.results.is_empty() {
         start_group!("Benchmark results");
-        for result in response.run.results {
-            let benchmark_name = result.benchmark.name;
-            let time = helpers::format_duration(result.time, Some(2));
 
-            info!("{}: {}", benchmark_name, style(time).bold());
+        let table = build_benchmark_table(&response.run.results);
+        info!("\n{table}");
 
-            if output_json {
+        if output_json {
+            for result in response.run.results {
                 log_json!(format!(
                     "{{\"event\": \"benchmark_ran\", \"name\": \"{}\", \"time\": \"{}\"}}",
-                    benchmark_name, result.time,
+                    result.benchmark.name, result.time,
                 ));
             }
         }
+
         end_group!();
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api_client::{FetchLocalRunBenchmark, FetchLocalRunBenchmarkResult};
+
+    #[test]
+    fn test_benchmark_table_formatting() {
+        let results = vec![
+            FetchLocalRunBenchmarkResult {
+                benchmark: FetchLocalRunBenchmark {
+                    name: "benchmark_fast".to_string(),
+                },
+                time: 0.001234, // 1.23 ms
+            },
+            FetchLocalRunBenchmarkResult {
+                benchmark: FetchLocalRunBenchmark {
+                    name: "benchmark_slow".to_string(),
+                },
+                time: 1.5678, // 1.57 s
+            },
+            FetchLocalRunBenchmarkResult {
+                benchmark: FetchLocalRunBenchmark {
+                    name: "benchmark_medium".to_string(),
+                },
+                time: 0.000567, // 567 µs
+            },
+        ];
+
+        let table = build_benchmark_table(&results);
+
+        insta::assert_snapshot!(table, @r###"
+        ┌──────────────────┬───────────┐
+        │ Benchmark        │ Time      │
+        ├──────────────────┼───────────┤
+        │ benchmark_fast   │ 1.23 ms   │
+        ├──────────────────┼───────────┤
+        │ benchmark_slow   │ 1.57 s    │
+        ├──────────────────┼───────────┤
+        │ benchmark_medium │ 567.00 µs │
+        └──────────────────┴───────────┘
+        "###);
+    }
 }
