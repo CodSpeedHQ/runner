@@ -22,7 +22,7 @@ lazy_static! {
         let mut args = vec![];
         args.extend(
             [
-                "-q",
+                // "-q",
                 "--tool=callgrind",
                 "--trace-children=yes",
                 "--cache-sim=yes",
