@@ -89,7 +89,7 @@ pub struct RunArgs {
     pub working_directory: Option<String>,
 
     /// The mode to run the benchmarks in.
-    #[arg(long, value_enum, env = "CODSPEED_RUNNER_MODE")]
+    #[arg(short, long, value_enum, env = "CODSPEED_RUNNER_MODE")]
     pub mode: RunnerMode,
 
     /// Comma-separated list of instruments to enable. Possible values: mongodb.
