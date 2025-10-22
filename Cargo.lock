@@ -337,6 +337,7 @@ dependencies = [
  "rstest",
  "rstest_reuse",
  "runner-shared",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",
