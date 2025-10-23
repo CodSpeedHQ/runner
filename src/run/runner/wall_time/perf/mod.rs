@@ -40,7 +40,7 @@ pub mod perf_map;
 pub mod unwind_data;
 
 const PERF_METADATA_CURRENT_VERSION: u64 = 1;
-const PERF_DATA_PATH: &str = "/tmp/perf.data";
+const PERF_DATA_PATH: &str = "/tmp/perf.pipedata";
 
 pub struct PerfRunner {
     benchmark_data: OnceCell<BenchmarkData>,
@@ -144,9 +144,14 @@ impl PerfRunner {
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy()
             ),
-            &format!("--output={PERF_DATA_PATH}"),
+            "-o",
+            "-", // forces pipe mode
             "--",
             bench_cmd,
+            "|",
+            "cat",
+            ">",
+            PERF_DATA_PATH,
         ];
 
         cmd.args(["sh", "-c", &perf_args.join(" ")]);
@@ -177,7 +182,7 @@ impl PerfRunner {
         ])?;
 
         // Copy the perf data to the profile folder
-        let perf_data_dest = profile_folder.join("perf.data");
+        let perf_data_dest = profile_folder.join("perf.pipedata");
         std::fs::copy(PERF_DATA_PATH, &perf_data_dest)
             .with_context(|| format!("Failed to copy perf data to {perf_data_dest:?}",))?;
 
