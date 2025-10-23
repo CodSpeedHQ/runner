@@ -4,6 +4,16 @@ use std::{
     process::{Command, Stdio},
 };
 
+fn is_sudo_available() -> bool {
+    Command::new("sudo")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 /// Validate sudo access, prompting the user for their password if necessary
 fn validate_sudo_access() -> Result<()> {
     let needs_password = IsTerminal::is_terminal(&std::io::stdout())
@@ -37,11 +47,12 @@ fn validate_sudo_access() -> Result<()> {
             Ok(())
         })?;
     }
+    debug!("Sudo access validated");
     Ok(())
 }
 
 /// Creates the base sudo command after validating sudo access
-pub fn validated_sudo_command() -> Result<Command> {
+fn validated_sudo_command() -> Result<Command> {
     validate_sudo_access()?;
     let mut cmd = Command::new("sudo");
     // Password prompt should not appear here since it has already been validated
@@ -49,20 +60,35 @@ pub fn validated_sudo_command() -> Result<Command> {
     Ok(cmd)
 }
 
-/// Run a command with sudo after validating sudo access
-pub fn run_with_sudo(command_args: &[&str]) -> Result<()> {
+/// Build a command wrapped with sudo if possible
+pub fn build_command_with_sudo(command_args: &[&str]) -> Result<Command> {
     let command_str = command_args.join(" ");
-    debug!("Running command with sudo: {command_str}");
-    let output = validated_sudo_command()?
-        .args(command_args)
+    if is_sudo_available() {
+        debug!("Sudo is required for command: {command_str}");
+        let mut c = validated_sudo_command()?;
+        c.args(command_args);
+        Ok(c)
+    } else {
+        debug!("Running command without sudo: {command_str}");
+        let mut c = Command::new(command_args[0]);
+        c.args(&command_args[1..]);
+        Ok(c)
+    }
+}
+
+/// Run a command with sudo after validating sudo access (if possible)
+pub fn run_with_sudo(command_args: &[&str]) -> Result<()> {
+    let mut cmd = build_command_with_sudo(command_args)?;
+    let command_str = command_args.join(" ");
+    let output = cmd
         .stdout(Stdio::piped())
         .output()
-        .map_err(|_| anyhow!("Failed to execute command with sudo: {command_str}"))?;
+        .map_err(|_| anyhow!("Failed to execute: {command_str}"))?;
 
     if !output.status.success() {
         info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
         error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-        bail!("Failed to execute command with sudo: {command_str}");
+        bail!("Failed to execute command: {command_str}");
     }
 
     Ok(())

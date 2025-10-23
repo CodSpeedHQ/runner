@@ -8,7 +8,7 @@ use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::introspected_golang;
 use crate::run::runner::helpers::introspected_nodejs;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
-use crate::run::runner::helpers::run_with_sudo::validated_sudo_command;
+use crate::run::runner::helpers::run_with_sudo::build_command_with_sudo;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
@@ -100,7 +100,7 @@ impl WallTimeExecutor {
     fn walltime_bench_cmd(
         config: &Config,
         run_data: &RunData,
-    ) -> Result<(NamedTempFile, NamedTempFile, String)> {
+    ) -> Result<(NamedTempFile, NamedTempFile, Vec<String>)> {
         let bench_cmd = get_bench_command(config)?;
 
         let system_env = get_exported_system_env()?;
@@ -150,11 +150,24 @@ impl WallTimeExecutor {
         // - We have to pass the environment variables because `--scope` only inherits the system and not the user environment variables.
         let uid = nix::unistd::Uid::current().as_raw();
         let gid = nix::unistd::Gid::current().as_raw();
-        let cmd = format!(
-            "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
-            script_file.path().display()
-        );
-        Ok((env_file, script_file, cmd))
+        let script_path = script_file.path().to_string_lossy().to_string();
+        let cmd = [
+            "systemd-run",
+            quiet_flag,
+            "--scope",
+            "--slice=codspeed.slice",
+            "--same-dir",
+            &format!("--uid={uid}"),
+            &format!("--gid={gid}"),
+            "--",
+            "bash",
+            &script_path,
+        ];
+        Ok((
+            env_file,
+            script_file,
+            cmd.into_iter().map(|s| s.to_string()).collect(),
+        ))
     }
 }
 
@@ -179,25 +192,24 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = validated_sudo_command()?;
-
-        if let Some(cwd) = &config.working_directory {
-            let abs_cwd = canonicalize(cwd)?;
-            cmd.current_dir(abs_cwd);
-        }
-
         let status = {
             let _guard = HookScriptsGuard::setup();
 
+            // Keep the temporary files alive for the duration of the command execution
             let (_env_file, _script_file, bench_cmd) = Self::walltime_bench_cmd(config, run_data)?;
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
-                perf.run(cmd, &bench_cmd, config).await
+                perf.run(bench_cmd, config).await
             } else {
-                cmd.args(["sh", "-c", &bench_cmd]);
+                let mut cmd = build_command_with_sudo(
+                    &bench_cmd.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                )?;
                 debug!("cmd: {cmd:?}");
-
+                if let Some(cwd) = &config.working_directory {
+                    let abs_cwd = canonicalize(cwd)?;
+                    cmd.current_dir(abs_cwd);
+                }
                 run_command_with_log_pipe(cmd).await
             }
         };

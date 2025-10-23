@@ -5,6 +5,7 @@ use crate::run::UnwindingMode;
 use crate::run::config::Config;
 use crate::run::runner::helpers::env::is_codspeed_debug_enabled;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
+use crate::run::runner::helpers::run_with_sudo::build_command_with_sudo;
 use crate::run::runner::helpers::run_with_sudo::run_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
@@ -24,8 +25,8 @@ use runner_shared::fifo::MarkerType;
 use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
+use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 
@@ -84,12 +85,7 @@ impl PerfRunner {
         }
     }
 
-    pub async fn run(
-        &self,
-        mut cmd: Command,
-        bench_cmd: &str,
-        config: &Config,
-    ) -> anyhow::Result<ExitStatus> {
+    pub async fn run(&self, bench_cmd: Vec<String>, config: &Config) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
 
@@ -111,11 +107,11 @@ impl PerfRunner {
             (UnwindingMode::Dwarf, None)
         };
 
-        let cg_mode = match cg_mode {
-            UnwindingMode::FramePointer => "fp",
-            UnwindingMode::Dwarf => &format!("dwarf,{}", stack_size.unwrap_or(8192)),
+        let cg_mode_str = match cg_mode {
+            UnwindingMode::FramePointer => "fp".to_string(),
+            UnwindingMode::Dwarf => format!("dwarf,{}", stack_size.unwrap_or(8192)),
         };
-        debug!("Using call graph mode: {cg_mode:?}");
+        debug!("Using call graph mode: {cg_mode_str:?}");
 
         let quiet_flag = if !is_codspeed_debug_enabled() {
             "--quiet"
@@ -126,6 +122,7 @@ impl PerfRunner {
         let working_perf_executable =
             get_working_perf_executable().context("Failed to find a working perf executable")?;
 
+        let bench_str = bench_cmd.join(" ");
         let perf_args = [
             working_perf_executable.as_str(),
             "record",
@@ -138,7 +135,7 @@ impl PerfRunner {
             "--delay=-1",
             "-g",
             "--user-callchains",
-            &format!("--call-graph={cg_mode}"),
+            &format!("--call-graph={cg_mode_str}"),
             &format!(
                 "--control=fifo:{},{}",
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
@@ -146,12 +143,15 @@ impl PerfRunner {
             ),
             &format!("--output={PERF_DATA_PATH}"),
             "--",
-            bench_cmd,
+            &bench_str,
         ];
-
-        cmd.args(["sh", "-c", &perf_args.join(" ")]);
-        debug!("cmd: {cmd:?}");
-
+        let perf_cmd = perf_args.join(" ");
+        debug!("raw perf cmd: {perf_cmd:?}");
+        let mut cmd = build_command_with_sudo(&["sh", "-c", &perf_cmd])?;
+        if let Some(cwd) = &config.working_directory {
+            let abs_cwd = canonicalize(cwd)?;
+            cmd.current_dir(abs_cwd);
+        }
         let on_process_started = async |_| -> anyhow::Result<()> {
             let data = Self::handle_fifo(runner_fifo, perf_fifo).await?;
             let _ = self.benchmark_data.set(data);
