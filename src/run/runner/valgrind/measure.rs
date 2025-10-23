@@ -34,6 +34,7 @@ lazy_static! {
                 "--compress-strings=no",
                 "--combine-dumps=yes",
                 "--dump-line=no",
+                "--read-inline-info=yes",
             ]
             .iter()
             .map(|x| x.to_string()),
