@@ -5,6 +5,24 @@
 
 
 
+## [4.3.0] - 2025-10-23
+
+### <!-- 0 -->🚀 Features
+- Allow shorthand for selecting the mode by @art049
+- Improve results display when running locally by @art049
+- Bump to valgrind-codspeed 3.25.1-3codspeed2 by @art049 in [#137](https://github.com/CodSpeedHQ/runner/pull/137)
+- Allow wider range of valgrind codspeed version usage by @art049
+- Automatically open the auth URL by @art049 in [#133](https://github.com/CodSpeedHQ/runner/pull/133)
+- Proper interactive sudo support by @art049
+- Dump debug info of loaded modules by @not-matthias in [#128](https://github.com/CodSpeedHQ/runner/pull/128)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Dont immediately add load_bias to symbol offset by @not-matthias
+
+### <!-- 7 -->⚙️ Internals
+- Fix fmt error by @adriencaccia
+
+
 ## [4.2.1] - 2025-10-17
 
 ### <!-- 0 -->🚀 Features
@@ -522,6 +540,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.3.0]: https://github.com/CodSpeedHQ/runner/compare/v4.2.1..v4.3.0
 [4.2.1]: https://github.com/CodSpeedHQ/runner/compare/v4.2.0..v4.2.1
 [4.2.0]: https://github.com/CodSpeedHQ/runner/compare/v4.1.1..v4.2.0
 [4.1.1]: https://github.com/CodSpeedHQ/runner/compare/v4.1.0..v4.1.1
