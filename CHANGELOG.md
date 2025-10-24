@@ -5,6 +5,15 @@
 
 
 
+## [4.3.1] - 2025-10-24
+
+### <!-- 0 -->🚀 Features
+- Enable read-inline-info to support inlined frames by @not-matthias in [#139](https://github.com/CodSpeedHQ/runner/pull/139)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Sudo behavior when root or not available (#141) by @art049 in [#141](https://github.com/CodSpeedHQ/runner/pull/141)
+
+
 ## [4.3.0] - 2025-10-23
 
 ### <!-- 0 -->🚀 Features
@@ -540,6 +549,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.3.1]: https://github.com/CodSpeedHQ/runner/compare/v4.3.0..v4.3.1
 [4.3.0]: https://github.com/CodSpeedHQ/runner/compare/v4.2.1..v4.3.0
 [4.2.1]: https://github.com/CodSpeedHQ/runner/compare/v4.2.0..v4.2.1
 [4.2.0]: https://github.com/CodSpeedHQ/runner/compare/v4.1.1..v4.2.0
