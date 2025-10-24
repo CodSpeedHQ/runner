@@ -77,7 +77,7 @@ fn is_valgrind_installed() -> bool {
 
     // Check if it's a codspeed version
     if !version.contains(".codspeed") {
-        warn!(
+        info!(
             "Valgrind is installed but is not a CodSpeed version. expecting {} but found installed: {}",
             VALGRIND_CODSPEED_VERSION_STRING.as_str(),
             version.trim()
@@ -87,7 +87,7 @@ fn is_valgrind_installed() -> bool {
 
     // Parse the installed version
     let Some(installed_version) = parse_valgrind_codspeed_version(&version) else {
-        warn!(
+        info!(
             "Could not parse valgrind version. expecting {} but found installed: {}",
             VALGRIND_CODSPEED_VERSION_STRING.as_str(),
             version.trim()
@@ -95,7 +95,7 @@ fn is_valgrind_installed() -> bool {
         return false;
     };
     if installed_version < VALGRIND_CODSPEED_VERSION {
-        warn!(
+        info!(
             "Valgrind is installed but the version is too old. expecting {} or higher but found installed: {}",
             VALGRIND_CODSPEED_VERSION_STRING.as_str(),
             version.trim()
@@ -103,7 +103,7 @@ fn is_valgrind_installed() -> bool {
         return false;
     }
     if installed_version > VALGRIND_CODSPEED_VERSION {
-        warn!(
+        info!(
             "Using experimental valgrind version {}.codspeed. The recommended version is {}",
             installed_version,
             VALGRIND_CODSPEED_VERSION_STRING.as_str()

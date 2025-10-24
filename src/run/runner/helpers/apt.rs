@@ -108,7 +108,7 @@ pub fn install(system_info: &SystemInfo, packages: &[&str]) -> Result<()> {
 /// Restore cached tools from the cache directory to the root filesystem
 fn restore_from_cache(system_info: &SystemInfo, cache_dir: &Path) -> Result<()> {
     if !is_system_compatible(system_info) {
-        warn!("Cache restore is not supported on this system, skipping");
+        info!("Cache restore is not supported on this system, skipping");
         return Ok(());
     }
 
@@ -166,7 +166,7 @@ fn restore_from_cache(system_info: &SystemInfo, cache_dir: &Path) -> Result<()> 
 /// Save installed packages to the cache directory
 fn save_to_cache(system_info: &SystemInfo, cache_dir: &Path, packages: &[&str]) -> Result<()> {
     if !is_system_compatible(system_info) {
-        warn!("Caching of installed package is not supported on this system, skipping");
+        info!("Caching of installed package is not supported on this system, skipping");
         return Ok(());
     }
 
