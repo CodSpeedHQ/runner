@@ -4,6 +4,23 @@ use std::{
     process::{Command, Stdio},
 };
 
+fn is_root_user() -> bool {
+    #[cfg(unix)]
+    return nix::unistd::Uid::current().is_root();
+    #[cfg(not(unix))]
+    return false;
+}
+
+fn is_sudo_available() -> bool {
+    Command::new("sudo")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 /// Validate sudo access, prompting the user for their password if necessary
 fn validate_sudo_access() -> Result<()> {
     let needs_password = IsTerminal::is_terminal(&std::io::stdout())
@@ -49,12 +66,30 @@ pub fn validated_sudo_command() -> Result<Command> {
     Ok(cmd)
 }
 
+/// Build a command wrapped with sudo if possible
+pub fn build_command_with_sudo(command_args: &[&str]) -> Result<Command> {
+    let command_str = command_args.join(" ");
+    if is_root_user() {
+        debug!("Running command without sudo: {command_str}");
+        let mut c = Command::new(command_args[0]);
+        c.args(&command_args[1..]);
+        Ok(c)
+    } else if is_sudo_available() {
+        debug!("Sudo is required for command: {command_str}");
+        let mut c = validated_sudo_command()?;
+        c.args(command_args);
+        Ok(c)
+    } else {
+        bail!("Sudo is not available to run the command: {command_str}");
+    }
+}
+
 /// Run a command with sudo after validating sudo access
 pub fn run_with_sudo(command_args: &[&str]) -> Result<()> {
     let command_str = command_args.join(" ");
     debug!("Running command with sudo: {command_str}");
-    let output = validated_sudo_command()?
-        .args(command_args)
+    let mut cmd = build_command_with_sudo(command_args)?;
+    let output = cmd
         .stdout(Stdio::piped())
         .output()
         .map_err(|_| anyhow!("Failed to execute command with sudo: {command_str}"))?;
