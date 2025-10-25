@@ -349,6 +349,7 @@ dependencies = [
  "serde_yaml",
  "sha256",
  "shell-quote",
+ "shell-words",
  "shellexpand",
  "simplelog",
  "sysinfo",
@@ -2271,6 +2272,12 @@ checksum = "fb502615975ae2365825521fa1529ca7648fd03ce0b0746604e0683856ecd7e4"
 dependencies = [
  "bstr",
 ]
+
+[[package]]
+name = "shell-words"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24188a676b6ae68c3b2cb3a01be17fbf7240ce009799bb56d5b1409051e78fde"
 
 [[package]]
 name = "shellexpand"

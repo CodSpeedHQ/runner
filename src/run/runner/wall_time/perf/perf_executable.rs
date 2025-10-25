@@ -1,13 +1,13 @@
 use crate::prelude::*;
 
-use std::process::Command;
+use std::{ffi::OsString, process::Command};
 
 const FIND_PERF_CMD: &str =
     "find /usr/lib -executable -path \"/usr/lib/linux-tools-*/perf\" | sort | tail -n1";
 
 /// Attempts to find the path to the `perf` executable that is installed and working.
 /// Returns None if `perf` is not installed or not functioning correctly.
-pub fn get_working_perf_executable() -> Option<String> {
+pub fn get_working_perf_executable() -> Option<OsString> {
     let is_installed = Command::new("which")
         .arg("perf")
         .output()
@@ -23,7 +23,7 @@ pub fn get_working_perf_executable() -> Option<String> {
         .output()
         .is_ok_and(|output| output.status.success())
     {
-        return Some("perf".to_string());
+        return Some("perf".into());
     } else {
         // The following is a workaround for this outstanding Ubuntu issue: https://bugs.launchpad.net/ubuntu/+source/linux-hwe-6.14/+bug/2117159/
         debug!(
@@ -53,7 +53,7 @@ pub fn get_working_perf_executable() -> Option<String> {
                         .trim()
                         .to_string();
                     debug!("Found perf version from alternative path: {version}");
-                    return Some(path);
+                    return Some(path.into());
                 }
             }
         }
