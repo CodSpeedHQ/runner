@@ -1,4 +1,5 @@
 pub mod apt;
+pub mod command;
 pub mod env;
 pub mod get_bench_command;
 pub mod introspected_golang;
