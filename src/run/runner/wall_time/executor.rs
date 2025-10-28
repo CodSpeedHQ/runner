@@ -191,7 +191,8 @@ impl Executor for WallTimeExecutor {
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
-                perf.run(cmd_builder, config).await
+                perf.run(cmd_builder, config, &run_data.profile_folder)
+                    .await
             } else {
                 let cmd = wrap_with_sudo(cmd_builder)?.build();
                 debug!("cmd: {cmd:?}");

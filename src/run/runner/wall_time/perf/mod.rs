@@ -26,7 +26,7 @@ use runner_shared::fifo::MarkerType;
 use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 
@@ -41,7 +41,7 @@ pub mod perf_map;
 pub mod unwind_data;
 
 const PERF_METADATA_CURRENT_VERSION: u64 = 1;
-const PERF_DATA_PATH: &str = "/tmp/perf.pipedata";
+const PERF_DATA_FILE_NAME: &str = "perf.pipedata";
 
 pub struct PerfRunner {
     benchmark_data: OnceCell<BenchmarkData>,
@@ -89,6 +89,7 @@ impl PerfRunner {
         &self,
         mut cmd_builder: CommandBuilder,
         config: &Config,
+        profile_folder: &Path,
     ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
@@ -144,7 +145,15 @@ impl PerfRunner {
             "--",
         ]);
         cmd_builder.wrap_with(perf_wrapper_builder);
-        let raw_command = format!("{} | cat > PERF_DATA_PATH", &cmd_builder.as_command_line());
+
+        // Copy the perf data to the profile folder
+        let perf_data_file_path = profile_folder.join(PERF_DATA_FILE_NAME);
+
+        let raw_command = format!(
+            "{} | cat > {}",
+            &cmd_builder.as_command_line(),
+            perf_data_file_path.to_string_lossy()
+        );
         let mut wrapped_builder = CommandBuilder::new("sh");
         wrapped_builder.args(["-c", &raw_command]);
         let cmd = wrap_with_sudo(wrapped_builder)?.build();
@@ -160,27 +169,8 @@ impl PerfRunner {
         run_command_with_log_pipe_and_callback(cmd, on_process_started).await
     }
 
-    pub async fn save_files_to(&self, profile_folder: &PathBuf) -> anyhow::Result<()> {
+    pub async fn save_files_to(&self, profile_folder: &Path) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
-
-        // We ran perf with sudo, so we have to change the ownership of the perf.data
-        run_with_sudo(
-            "chown",
-            [
-                "-R",
-                &format!(
-                    "{}:{}",
-                    nix::unistd::Uid::current(),
-                    nix::unistd::Gid::current()
-                ),
-                PERF_DATA_PATH,
-            ],
-        )?;
-
-        // Copy the perf data to the profile folder
-        let perf_data_dest = profile_folder.join("perf.pipedata");
-        std::fs::copy(PERF_DATA_PATH, &perf_data_dest)
-            .with_context(|| format!("Failed to copy perf data to {perf_data_dest:?}",))?;
 
         let bench_data = self
             .benchmark_data
