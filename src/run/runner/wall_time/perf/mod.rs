@@ -3,9 +3,11 @@
 use crate::prelude::*;
 use crate::run::UnwindingMode;
 use crate::run::config::Config;
+use crate::run::runner::helpers::command::CommandBuilder;
 use crate::run::runner::helpers::env::is_codspeed_debug_enabled;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::run_with_sudo::run_with_sudo;
+use crate::run::runner::helpers::run_with_sudo::wrap_with_sudo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
 use crate::run::runner::wall_time::perf::debug_info::ProcessDebugInfo;
@@ -25,7 +27,6 @@ use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 
@@ -67,12 +68,12 @@ impl PerfRunner {
 
         // Allow access to kernel symbols
         if sysctl_read("kernel.kptr_restrict")? != 0 {
-            run_with_sudo(&["sysctl", "-w", "kernel.kptr_restrict=0"])?;
+            run_with_sudo("sysctl", ["-w", "kernel.kptr_restrict=0"])?;
         }
 
         // Allow non-root profiling
         if sysctl_read("kernel.perf_event_paranoid")? != -1 {
-            run_with_sudo(&["sysctl", "-w", "kernel.perf_event_paranoid=-1"])?;
+            run_with_sudo("sysctl", ["-w", "kernel.perf_event_paranoid=-1"])?;
         }
 
         Ok(())
@@ -86,8 +87,7 @@ impl PerfRunner {
 
     pub async fn run(
         &self,
-        mut cmd: Command,
-        bench_cmd: &str,
+        mut cmd_builder: CommandBuilder,
         config: &Config,
     ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
@@ -117,19 +117,14 @@ impl PerfRunner {
         };
         debug!("Using call graph mode: {cg_mode:?}");
 
-        let quiet_flag = if !is_codspeed_debug_enabled() {
-            "--quiet"
-        } else {
-            ""
-        };
-
         let working_perf_executable =
             get_working_perf_executable().context("Failed to find a working perf executable")?;
-
-        let perf_args = [
-            working_perf_executable.as_str(),
-            "record",
-            quiet_flag,
+        let mut perf_wrapper_builder = CommandBuilder::new(working_perf_executable);
+        perf_wrapper_builder.arg("record");
+        if !is_codspeed_debug_enabled() {
+            perf_wrapper_builder.arg("--quiet");
+        }
+        perf_wrapper_builder.args([
             "--timestamp",
             // Required for matching the markers and URIs to the samples.
             "-k",
@@ -146,16 +141,16 @@ impl PerfRunner {
             ),
             &format!("--output={PERF_DATA_PATH}"),
             "--",
-            bench_cmd,
-        ];
-
-        cmd.args(["sh", "-c", &perf_args.join(" ")]);
+        ]);
+        cmd_builder.wrap_with(perf_wrapper_builder);
+        let cmd = wrap_with_sudo(cmd_builder)?.build();
         debug!("cmd: {cmd:?}");
 
         let on_process_started = async |_| -> anyhow::Result<()> {
             let data = Self::handle_fifo(runner_fifo, perf_fifo).await?;
-            let _ = self.benchmark_data.set(data);
-
+            self.benchmark_data.set(data).unwrap_or_else(|_| {
+                error!("Failed to set benchmark data in PerfRunner");
+            });
             Ok(())
         };
         run_command_with_log_pipe_and_callback(cmd, on_process_started).await
@@ -165,16 +160,18 @@ impl PerfRunner {
         let start = std::time::Instant::now();
 
         // We ran perf with sudo, so we have to change the ownership of the perf.data
-        run_with_sudo(&[
+        run_with_sudo(
             "chown",
-            "-R",
-            &format!(
-                "{}:{}",
-                nix::unistd::Uid::current(),
-                nix::unistd::Gid::current()
-            ),
-            PERF_DATA_PATH,
-        ])?;
+            [
+                "-R",
+                &format!(
+                    "{}:{}",
+                    nix::unistd::Uid::current(),
+                    nix::unistd::Gid::current()
+                ),
+                PERF_DATA_PATH,
+            ],
+        )?;
 
         // Copy the perf data to the profile folder
         let perf_data_dest = profile_folder.join("perf.data");

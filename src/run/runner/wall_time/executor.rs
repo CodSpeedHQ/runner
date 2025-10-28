@@ -3,12 +3,13 @@ use crate::prelude::*;
 use crate::run::RunnerMode;
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
+use crate::run::runner::helpers::command::CommandBuilder;
 use crate::run::runner::helpers::env::{get_base_injected_env, is_codspeed_debug_enabled};
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::introspected_golang;
 use crate::run::runner::helpers::introspected_nodejs;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
-use crate::run::runner::helpers::run_with_sudo::validated_sudo_command;
+use crate::run::runner::helpers::run_with_sudo::wrap_with_sudo;
 use crate::run::runner::{ExecutorName, RunData};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
@@ -100,7 +101,7 @@ impl WallTimeExecutor {
     fn walltime_bench_cmd(
         config: &Config,
         run_data: &RunData,
-    ) -> Result<(NamedTempFile, NamedTempFile, String)> {
+    ) -> Result<(NamedTempFile, NamedTempFile, CommandBuilder)> {
         let bench_cmd = get_bench_command(config)?;
 
         let system_env = get_exported_system_env()?;
@@ -136,25 +137,28 @@ impl WallTimeExecutor {
             file
         };
 
-        let quiet_flag = if is_codspeed_debug_enabled() {
-            "--quiet"
-        } else {
-            ""
-        };
-
+        let mut cmd_builder = CommandBuilder::new("systemd-run");
+        if let Some(cwd) = &config.working_directory {
+            let abs_cwd = canonicalize(cwd)?;
+            cmd_builder.current_dir(abs_cwd);
+        }
+        if !is_codspeed_debug_enabled() {
+            cmd_builder.arg("--quiet");
+        }
         // Remarks:
         // - We're using --scope so that perf is able to capture the events of the benchmark process.
         // - We can't user `--user` here because we need to run in `codspeed.slice`, otherwise we'd run in
         //   user.slice` (which is isolated). We can use `--gid` and `--uid` to run the command as the current user.
         // - We must use `bash` here instead of `sh` since `source` isn't available when symlinked to `dash`.
         // - We have to pass the environment variables because `--scope` only inherits the system and not the user environment variables.
-        let uid = nix::unistd::Uid::current().as_raw();
-        let gid = nix::unistd::Gid::current().as_raw();
-        let cmd = format!(
-            "systemd-run {quiet_flag} --scope --slice=codspeed.slice --same-dir --uid={uid} --gid={gid} -- bash {}",
-            script_file.path().display()
-        );
-        Ok((env_file, script_file, cmd))
+        cmd_builder.arg("--slice=codspeed.slice");
+        cmd_builder.arg("--scope");
+        cmd_builder.arg("--same-dir");
+        cmd_builder.arg(format!("--uid={}", nix::unistd::Uid::current().as_raw()));
+        cmd_builder.arg(format!("--gid={}", nix::unistd::Gid::current().as_raw()));
+        cmd_builder.args(["--", "bash"]);
+        cmd_builder.arg(script_file.path());
+        Ok((env_file, script_file, cmd_builder))
     }
 }
 
@@ -179,25 +183,18 @@ impl Executor for WallTimeExecutor {
         run_data: &RunData,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        let mut cmd = validated_sudo_command()?;
-
-        if let Some(cwd) = &config.working_directory {
-            let abs_cwd = canonicalize(cwd)?;
-            cmd.current_dir(abs_cwd);
-        }
-
         let status = {
             let _guard = HookScriptsGuard::setup();
 
-            let (_env_file, _script_file, bench_cmd) = Self::walltime_bench_cmd(config, run_data)?;
+            let (_env_file, _script_file, cmd_builder) =
+                WallTimeExecutor::walltime_bench_cmd(config, run_data)?;
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
-                perf.run(cmd, &bench_cmd, config).await
+                perf.run(cmd_builder, config).await
             } else {
-                cmd.args(["sh", "-c", &bench_cmd]);
+                let cmd = wrap_with_sudo(cmd_builder)?.build();
                 debug!("cmd: {cmd:?}");
-
                 run_command_with_log_pipe(cmd).await
             }
         };

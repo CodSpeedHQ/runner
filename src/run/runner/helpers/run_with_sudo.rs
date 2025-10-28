@@ -1,5 +1,8 @@
-use crate::{local_logger::suspend_progress_bar, prelude::*};
+use crate::{
+    local_logger::suspend_progress_bar, prelude::*, run::runner::helpers::command::CommandBuilder,
+};
 use std::{
+    ffi::OsStr,
     io::IsTerminal,
     process::{Command, Stdio},
 };
@@ -35,9 +38,7 @@ fn validate_sudo_access() -> Result<()> {
 
     if needs_password {
         suspend_progress_bar(|| {
-            info!(
-                "Sudo privileges are required to continue. Please enter your password if prompted."
-            );
+            info!("Sudo privileges are required to continue. Please enter your password.");
 
             // Validate and cache sudo credentials
             let auth_status = Command::new("sudo")
@@ -57,47 +58,47 @@ fn validate_sudo_access() -> Result<()> {
     Ok(())
 }
 
-/// Creates the base sudo command after validating sudo access
-pub fn validated_sudo_command() -> Result<Command> {
-    validate_sudo_access()?;
-    let mut cmd = Command::new("sudo");
-    // Password prompt should not appear here since it has already been validated
-    cmd.arg("--non-interactive");
-    Ok(cmd)
-}
-
-/// Build a command wrapped with sudo if possible
-pub fn build_command_with_sudo(command_args: &[&str]) -> Result<Command> {
-    let command_str = command_args.join(" ");
+/// Wrap with sudo if not running as root
+pub fn wrap_with_sudo(mut cmd_builder: CommandBuilder) -> Result<CommandBuilder> {
     if is_root_user() {
-        debug!("Running command without sudo: {command_str}");
-        let mut c = Command::new(command_args[0]);
-        c.args(&command_args[1..]);
-        Ok(c)
+        Ok(cmd_builder)
     } else if is_sudo_available() {
-        debug!("Sudo is required for command: {command_str}");
-        let mut c = validated_sudo_command()?;
-        c.args(command_args);
-        Ok(c)
+        debug!("Wrapping with sudo: {}", cmd_builder.as_command_line());
+        validate_sudo_access()?;
+        cmd_builder.wrap(
+            "sudo",
+            // Password prompt should not appear here since it has already been validated
+            ["--non-interactive"],
+        );
+        Ok(cmd_builder)
     } else {
-        bail!("Sudo is not available to run the command: {command_str}");
+        bail!(
+            "Sudo is not available to run the command: {}",
+            cmd_builder.as_command_line()
+        );
     }
 }
 
 /// Run a command with sudo after validating sudo access
-pub fn run_with_sudo(command_args: &[&str]) -> Result<()> {
-    let command_str = command_args.join(" ");
-    debug!("Running command with sudo: {command_str}");
-    let mut cmd = build_command_with_sudo(command_args)?;
+pub fn run_with_sudo<S, I, T>(program: S, argv: I) -> Result<()>
+where
+    S: AsRef<OsStr>,
+    I: IntoIterator<Item = T>,
+    T: AsRef<OsStr>,
+{
+    let mut builder = CommandBuilder::new(program);
+    builder.args(argv);
+    debug!("Running command with sudo: {}", builder.as_command_line());
+    let mut cmd = wrap_with_sudo(builder)?.build();
     let output = cmd
         .stdout(Stdio::piped())
         .output()
-        .map_err(|_| anyhow!("Failed to execute command with sudo: {command_str}"))?;
+        .map_err(|_| anyhow!("Failed to execute command with sudo: {cmd:?}"))?;
 
     if !output.status.success() {
         info!("stdout: {}", String::from_utf8_lossy(&output.stdout));
         error!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-        bail!("Failed to execute command with sudo: {command_str}");
+        bail!("Failed to execute command with sudo: {cmd:?}");
     }
 
     Ok(())

@@ -96,10 +96,10 @@ pub fn install(system_info: &SystemInfo, packages: &[&str]) -> Result<()> {
 
     info!("Installing packages: {}", packages.join(", "));
 
-    run_with_sudo(&["apt-get", "update"])?;
-    let mut install_cmd = vec!["apt-get", "install", "-y", "--allow-downgrades"];
-    install_cmd.extend_from_slice(packages);
-    run_with_sudo(&install_cmd)?;
+    run_with_sudo("apt-get", ["update"])?;
+    let mut install_argv = vec!["install", "-y", "--allow-downgrades"];
+    install_argv.extend_from_slice(packages);
+    run_with_sudo("apt-get", &install_argv)?;
 
     debug!("Packages installed successfully");
     Ok(())
@@ -155,9 +155,7 @@ fn restore_from_cache(system_info: &SystemInfo, cache_dir: &Path) -> Result<()> 
         .to_str()
         .ok_or_else(|| anyhow!("Invalid cache directory path"))?;
 
-    let copy_cmd = format!("cp -r {cache_dir_str}/* /");
-
-    run_with_sudo(&["bash", "-c", &copy_cmd])?;
+    run_with_sudo("cp", ["-r", &format!("{cache_dir_str}/*"), "/"])?;
 
     debug!("Cache restored successfully");
     Ok(())
