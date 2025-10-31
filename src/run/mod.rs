@@ -61,12 +61,8 @@ pub struct PerfRunArgs {
     perf_unwinding_mode: Option<UnwindingMode>,
 }
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct RunArgs {
-    /// The upload URL to use for uploading the results, useful for on-premises installations
-    #[arg(long, env = "CODSPEED_UPLOAD_URL")]
-    pub upload_url: Option<String>,
-
     /// The token to use for uploading the results,
     #[arg(long, env = "CODSPEED_TOKEN")]
     pub token: Option<String>,
@@ -151,7 +147,6 @@ impl RunArgs {
     /// Constructs a new `RunArgs` with default values for testing purposes
     pub fn test() -> Self {
         Self {
-            upload_url: None,
             token: None,
             repository: None,
             provider: None,
@@ -178,9 +173,16 @@ pub async fn run(
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
+    profile_name: &str,
+    global_upload_url: Option<String>,
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
-    let mut config = Config::try_from(args)?;
+
+    // Resolve the upload URL with priority: global arg > profile > default
+    let upload_url = global_upload_url
+        .unwrap_or_else(|| codspeed_config.resolve_upload_url(profile_name));
+
+    let mut config = Config::try_from((args, upload_url.as_str()))?;
     let provider = run_environment::get_provider(&config)?;
     let logger = Logger::new(&provider)?;
 
@@ -190,11 +192,15 @@ pub async fn run(
     debug!("config: {config:#?}");
 
     if provider.get_run_environment() == RunEnvironment::Local {
-        if codspeed_config.auth.token.is_none() {
+        let profile = codspeed_config.get_profile(profile_name);
+        if profile.is_none() || profile.and_then(|p| p.token.as_ref()).is_none() {
             bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
         }
-        debug!("Using the token from the CodSpeed configuration file");
-        config.set_token(codspeed_config.auth.token.clone());
+        debug!(
+            "Using the token from the CodSpeed configuration file (profile: {})",
+            profile_name
+        );
+        config.set_token(profile.and_then(|p| p.token.clone()));
     }
 
     let system_info = SystemInfo::new()?;

@@ -12,14 +12,15 @@ pub struct CodSpeedAPIClient {
     unauthenticated_gql_client: GQLClient,
 }
 
-impl TryFrom<(&Cli, &CodSpeedConfig)> for CodSpeedAPIClient {
+impl TryFrom<(&Cli, &CodSpeedConfig, String)> for CodSpeedAPIClient {
     type Error = Error;
-    fn try_from((args, codspeed_config): (&Cli, &CodSpeedConfig)) -> Result<Self> {
+    fn try_from((args, codspeed_config, api_url): (&Cli, &CodSpeedConfig, String)) -> Result<Self> {
         Ok(Self {
-            gql_client: build_gql_api_client(codspeed_config, args.api_url.clone(), true),
+            gql_client: build_gql_api_client(codspeed_config, &args.profile, api_url.clone(), true),
             unauthenticated_gql_client: build_gql_api_client(
                 codspeed_config,
-                args.api_url.clone(),
+                &args.profile,
+                api_url,
                 false,
             ),
         })
@@ -28,16 +29,20 @@ impl TryFrom<(&Cli, &CodSpeedConfig)> for CodSpeedAPIClient {
 
 fn build_gql_api_client(
     codspeed_config: &CodSpeedConfig,
+    profile_name: &str,
     api_url: String,
     with_auth: bool,
 ) -> GQLClient {
-    let headers = if with_auth && codspeed_config.auth.token.is_some() {
-        let mut headers = std::collections::HashMap::new();
-        headers.insert(
-            "Authorization".to_string(),
-            codspeed_config.auth.token.clone().unwrap(),
-        );
-        headers
+    let headers = if with_auth {
+        codspeed_config
+            .get_profile(profile_name)
+            .and_then(|p| p.token.as_ref())
+            .map(|token| {
+                let mut headers = std::collections::HashMap::new();
+                headers.insert("Authorization".to_string(), token.clone());
+                headers
+            })
+            .unwrap_or_default()
     } else {
         Default::default()
     };

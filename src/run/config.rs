@@ -1,4 +1,6 @@
 use crate::prelude::*;
+#[cfg(test)]
+use crate::config::DEFAULT_UPLOAD_URL;
 use crate::run::instruments::Instruments;
 use std::path::PathBuf;
 use url::Url;
@@ -62,15 +64,12 @@ impl Config {
     }
 }
 
-const DEFAULT_UPLOAD_URL: &str = "https://api.codspeed.io/upload";
-
-impl TryFrom<RunArgs> for Config {
+impl TryFrom<(RunArgs, &str)> for Config {
     type Error = Error;
-    fn try_from(args: RunArgs) -> Result<Self> {
+    fn try_from((args, upload_url_str): (RunArgs, &str)) -> Result<Self> {
         let instruments = Instruments::try_from(&args)?;
-        let raw_upload_url = args.upload_url.unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
-        let upload_url = Url::parse(&raw_upload_url)
-            .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
+        let upload_url = Url::parse(upload_url_str)
+            .map_err(|e| anyhow!("Invalid upload URL: {upload_url_str}, {e}"))?;
 
         Ok(Self {
             upload_url,
@@ -117,26 +116,28 @@ mod tests {
 
     #[test]
     fn test_try_from_env_empty() {
-        let config = Config::try_from(RunArgs {
-            upload_url: None,
-            token: None,
-            repository: None,
-            provider: None,
-            working_directory: None,
-            mode: RunnerMode::Instrumentation,
-            instruments: vec![],
-            mongo_uri_env_name: None,
-            message_format: None,
-            profile_folder: None,
-            skip_upload: false,
-            skip_run: false,
-            skip_setup: false,
-            perf_run_args: PerfRunArgs {
-                enable_perf: false,
-                perf_unwinding_mode: None,
+        let config = Config::try_from((
+            RunArgs {
+                token: None,
+                repository: None,
+                provider: None,
+                working_directory: None,
+                mode: RunnerMode::Instrumentation,
+                instruments: vec![],
+                mongo_uri_env_name: None,
+                message_format: None,
+                profile_folder: None,
+                skip_upload: false,
+                skip_run: false,
+                skip_setup: false,
+                perf_run_args: PerfRunArgs {
+                    enable_perf: false,
+                    perf_unwinding_mode: None,
+                },
+                command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
             },
-            command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
-        })
+            DEFAULT_UPLOAD_URL,
+        ))
         .unwrap();
         assert_eq!(config.upload_url, Url::parse(DEFAULT_UPLOAD_URL).unwrap());
         assert_eq!(config.token, None);
@@ -151,26 +152,28 @@ mod tests {
 
     #[test]
     fn test_try_from_args() {
-        let config = Config::try_from(RunArgs {
-            upload_url: Some("https://example.com/upload".into()),
-            token: Some("token".into()),
-            repository: Some("owner/repo".into()),
-            provider: Some(RepositoryProvider::GitLab),
-            working_directory: Some("/tmp".into()),
-            mode: RunnerMode::Instrumentation,
-            instruments: vec!["mongodb".into()],
-            mongo_uri_env_name: Some("MONGODB_URI".into()),
-            message_format: Some(crate::run::MessageFormat::Json),
-            profile_folder: Some("./codspeed.out".into()),
-            skip_upload: true,
-            skip_run: true,
-            skip_setup: true,
-            perf_run_args: PerfRunArgs {
-                enable_perf: false,
-                perf_unwinding_mode: Some(UnwindingMode::FramePointer),
+        let config = Config::try_from((
+            RunArgs {
+                token: Some("token".into()),
+                repository: Some("owner/repo".into()),
+                provider: Some(RepositoryProvider::GitLab),
+                working_directory: Some("/tmp".into()),
+                mode: RunnerMode::Instrumentation,
+                instruments: vec!["mongodb".into()],
+                mongo_uri_env_name: Some("MONGODB_URI".into()),
+                message_format: Some(crate::run::MessageFormat::Json),
+                profile_folder: Some("./codspeed.out".into()),
+                skip_upload: true,
+                skip_run: true,
+                skip_setup: true,
+                perf_run_args: PerfRunArgs {
+                    enable_perf: false,
+                    perf_unwinding_mode: Some(UnwindingMode::FramePointer),
+                },
+                command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
             },
-            command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
-        })
+            "https://example.com/upload",
+        ))
         .unwrap();
 
         assert_eq!(

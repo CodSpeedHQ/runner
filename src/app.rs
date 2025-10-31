@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     api_client::CodSpeedAPIClient,
     auth,
-    config::CodSpeedConfig,
+    config::{CodSpeedConfig, DEFAULT_API_URL, DEFAULT_PROFILE_NAME},
     local_logger::{CODSPEED_U8_COLOR_CODE, init_local_logger},
     prelude::*,
     run, setup,
@@ -40,6 +40,19 @@ pub struct Cli {
     #[arg(long, env = "CODSPEED_OAUTH_TOKEN", global = true, hide = true)]
     pub oauth_token: Option<String>,
 
+    /// The profile to use for authentication and API configuration
+    #[arg(
+        long,
+        env = "CODSPEED_PROFILE",
+        global = true,
+        default_value = DEFAULT_PROFILE_NAME
+    )]
+    pub profile: String,
+
+    /// The upload URL for uploading results, useful for on-premises installations
+    #[arg(long, env = "CODSPEED_UPLOAD_URL", global = true, hide = true)]
+    pub upload_url: Option<String>,
+
     /// The directory to use for caching installed tools
     /// The runner will restore cached tools from this directory before installing them.
     /// After successful installation, the runner will cache the installed tools to this directory.
@@ -63,8 +76,19 @@ enum Commands {
 
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
-    let codspeed_config = CodSpeedConfig::load_with_override(cli.oauth_token.as_deref())?;
-    let api_client = CodSpeedAPIClient::try_from((&cli, &codspeed_config))?;
+    let codspeed_config =
+        CodSpeedConfig::load_with_override(&cli.profile, cli.oauth_token.as_deref())?;
+
+    // Resolve the effective API URL: CLI/env override > profile > default
+    let effective_api_url = if cli.api_url != DEFAULT_API_URL {
+        // User explicitly provided an API URL via CLI or env
+        cli.api_url.clone()
+    } else {
+        // Use profile's API URL or default
+        codspeed_config.resolve_api_url(&cli.profile)
+    };
+
+    let api_client = CodSpeedAPIClient::try_from((&cli, &codspeed_config, effective_api_url))?;
     // In the context of the CI, it is likely that a ~ made its way here without being expanded by the shell
     let setup_cache_dir = cli
         .setup_cache_dir
@@ -79,11 +103,21 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    match cli.command {
+    match &cli.command {
         Commands::Run(args) => {
-            run::run(args, &api_client, &codspeed_config, setup_cache_dir).await?
+            run::run(
+                args.clone(),
+                &api_client,
+                &codspeed_config,
+                setup_cache_dir,
+                &cli.profile,
+                cli.upload_url.clone(),
+            )
+            .await?
         }
-        Commands::Auth(args) => auth::run(args, &api_client).await?,
+        Commands::Auth(args) => {
+            auth::run(args.clone(), &api_client, &cli, &codspeed_config).await?
+        }
         Commands::Setup => setup::setup(setup_cache_dir).await?,
     }
     Ok(())
