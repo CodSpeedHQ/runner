@@ -16,7 +16,10 @@ nest! {
 
 /// Get the path to the configuration file, following the XDG Base Directory Specification
 /// at https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-fn get_configuration_file_path() -> PathBuf {
+///
+/// If config_name is None, returns ~/.config/codspeed/config.yaml (default)
+/// If config_name is Some, returns ~/.config/codspeed/{config_name}.yaml
+fn get_configuration_file_path(config_name: Option<&str>) -> PathBuf {
     let config_dir = env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
@@ -24,7 +27,11 @@ fn get_configuration_file_path() -> PathBuf {
             PathBuf::from(home).join(".config")
         });
     let config_dir = config_dir.join("codspeed");
-    config_dir.join("config.yaml")
+
+    match config_name {
+        Some(name) => config_dir.join(format!("{name}.yaml")),
+        None => config_dir.join("config.yaml"),
+    }
 }
 
 impl Default for CodSpeedConfig {
@@ -40,15 +47,19 @@ impl CodSpeedConfig {
     ///
     /// If oauth_token_override is provided, the token from the loaded configuration will be
     /// ignored, and the override will be used instead
-    pub fn load_with_override(oauth_token_override: Option<&str>) -> Result<Self> {
-        let config_path = get_configuration_file_path();
+    pub fn load_with_override(
+        config_name: Option<&str>,
+        oauth_token_override: Option<&str>,
+    ) -> Result<Self> {
+        let config_path = get_configuration_file_path(config_name);
 
         let mut config = match fs::read(&config_path) {
             Ok(config_str) => {
-                let config = serde_yaml::from_slice(&config_str).context(format!(
-                    "Failed to parse CodSpeed config at {}",
-                    config_path.display()
-                ))?;
+                let config: CodSpeedConfig =
+                    serde_yaml::from_slice(&config_str).context(format!(
+                        "Failed to parse CodSpeed config at {}",
+                        config_path.display()
+                    ))?;
                 debug!("Config loaded from {}", config_path.display());
                 config
             }
@@ -66,14 +77,9 @@ impl CodSpeedConfig {
         Ok(config)
     }
 
-    /// Load the configuration. If it does not exist, return a default configuration.
-    pub fn load() -> Result<Self> {
-        Self::load_with_override(None)
-    }
-
     /// Persist changes to the configuration
-    pub fn persist(&self) -> Result<()> {
-        let config_path = get_configuration_file_path();
+    pub fn persist(&self, config_name: Option<&str>) -> Result<()> {
+        let config_path = get_configuration_file_path(config_name);
         fs::create_dir_all(config_path.parent().unwrap())?;
 
         let config_str = serde_yaml::to_string(self)?;

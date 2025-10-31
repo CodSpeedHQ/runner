@@ -40,6 +40,12 @@ pub struct Cli {
     #[arg(long, env = "CODSPEED_OAUTH_TOKEN", global = true, hide = true)]
     pub oauth_token: Option<String>,
 
+    /// The configuration name to use
+    /// If provided, the configuration will be loaded from ~/.config/codspeed/{config-name}.yaml
+    /// Otherwise, loads from ~/.config/codspeed/config.yaml
+    #[arg(long, env = "CODSPEED_CONFIG_NAME", global = true)]
+    pub config_name: Option<String>,
+
     /// The directory to use for caching installed tools
     /// The runner will restore cached tools from this directory before installing them.
     /// After successful installation, the runner will cache the installed tools to this directory.
@@ -63,7 +69,8 @@ enum Commands {
 
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
-    let codspeed_config = CodSpeedConfig::load_with_override(cli.oauth_token.as_deref())?;
+    let codspeed_config =
+        CodSpeedConfig::load_with_override(cli.config_name.as_deref(), cli.oauth_token.as_deref())?;
     let api_client = CodSpeedAPIClient::try_from((&cli, &codspeed_config))?;
     // In the context of the CI, it is likely that a ~ made its way here without being expanded by the shell
     let setup_cache_dir = cli
@@ -83,7 +90,7 @@ pub async fn run() -> Result<()> {
         Commands::Run(args) => {
             run::run(args, &api_client, &codspeed_config, setup_cache_dir).await?
         }
-        Commands::Auth(args) => auth::run(args, &api_client).await?,
+        Commands::Auth(args) => auth::run(args, &api_client, cli.config_name.as_deref()).await?,
         Commands::Setup => setup::setup(setup_cache_dir).await?,
     }
     Ok(())

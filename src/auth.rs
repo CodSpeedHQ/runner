@@ -17,16 +17,20 @@ enum AuthCommands {
     Login,
 }
 
-pub async fn run(args: AuthArgs, api_client: &CodSpeedAPIClient) -> Result<()> {
+pub async fn run(
+    args: AuthArgs,
+    api_client: &CodSpeedAPIClient,
+    config_name: Option<&str>,
+) -> Result<()> {
     match args.command {
-        AuthCommands::Login => login(api_client).await?,
+        AuthCommands::Login => login(api_client, config_name).await?,
     }
     Ok(())
 }
 
 const LOGIN_SESSION_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
 
-async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
+async fn login(api_client: &CodSpeedAPIClient, config_name: Option<&str>) -> Result<()> {
     debug!("Login to CodSpeed");
     start_group!("Creating login session");
     let login_session_payload = api_client.create_login_session().await?;
@@ -67,9 +71,9 @@ async fn login(api_client: &CodSpeedAPIClient) -> Result<()> {
     }
     end_group!();
 
-    let mut config = CodSpeedConfig::load()?;
+    let mut config = CodSpeedConfig::load_with_override(config_name, None)?;
     config.auth.token = Some(token);
-    config.persist()?;
+    config.persist(config_name)?;
     debug!("Token saved to configuration file");
 
     info!("Login successful, your are now authenticated on CodSpeed");
