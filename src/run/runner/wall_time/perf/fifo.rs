@@ -32,6 +32,10 @@ fn get_pipe_open_options() -> TokioPipeOpenOptions {
 
 impl RunnerFifo {
     pub fn new() -> anyhow::Result<Self> {
+        // Delete any existing FIFOs to avoid hangs
+        let _ = nix::unistd::unlink(RUNNER_CTL_FIFO);
+        let _ = nix::unistd::unlink(RUNNER_ACK_FIFO);
+
         create_fifo(RUNNER_CTL_FIFO)?;
         create_fifo(RUNNER_ACK_FIFO)?;
 
