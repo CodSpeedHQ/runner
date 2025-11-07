@@ -62,3 +62,61 @@ pub fn get_working_perf_executable() -> Option<OsString> {
     debug!("perf is installed but not functioning correctly");
     None
 }
+
+/// Detects if the required perf events are available on this system.
+/// Returns the flags to pass to perf record command if they are available, otherwise returns None.
+pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<String>> {
+    const CYCLES_EVENT_NAME: &str = "cycles";
+    const CACHE_REFERENCES_EVENT_NAME: &str = "cache-references";
+    const CACHE_MISSES_EVENT_NAME: &str = "cache-misses";
+
+    let perf_events = [
+        CYCLES_EVENT_NAME,
+        CACHE_REFERENCES_EVENT_NAME,
+        CACHE_MISSES_EVENT_NAME,
+    ];
+
+    let output = Command::new(perf_executable)
+        .arg("list")
+        .output()
+        .context("Failed to run perf list")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Check if all required events are available
+    // Expected format in `perf list` output:
+    //
+    // List of pre-defined events (to be used in -e or -M):
+    //
+    //  branch-instructions OR branches                    [Hardware event]
+    //  branch-misses                                      [Hardware event]
+    //  bus-cycles                                         [Hardware event]
+    //  cache-misses                                       [Hardware event]
+    //  cache-references                                   [Hardware event]
+    //  cpu-cycles OR cycles                               [Hardware event]
+    //  instructions                                       [Hardware event]
+    //  ref-cycles                                         [Hardware event]
+    let missing_events: Vec<&str> = perf_events
+        .iter()
+        .filter(|&&event| {
+            !stdout
+                .lines()
+                .any(|line| line.split_whitespace().any(|word| word == event))
+        })
+        .copied()
+        .collect();
+
+    if !missing_events.is_empty() {
+        debug!(
+            "Not all required perf events available. Missing: [{}], using default events",
+            missing_events.join(", ")
+        );
+        return Ok(None);
+    }
+
+    debug!(
+        "All required perf events available: {}",
+        perf_events.join(", ")
+    );
+    Ok(Some(format!("-e {{{}}}", perf_events.join(","))))
+}
