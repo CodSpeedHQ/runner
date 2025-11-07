@@ -20,8 +20,8 @@ use log::log_enabled;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MONGODB_TRACER_VERSION: &str = "cs-mongo-tracer-v0.2.0";
 
-pub const VALGRIND_CODSPEED_VERSION: Version = Version::new(3, 25, 1);
-pub const VALGRIND_CODSPEED_DEB_REVISION_SUFFIX: &str = "3codspeed2";
+pub const VALGRIND_CODSPEED_VERSION: Version = Version::new(3, 26, 0);
+pub const VALGRIND_CODSPEED_DEB_REVISION_SUFFIX: &str = "0codspeed0";
 lazy_static! {
     pub static ref VALGRIND_CODSPEED_VERSION_STRING: String =
         format!("{VALGRIND_CODSPEED_VERSION}.codspeed");
