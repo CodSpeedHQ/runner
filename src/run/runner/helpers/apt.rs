@@ -155,7 +155,9 @@ fn restore_from_cache(system_info: &SystemInfo, cache_dir: &Path) -> Result<()> 
         .to_str()
         .ok_or_else(|| anyhow!("Invalid cache directory path"))?;
 
-    run_with_sudo("cp", ["-r", &format!("{cache_dir_str}/*"), "/"])?;
+    // IMPORTANT: We have to use 'bash' here to ensure that glob patterns are expanded correctly
+    let copy_cmd = format!("cp -r {cache_dir_str}/* /");
+    run_with_sudo("bash", ["-c", &copy_cmd])?;
 
     debug!("Cache restored successfully");
     Ok(())
