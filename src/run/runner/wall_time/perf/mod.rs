@@ -19,6 +19,7 @@ use fifo::{PerfFifo, RunnerFifo};
 use libc::pid_t;
 use nix::sys::time::TimeValLike;
 use nix::time::clock_gettime;
+use perf_executable::get_event_flags;
 use perf_map::ProcessSymbols;
 use runner_shared::debug_info::ModuleDebugInfo;
 use runner_shared::fifo::Command as FifoCommand;
@@ -120,10 +121,14 @@ impl PerfRunner {
 
         let working_perf_executable =
             get_working_perf_executable().context("Failed to find a working perf executable")?;
-        let mut perf_wrapper_builder = CommandBuilder::new(working_perf_executable);
+        let mut perf_wrapper_builder = CommandBuilder::new(&working_perf_executable);
         perf_wrapper_builder.arg("record");
         if !is_codspeed_debug_enabled() {
             perf_wrapper_builder.arg("--quiet");
+        }
+        // Add events flag if all required events are available
+        if let Some(events_flag) = get_event_flags(&working_perf_executable)? {
+            perf_wrapper_builder.arg(events_flag);
         }
         perf_wrapper_builder.args([
             "--timestamp",

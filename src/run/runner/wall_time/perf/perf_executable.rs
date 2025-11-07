@@ -62,3 +62,39 @@ pub fn get_working_perf_executable() -> Option<OsString> {
     debug!("perf is installed but not functioning correctly");
     None
 }
+
+/// Detects if the required perf events are available on this system.
+/// Returns Some("-e {cycles,cache-references,cache-misses}") if all three events are available,
+/// None otherwise.
+pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<String>> {
+    const CYCLES_EVENT_NAME: &str = "cycles";
+    const CACHE_REFERENCES_EVENT_NAME: &str = "cache-references";
+    const CACHE_MISSES_EVENT_NAME: &str = "cache-misses";
+    let output = Command::new(perf_executable)
+        .arg("list")
+        .output()
+        .context("Failed to run perf list")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Check for the three required events
+    let has_cycles = stdout.lines().any(|line| line.contains(CYCLES_EVENT_NAME));
+    let has_cache_references = stdout
+        .lines()
+        .any(|line| line.contains(CACHE_REFERENCES_EVENT_NAME));
+    let has_cache_misses = stdout
+        .lines()
+        .any(|line| line.contains(CACHE_MISSES_EVENT_NAME));
+
+    if !has_cycles || !has_cache_references || !has_cache_misses {
+        debug!(
+            "Not all required perf events available (cycles: {has_cycles}, cache-references: {has_cache_references}, cache-misses: {has_cache_misses}), using default events"
+        );
+        return Ok(None);
+    }
+
+    debug!("All required perf events available: cycles, cache-references, cache-misses");
+    Ok(Some(format!(
+        "-e {{{CYCLES_EVENT_NAME},{CACHE_REFERENCES_EVENT_NAME},{CACHE_MISSES_EVENT_NAME}}}"
+    )))
+}
