@@ -5,10 +5,16 @@
 
 
 
+## [4.3.3] - 2025-11-07
+
+### <!-- 1 -->🐛 Bug Fixes
+- Run cp with bash to expand glob patterns by @not-matthias in [#148](https://github.com/CodSpeedHQ/runner/pull/148)
+
+
 ## [4.3.2] - 2025-11-07
 
 ### <!-- 0 -->🚀 Features
-- Update valgrind codspeed to 3.26.0-0codspeed0
+- Update valgrind codspeed to 3.26.0-0codspeed0 by @adriencaccia in [#147](https://github.com/CodSpeedHQ/runner/pull/147)
 - Add --config-name argument to allow multiple configs by @GuillaumeLagrange in [#145](https://github.com/CodSpeedHQ/runner/pull/145)
 - Output perf data directly to profile folder by @GuillaumeLagrange in [#138](https://github.com/CodSpeedHQ/runner/pull/138)
 - Emit perf data in pipe mode by @art049
@@ -562,6 +568,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.3.3]: https://github.com/CodSpeedHQ/runner/compare/v4.3.2..v4.3.3
 [4.3.2]: https://github.com/CodSpeedHQ/runner/compare/v4.3.1..v4.3.2
 [4.3.1]: https://github.com/CodSpeedHQ/runner/compare/v4.3.0..v4.3.1
 [4.3.0]: https://github.com/CodSpeedHQ/runner/compare/v4.2.1..v4.3.0
