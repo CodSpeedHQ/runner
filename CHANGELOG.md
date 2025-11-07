@@ -5,6 +5,19 @@
 
 
 
+## [4.3.2] - 2025-11-07
+
+### <!-- 0 -->🚀 Features
+- Update valgrind codspeed to 3.26.0-0codspeed0
+- Add --config-name argument to allow multiple configs by @GuillaumeLagrange in [#145](https://github.com/CodSpeedHQ/runner/pull/145)
+- Output perf data directly to profile folder by @GuillaumeLagrange in [#138](https://github.com/CodSpeedHQ/runner/pull/138)
+- Emit perf data in pipe mode by @art049
+- Properly handle sudo with a command builder (#143) by @art049 in [#143](https://github.com/CodSpeedHQ/runner/pull/143)
+
+### <!-- 7 -->⚙️ Internals
+- Use info instead of warn for some cache and valgrind setup logs by @adriencaccia in [#142](https://github.com/CodSpeedHQ/runner/pull/142)
+
+
 ## [4.3.1] - 2025-10-24
 
 ### <!-- 0 -->🚀 Features
@@ -549,6 +562,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.3.2]: https://github.com/CodSpeedHQ/runner/compare/v4.3.1..v4.3.2
 [4.3.1]: https://github.com/CodSpeedHQ/runner/compare/v4.3.0..v4.3.1
 [4.3.0]: https://github.com/CodSpeedHQ/runner/compare/v4.2.1..v4.3.0
 [4.2.1]: https://github.com/CodSpeedHQ/runner/compare/v4.2.0..v4.2.1
