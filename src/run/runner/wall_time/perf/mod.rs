@@ -157,7 +157,7 @@ impl PerfRunner {
         let mut wrapped_builder = CommandBuilder::new("sh");
         wrapped_builder.args(["-c", &raw_command]);
         let cmd = wrap_with_sudo(wrapped_builder)?.build();
-        println!("cmd: {cmd:?}");
+        debug!("cmd: {cmd:?}");
 
         let on_process_started = async |_| -> anyhow::Result<()> {
             let data = Self::handle_fifo(runner_fifo, perf_fifo).await?;
