@@ -5,6 +5,18 @@
 
 
 
+## [4.3.4] - 2025-11-10
+
+### <!-- 0 -->🚀 Features
+- Make `get_commit_hash` different based on the provider by @GuillaumeLagrange in [#151](https://github.com/CodSpeedHQ/runner/pull/151)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Use GITHUB_WORKSPACE env var when computing root path by @GuillaumeLagrange
+- Ensure perf also fails when the command fails by @not-matthias in [#150](https://github.com/CodSpeedHQ/runner/pull/150)
+- Ensure working directory is used when running the cmd by @not-matthias
+- Use debug! instead of println for debug data by @art049
+
+
 ## [4.3.3] - 2025-11-07
 
 ### <!-- 1 -->🐛 Bug Fixes
@@ -568,6 +580,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.3.4]: https://github.com/CodSpeedHQ/runner/compare/v4.3.3..v4.3.4
 [4.3.3]: https://github.com/CodSpeedHQ/runner/compare/v4.3.2..v4.3.3
 [4.3.2]: https://github.com/CodSpeedHQ/runner/compare/v4.3.1..v4.3.2
 [4.3.1]: https://github.com/CodSpeedHQ/runner/compare/v4.3.0..v4.3.1
