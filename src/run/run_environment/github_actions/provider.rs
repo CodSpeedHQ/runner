@@ -90,7 +90,15 @@ impl TryFrom<&Config> for GitHubActionsProvider {
                 path.push("");
                 path.to_string_lossy().to_string()
             }
-            None => format!("/home/runner/work/{repository}/{repository}/"),
+            None => {
+                // Fallback to GITHUB_WORKSPACE, the default repository location when using the checkout action
+                // https://docs.github.com/en/actions/reference/workflows-and-actions/variables
+                if let Ok(github_workspace) = env::var("GITHUB_WORKSPACE") {
+                    format!("{github_workspace}/")
+                } else {
+                    format!("/home/runner/work/{repository}/{repository}/")
+                }
+            }
         };
 
         Ok(Self {
@@ -297,6 +305,10 @@ mod tests {
                 ("GITHUB_HEAD_REF", Some("feat/codspeed-runner")),
                 ("GITHUB_JOB", Some("log-env")),
                 ("GITHUB_REF", Some("refs/pull/22/merge")),
+                (
+                    "GITHUB_WORKSPACE",
+                    Some("/home/runner/work/adrien-python-test/adrien-python-test"),
+                ),
                 ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
                 ("GITHUB_RUN_ID", Some("6957110437")),
                 ("VERSION", Some("0.1.0")),
@@ -346,6 +358,10 @@ mod tests {
                 ("GITHUB_JOB", Some("log-env")),
                 ("GITHUB_REF", Some("refs/pull/22/merge")),
                 ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
+                (
+                    "GITHUB_WORKSPACE",
+                    Some("/home/runner/work/adrien-python-test/adrien-python-test"),
+                ),
                 ("GITHUB_RUN_ID", Some("6957110437")),
                 ("VERSION", Some("0.1.0")),
                 ("GH_MATRIX", Some("null")),
@@ -402,6 +418,10 @@ mod tests {
                 ("GITHUB_HEAD_REF", Some("feat/codspeed-runner")),
                 ("GITHUB_JOB", Some("log-env")),
                 ("GITHUB_REF", Some("refs/pull/22/merge")),
+                (
+                    "GITHUB_WORKSPACE",
+                    Some("/home/runner/work/adrien-python-test/adrien-python-test"),
+                ),
                 ("GITHUB_REPOSITORY", Some("my-org/adrien-python-test")),
                 ("GITHUB_RUN_ID", Some("6957110437")),
                 ("VERSION", Some("0.1.0")),
