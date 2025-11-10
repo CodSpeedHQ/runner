@@ -55,6 +55,10 @@ impl CommandBuilder {
         self.cwd = Some(dir.as_ref().to_owned());
     }
 
+    pub fn get_current_dir(&self) -> Option<&OsStr> {
+        self.cwd.as_deref()
+    }
+
     pub fn wrap<S, I, T>(&mut self, wrapper: S, wrapper_args: I) -> &mut Self
     where
         S: AsRef<OsStr>,

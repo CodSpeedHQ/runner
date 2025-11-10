@@ -254,4 +254,35 @@ mod walltime {
         })
         .await;
     }
+
+    // Ensure that the working directory is used correctly
+    #[rstest::rstest]
+    #[tokio::test]
+    async fn test_walltime_executor_in_working_dir(#[values(false, true)] enable_perf: bool) {
+        let (system_info, run_data, _temp_dir) = create_test_setup().await;
+        let (_permit, executor) = get_walltime_executor().await;
+
+        let cmd = r#"
+if [ "$(basename "$(pwd)")" != "within_sub_directory" ]; then
+    echo "FAIL: Working directory is not 'within_sub_directory'"
+    exit 1
+fi
+"#;
+
+        let mut config = walltime_config(cmd, enable_perf);
+
+        let dir = TempDir::new().unwrap();
+        config.working_directory = Some(
+            dir.path()
+                .join("within_sub_directory")
+                .to_string_lossy()
+                .to_string(),
+        );
+        std::fs::create_dir_all(config.working_directory.as_ref().unwrap()).unwrap();
+
+        executor
+            .run(&config, &system_info, &run_data, &None)
+            .await
+            .unwrap();
+    }
 }

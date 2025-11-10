@@ -156,6 +156,12 @@ impl PerfRunner {
         );
         let mut wrapped_builder = CommandBuilder::new("sh");
         wrapped_builder.args(["-c", &raw_command]);
+
+        // IMPORTANT: Preserve the working directory from the original command
+        if let Some(cwd) = cmd_builder.get_current_dir() {
+            wrapped_builder.current_dir(cwd);
+        }
+
         let cmd = wrap_with_sudo(wrapped_builder)?.build();
         debug!("cmd: {cmd:?}");
 
