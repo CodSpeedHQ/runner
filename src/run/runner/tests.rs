@@ -285,4 +285,16 @@ fi
             .await
             .unwrap();
     }
+
+    // Ensure that commands that fail actually fail
+    #[rstest::rstest]
+    #[tokio::test]
+    async fn test_walltime_executor_fails(#[values(false, true)] enable_perf: bool) {
+        let (system_info, run_data, _temp_dir) = create_test_setup().await;
+        let (_permit, executor) = get_walltime_executor().await;
+
+        let config = walltime_config("exit 1", enable_perf);
+        let result = executor.run(&config, &system_info, &run_data, &None).await;
+        assert!(result.is_err(), "Command should fail");
+    }
 }

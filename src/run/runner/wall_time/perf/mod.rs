@@ -150,11 +150,11 @@ impl PerfRunner {
         let perf_data_file_path = profile_folder.join(PERF_DATA_FILE_NAME);
 
         let raw_command = format!(
-            "{} | cat > {}",
+            "set -o pipefail && {} | cat > {}",
             &cmd_builder.as_command_line(),
             perf_data_file_path.to_string_lossy()
         );
-        let mut wrapped_builder = CommandBuilder::new("sh");
+        let mut wrapped_builder = CommandBuilder::new("bash");
         wrapped_builder.args(["-c", &raw_command]);
 
         // IMPORTANT: Preserve the working directory from the original command
