@@ -1,3 +1,4 @@
+use git2::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
@@ -216,6 +217,24 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
             job_name: self.gh_data.job.clone(),
             metadata,
         })
+    }
+
+    fn get_commit_hash(&self, repository_root_path: &str) -> Result<String> {
+        let repo = Repository::open(repository_root_path).context(format!(
+            "Failed to open repository at path: {repository_root_path}\n\
+            Make sure git is installed, and that `actions/checkout` used git to fetch the repository\n\
+            If necessary, install git before running `actions/checkout`.\n\
+            If you run into permission issues when running in Docker, you may need to also run \
+            `git config --global --add safe.directory $GITHUB_WORKSPACE` "
+        ))?;
+
+        let commit_hash = repo
+            .head()
+            .and_then(|head| head.peel_to_commit())
+            .context("Failed to get HEAD commit")?
+            .id()
+            .to_string();
+        Ok(commit_hash)
     }
 }
 

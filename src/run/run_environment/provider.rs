@@ -16,20 +16,6 @@ pub trait RunEnvironmentDetector {
     fn detect() -> bool;
 }
 
-fn get_commit_hash(repository_root_path: &str) -> Result<String> {
-    let repo = Repository::open(repository_root_path).context(format!(
-        "Failed to open repository at path: {repository_root_path}"
-    ))?;
-
-    let commit_hash = repo
-        .head()
-        .and_then(|head| head.peel_to_commit())
-        .context("Failed to get HEAD commit")?
-        .id()
-        .to_string();
-    Ok(commit_hash)
-}
-
 /// `RunEnvironmentProvider` is a trait that defines the necessary methods
 /// for a continuous integration provider.
 pub trait RunEnvironmentProvider {
@@ -73,7 +59,7 @@ pub trait RunEnvironmentProvider {
     ) -> Result<UploadMetadata> {
         let run_environment_metadata = self.get_run_environment_metadata()?;
 
-        let commit_hash = get_commit_hash(&run_environment_metadata.repository_root_path)?;
+        let commit_hash = self.get_commit_hash(&run_environment_metadata.repository_root_path)?;
 
         Ok(UploadMetadata {
             version: Some(LATEST_UPLOAD_METADATA_VERSION),
@@ -94,6 +80,25 @@ pub trait RunEnvironmentProvider {
             run_part: self.get_run_provider_run_part(),
         })
     }
+
+    /// Returns the HEAD commit hash of the repository at the given path.
+    fn get_commit_hash(&self, repository_root_path: &str) -> Result<String> {
+        get_commit_hash_default_impl(repository_root_path)
+    }
+}
+
+fn get_commit_hash_default_impl(repository_root_path: &str) -> Result<String> {
+    let repo = Repository::open(repository_root_path).context(format!(
+        "Failed to open repository at path: {repository_root_path}"
+    ))?;
+
+    let commit_hash = repo
+        .head()
+        .and_then(|head| head.peel_to_commit())
+        .context("Failed to get HEAD commit")?
+        .id()
+        .to_string();
+    Ok(commit_hash)
 }
 
 #[cfg(test)]
@@ -102,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_get_commit_hash() {
-        let commit_hash = get_commit_hash(env!("CARGO_MANIFEST_DIR")).unwrap();
+        let commit_hash = get_commit_hash_default_impl(env!("CARGO_MANIFEST_DIR")).unwrap();
         // ensure that the commit hash is correct, thus it has 40 characters
         assert_eq!(commit_hash.len(), 40);
     }
