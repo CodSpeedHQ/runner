@@ -133,6 +133,7 @@ impl PerfRunner {
             "--freq=997", // Use a prime number to avoid synchronization with periodic tasks
             "--delay=-1",
             "-g",
+            "--compression-level=1", // minimal compression to reduce overhead
             "--user-callchains",
             &format!("--call-graph={cg_mode}"),
             &format!(
