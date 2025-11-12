@@ -138,6 +138,7 @@ pub struct RunArgs {
 #[serde(rename_all = "lowercase")]
 pub enum RunnerMode {
     Instrumentation,
+    Simulation,
     Walltime,
 }
 
