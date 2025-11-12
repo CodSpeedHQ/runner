@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use git2::Repository;
 use simplelog::SharedLogger;
 
@@ -16,8 +17,16 @@ pub trait RunEnvironmentDetector {
     fn detect() -> bool;
 }
 
+/// Audience to be used when requesting OIDC tokens.
+///
+/// It will be validated when the token is used to authenticate with CodSpeed.
+///
+/// This value must match the audience configured in CodSpeed backend.
+static OIDC_AUDIENCE: &str = "codspeed.io";
+
 /// `RunEnvironmentProvider` is a trait that defines the necessary methods
 /// for a continuous integration provider.
+#[async_trait(?Send)]
 pub trait RunEnvironmentProvider {
     /// Returns the logger for the RunEnvironment.
     fn get_logger(&self) -> Box<dyn SharedLogger>;
@@ -33,6 +42,23 @@ pub trait RunEnvironmentProvider {
 
     /// Return the metadata necessary to identify the `RunPart`
     fn get_run_provider_run_part(&self) -> Option<RunPart>;
+
+    /// Get the OIDC audience that must be used when requesting OIDC tokens.
+    ///
+    /// It will be validated when the token is used to authenticate with CodSpeed.
+    fn get_oidc_audience(&self) -> &str {
+        OIDC_AUDIENCE
+    }
+
+    /// Handle an OIDC token for the current run environment, if supported.
+    ///
+    /// Updates the config if necessary.
+    ///
+    /// Depending on the provider, this may involve requesting the token,
+    /// warning the user about potential misconfigurations, or other necessary steps.
+    async fn set_oidc_token(&self, _config: &mut Config) -> Result<()> {
+        Ok(())
+    }
 
     /// Returns the metadata necessary for uploading results to CodSpeed.
     ///

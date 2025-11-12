@@ -12,5 +12,8 @@
       },
       "sha": "24809d9fca9ad0808a777bcbd807ecd5ec8a9100"
     }
+  },
+  "repository": {
+    "private": true
   }
 }
