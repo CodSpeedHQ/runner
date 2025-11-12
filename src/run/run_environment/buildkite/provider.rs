@@ -1,5 +1,6 @@
 use std::env;
 
+use async_trait::async_trait;
 use simplelog::SharedLogger;
 
 use crate::prelude::*;
@@ -119,6 +120,7 @@ impl RunEnvironmentDetector for BuildkiteProvider {
     }
 }
 
+#[async_trait(?Send)]
 impl RunEnvironmentProvider for BuildkiteProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         RepositoryProvider::GitHub
@@ -150,6 +152,17 @@ impl RunEnvironmentProvider for BuildkiteProvider {
     /// For Buildkite, we don't support multipart uploads
     fn get_run_provider_run_part(&self) -> Option<RunPart> {
         None
+    }
+
+    /// For now, we do not support OIDC tokens for Buildkite
+    ///
+    /// If we want to in the future, we can implement it using the Buildkite Agent CLI.
+    ///
+    /// Docs:
+    /// - https://buildkite.com/docs/agent/v3/cli-oidc
+    /// - https://buildkite.com/docs/pipelines/security/oidc
+    async fn set_oidc_token(&self, _config: &mut Config) -> Result<()> {
+        Ok(())
     }
 }
 

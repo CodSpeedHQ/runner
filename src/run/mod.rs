@@ -68,6 +68,9 @@ pub struct RunArgs {
     pub upload_url: Option<String>,
 
     /// The token to use for uploading the results,
+    ///
+    /// It can be either a CodSpeed token retrieved from the repository setting
+    /// or an OIDC token issued by the identity provider.
     #[arg(long, env = "CODSPEED_TOKEN")]
     pub token: Option<String>,
 
@@ -205,6 +208,9 @@ pub async fn run(
         }
         debug!("Using the token from the CodSpeed configuration file");
         config.set_token(codspeed_config.auth.token.clone());
+    } else {
+        // If relevant, set the OIDC token for authentication
+        provider.set_oidc_token(&mut config).await?;
     }
 
     let system_info = SystemInfo::new()?;

@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use git2::Repository;
 use simplelog::SharedLogger;
 
@@ -117,6 +118,7 @@ impl RunEnvironmentDetector for LocalProvider {
     }
 }
 
+#[async_trait(?Send)]
 impl RunEnvironmentProvider for LocalProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         self.repository_provider.clone()

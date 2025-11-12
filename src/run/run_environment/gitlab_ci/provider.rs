@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use simplelog::SharedLogger;
 use std::collections::BTreeMap;
 use std::env;
@@ -139,6 +140,7 @@ impl RunEnvironmentDetector for GitLabCIProvider {
     }
 }
 
+#[async_trait(?Send)]
 impl RunEnvironmentProvider for GitLabCIProvider {
     fn get_logger(&self) -> Box<dyn SharedLogger> {
         Box::new(GitLabCILogger::new())
@@ -174,6 +176,18 @@ impl RunEnvironmentProvider for GitLabCIProvider {
             job_name: self.gl_data.job.clone(),
             metadata: BTreeMap::new(),
         })
+    }
+
+    /// For GitLab CI, OIDC tokens must be pre-generated and passed via env variable.
+    ///
+    /// In [our documentation](https://codspeed.io/docs/integrations/ci/gitlab-ci#openid-connect-oidc-authentication), we ask
+    /// user to create a variable named `CODSPEED_TOKEN` with the OIDC token. So there is nothing to do here.
+    ///
+    /// See:
+    /// - https://docs.gitlab.com/integration/openid_connect_provider/
+    /// - https://docs.gitlab.com/ci/secrets/id_token_authentication/
+    async fn set_oidc_token(&self, _config: &mut Config) -> Result<()> {
+        Ok(())
     }
 }
 

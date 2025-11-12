@@ -1,12 +1,15 @@
+use async_trait::async_trait;
 use git2::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::Deserialize;
 use serde_json::Value;
 use simplelog::SharedLogger;
 use std::collections::BTreeMap;
 use std::{env, fs};
 
 use crate::prelude::*;
+use crate::request_client::OIDC_CLIENT;
 use crate::run::run_environment::{RunEnvironment, RunPart};
 use crate::run::{
     config::Config,
@@ -30,6 +33,12 @@ pub struct GitHubActionsProvider {
     pub gh_data: GhData,
     pub event: RunEvent,
     pub repository_root_path: String,
+
+    /// Indicates whether the head repository is a fork of the base repository.
+    is_head_repo_fork: bool,
+
+    /// Indicates whether the repository is private.
+    is_repository_private: bool,
 }
 
 impl GitHubActionsProvider {
@@ -40,6 +49,11 @@ impl GitHubActionsProvider {
         let repository = owner_and_repository.next().unwrap();
         Ok((owner.into(), repository.into()))
     }
+}
+
+#[derive(Deserialize)]
+struct OIDCResponse {
+    value: Option<String>,
 }
 
 lazy_static! {
@@ -53,13 +67,18 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             bail!("Specifying owner and repository from CLI is not supported for Github Actions");
         }
         let (owner, repository) = Self::get_owner_and_repository()?;
+
+        let github_event_path = get_env_variable("GITHUB_EVENT_PATH")?;
+        let github_event = fs::read_to_string(github_event_path)?;
+        let github_event: Value =
+            serde_json::from_str(&github_event).expect("GITHUB_EVENT_PATH file could not be read");
+
         let ref_ = get_env_variable("GITHUB_REF")?;
         let is_pr = PR_REF_REGEX.is_match(&ref_);
-        let head_ref = if is_pr {
-            let github_event_path = get_env_variable("GITHUB_EVENT_PATH")?;
-            let github_event = fs::read_to_string(github_event_path)?;
-            let github_event: Value = serde_json::from_str(&github_event)
-                .expect("GITHUB_EVENT_PATH file could not be read");
+
+        let is_repository_private = github_event["repository"]["private"].as_bool().unwrap();
+
+        let (head_ref, is_head_repo_fork) = if is_pr {
             let pull_request = github_event["pull_request"].as_object().unwrap();
 
             let head_repo = pull_request["head"]["repo"].as_object().unwrap();
@@ -76,9 +95,9 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             } else {
                 pull_request["head"]["ref"].as_str().unwrap().to_owned()
             };
-            Some(head_ref)
+            (Some(head_ref), is_head_repo_fork)
         } else {
-            None
+            (None, false)
         };
 
         let github_event_name = get_env_variable("GITHUB_EVENT_NAME")?;
@@ -118,6 +137,8 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             }),
             base_ref: get_env_variable("GITHUB_BASE_REF").ok(),
             repository_root_path,
+            is_head_repo_fork,
+            is_repository_private,
         })
     }
 }
@@ -129,6 +150,7 @@ impl RunEnvironmentDetector for GitHubActionsProvider {
     }
 }
 
+#[async_trait(?Send)]
 impl RunEnvironmentProvider for GitHubActionsProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         RepositoryProvider::GitHub
@@ -236,6 +258,99 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
             .to_string();
         Ok(commit_hash)
     }
+
+    /// Set the OIDC token for GitHub Actions if necessary
+    ///
+    /// ## Logic
+    /// - If the user has explicitly set a token in the configuration (i.e. "static token"), do not override it, but display an info message.
+    /// - Otherwise, check if the necessary environment variables are set to use OIDC.
+    /// - Then attempt to request an OIDC token.
+    ///
+    /// If environment variables are not set, this could be because:
+    ///   - The user has misconfigured the workflow (missing `id-token` permission)
+    ///   - The run is from a public fork, in which case GitHub Actions does not provide these environment variables for security reasons.
+    ///
+    ///
+    /// ## Notes
+    /// Retrieving the token requires that the workflow has the `id-token` permission enabled.
+    ///
+    /// Docs:
+    /// - https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows
+    /// - https://docs.github.com/en/actions/concepts/security/openid-connect
+    /// - https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token
+    async fn set_oidc_token(&self, config: &mut Config) -> Result<()> {
+        // Check if a static token is already set
+        if config.token.is_some() {
+            info!(
+                "CodSpeed now supports OIDC tokens for authentication.\n
+                Benefit from enhanced security by adding the `id-token: write` permission to your workflow and removing the static token from your configuration.\n
+                Learn more at https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+            );
+
+            return Ok(());
+        }
+
+        // The `ACTIONS_ID_TOKEN_REQUEST_TOKEN` environment variable is set when the `id-token` permission is granted, which is necessary to authenticate with OIDC.
+        let request_token = get_env_variable("ACTIONS_ID_TOKEN_REQUEST_TOKEN").ok();
+        let request_url = get_env_variable("ACTIONS_ID_TOKEN_REQUEST_URL").ok();
+
+        if request_token.is_none() || request_url.is_none() {
+            // If the run is from a fork, it is expected that these environment variables are not set.
+            // We will fall back to tokenless authentication in this case.
+            if self.is_head_repo_fork {
+                return Ok(());
+            }
+
+            if self.is_repository_private {
+                bail!(
+                    "Unable to retrieve OIDC token for authentication. \n
+                    Make sure your workflow has the `id-token: write` permission set. \n
+                    See https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+                )
+            }
+
+            info!(
+                "CodSpeed now supports OIDC tokens for authentication.\n
+                Benefit from enhanced security and faster processing times by adding the `id-token: write` permission to your workflow.\n
+                Learn more at https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+            );
+
+            return Ok(());
+        }
+
+        let request_url = request_url.unwrap();
+        let request_url = format!("{request_url}&audience={}", self.get_oidc_audience());
+        let request_token = request_token.unwrap();
+
+        let token = match OIDC_CLIENT
+            .get(request_url)
+            .header("Accept", "application/json")
+            .header("Authorization", format!("Bearer {request_token}"))
+            .send()
+            .await
+        {
+            Ok(response) => match response.json::<OIDCResponse>().await {
+                Ok(oidc_response) => oidc_response.value,
+                Err(_) => None,
+            },
+            Err(_) => None,
+        };
+
+        if token.is_some() {
+            debug!("Successfully retrieved OIDC token for authentication.");
+            config.set_token(token);
+        } else if self.is_repository_private {
+            bail!(
+                "Unable to retrieve OIDC token for authentication. \n
+                Make sure your workflow has the `id-token: write` permission set. \n
+                See https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+            )
+        } else {
+            warn!("Failed to retrieve OIDC token for authentication.");
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -271,6 +386,16 @@ mod tests {
                 ("GITHUB_ACTOR", Some("actor")),
                 ("GITHUB_BASE_REF", Some("main")),
                 ("GITHUB_EVENT_NAME", Some("push")),
+                (
+                    "GITHUB_EVENT_PATH",
+                    Some(
+                        format!(
+                            "{}/src/run/run_environment/github_actions/samples/push-event.json",
+                            env!("CARGO_MANIFEST_DIR")
+                        )
+                        .as_str(),
+                    ),
+                ),
                 ("GITHUB_JOB", Some("job")),
                 ("GITHUB_REF", Some("refs/heads/main")),
                 ("GITHUB_REPOSITORY", Some("owner/repository")),
@@ -298,6 +423,8 @@ mod tests {
                     github_actions_provider.sender.as_ref().unwrap().id,
                     "1234567890"
                 );
+                assert!(!github_actions_provider.is_head_repo_fork);
+                assert!(!github_actions_provider.is_repository_private);
             },
         )
     }
@@ -338,6 +465,9 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
+                assert!(!github_actions_provider.is_head_repo_fork);
+                assert!(github_actions_provider.is_repository_private);
+
                 let run_environment_metadata = github_actions_provider
                     .get_run_environment_metadata()
                     .unwrap();
@@ -391,6 +521,9 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
+                assert!(github_actions_provider.is_head_repo_fork);
+                assert!(!github_actions_provider.is_repository_private);
+
                 let run_environment_metadata = github_actions_provider
                     .get_run_environment_metadata()
                     .unwrap();
@@ -471,6 +604,9 @@ mod tests {
                     ..Config::test()
                 };
                 let github_actions_provider = GitHubActionsProvider::try_from(&config).unwrap();
+                assert!(!github_actions_provider.is_head_repo_fork);
+                assert!(github_actions_provider.is_repository_private);
+
                 let run_environment_metadata = github_actions_provider
                     .get_run_environment_metadata()
                     .unwrap();
@@ -503,6 +639,8 @@ mod tests {
                 },
                 event: RunEvent::Push,
                 repository_root_path: "/home/work/my-repo".into(),
+                is_head_repo_fork: false,
+                is_repository_private: false,
             };
 
             let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
@@ -545,6 +683,8 @@ mod tests {
                     },
                     event: RunEvent::Push,
                     repository_root_path: "/home/work/my-repo".into(),
+                    is_head_repo_fork: false,
+                    is_repository_private: false,
                 };
 
                 let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
@@ -596,6 +736,8 @@ mod tests {
                     },
                     event: RunEvent::Push,
                     repository_root_path: "/home/work/my-repo".into(),
+                    is_head_repo_fork: false,
+                    is_repository_private: false,
                 };
 
                 let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
@@ -645,6 +787,8 @@ mod tests {
                     },
                     event: RunEvent::Push,
                     repository_root_path: "/home/work/my-repo".into(),
+                    is_head_repo_fork: false,
+                    is_repository_private: false,
                 };
 
                 let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
