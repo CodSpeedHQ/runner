@@ -85,7 +85,7 @@ pub async fn measure(
     cmd.arg(ARCH).arg("-R");
     // Configure the environment
     cmd.envs(get_base_injected_env(
-        RunnerMode::Instrumentation,
+        RunnerMode::Simulation,
         profile_folder,
     ))
     .env("PYTHONMALLOC", "malloc")

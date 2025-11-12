@@ -137,7 +137,9 @@ pub struct RunArgs {
 #[derive(ValueEnum, Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RunnerMode {
+    #[deprecated(note = "Use `RunnerMode::Simulation` instead")]
     Instrumentation,
+    Simulation,
     Walltime,
 }
 
@@ -156,7 +158,7 @@ impl RunArgs {
             repository: None,
             provider: None,
             working_directory: None,
-            mode: RunnerMode::Instrumentation,
+            mode: RunnerMode::Simulation,
             instruments: vec![],
             mongo_uri_env_name: None,
             message_format: None,
@@ -183,6 +185,14 @@ pub async fn run(
     let mut config = Config::try_from(args)?;
     let provider = run_environment::get_provider(&config)?;
     let logger = Logger::new(&provider)?;
+
+    #[allow(deprecated)]
+    if config.mode == RunnerMode::Instrumentation {
+        warn!(
+            "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
+                Please use 'simulation' instead."
+        );
+    }
 
     if provider.get_run_environment() != RunEnvironment::Local {
         show_banner();

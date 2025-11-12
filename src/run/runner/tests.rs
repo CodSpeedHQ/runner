@@ -145,9 +145,10 @@ mod valgrind {
             .await
     }
 
+    #[cfg(test)]
     fn valgrind_config(command: &str) -> Config {
         Config {
-            mode: RunnerMode::Instrumentation,
+            mode: RunnerMode::Simulation,
             command: command.to_string(),
             ..Config::test()
         }
