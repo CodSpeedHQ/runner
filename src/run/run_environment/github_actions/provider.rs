@@ -1,6 +1,9 @@
+use async_trait::async_trait;
 use git2::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
+use reqwest::Client;
+use serde::Deserialize;
 use serde_json::Value;
 use simplelog::SharedLogger;
 use std::collections::BTreeMap;
@@ -40,6 +43,11 @@ impl GitHubActionsProvider {
         let repository = owner_and_repository.next().unwrap();
         Ok((owner.into(), repository.into()))
     }
+}
+
+#[derive(Deserialize)]
+struct OIDCResponse {
+    value: Option<String>,
 }
 
 lazy_static! {
@@ -129,6 +137,7 @@ impl RunEnvironmentDetector for GitHubActionsProvider {
     }
 }
 
+#[async_trait(?Send)]
 impl RunEnvironmentProvider for GitHubActionsProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
         RepositoryProvider::GitHub
@@ -235,6 +244,46 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
             .id()
             .to_string();
         Ok(commit_hash)
+    }
+
+    /// Get the OIDC token for GitHub Actions.
+    ///
+    /// This requires that the workflow has the `id-token` permission enabled.
+    ///
+    /// Docs:
+    /// - https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows
+    /// - https://docs.github.com/en/actions/concepts/security/openid-connect
+    /// - https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token
+    async fn get_oidc_token(&self) -> Option<String> {
+        // The `ACTIONS_ID_TOKEN_REQUEST_TOKEN` environment variable is set when the `id-token` permission is granted.
+        // This is necessary to authenticate with OIDC, but not strictly set just for OIDC.
+        let request_token = get_env_variable("ACTIONS_ID_TOKEN_REQUEST_TOKEN").ok();
+        let request_url = get_env_variable("ACTIONS_ID_TOKEN_REQUEST_URL").ok();
+
+        if request_token.is_none() || request_url.is_none() {
+            warn!(
+                "The Workflow is missing the 'id-token: write' permission required to request an OIDC token. \
+                Please refer to https://docs.github.com/en/actions/how-to-guides/security-hardening-your-workflows/about-security-hardening-with-openid-connect for more information."
+            );
+
+            return None;
+        }
+
+        let request_url = request_url.unwrap();
+        let request_url = format!("{request_url}&audience=codspeed");
+        let request_token = request_token.unwrap();
+
+        Client::new()
+            .get(request_url)
+            .header("Accept", "application/json")
+            .header("Authorization", format!("Bearer {request_token}"))
+            .send()
+            .await
+            .ok()?
+            .json::<OIDCResponse>()
+            .await
+            .ok()?
+            .value
     }
 }
 
