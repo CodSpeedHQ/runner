@@ -185,6 +185,20 @@ impl PerfRunner {
     pub async fn save_files_to(&self, profile_folder: &Path) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
 
+        // We ran perf with sudo, so we have to change the ownership of the perf.data
+        run_with_sudo(
+            "chown",
+            [
+                "-R",
+                &format!(
+                    "{}:{}",
+                    nix::unistd::Uid::current(),
+                    nix::unistd::Gid::current()
+                ),
+                &self.perf_file.path().to_string_lossy(),
+            ],
+        )?;
+
         // Copy perf data from tempfile to profile folder
         let dest_path = profile_folder.join(PERF_DATA_FILE_NAME);
         std::fs::copy(&self.perf_file, &dest_path)
