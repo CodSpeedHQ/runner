@@ -335,7 +335,7 @@ fi
         let perf_data_path = perf_runner.perf_file().path();
         assert!(perf_data_path.exists(), "perf.pipedata should exist");
 
-        // Assert it starts with PERFPIPEPERFILE2
+        // Assert it starts with PERFILE2
         let mut file = std::fs::File::open(perf_data_path).unwrap();
         let expected = b"PERFILE2";
         let mut actual = [0u8; 8];
