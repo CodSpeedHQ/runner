@@ -186,6 +186,8 @@ mod valgrind {
 }
 
 mod walltime {
+    use std::io::Read;
+
     use super::*;
 
     async fn get_walltime_executor() -> (SemaphorePermit<'static>, WallTimeExecutor) {
@@ -296,5 +298,48 @@ fi
         let config = walltime_config("exit 1", enable_perf);
         let result = executor.run(&config, &system_info, &run_data, &None).await;
         assert!(result.is_err(), "Command should fail");
+    }
+
+    #[tokio::test]
+    async fn test_walltime_executor_works_with_go() {
+        let system_info = SystemInfo::new().unwrap();
+        let profile_dir = TempDir::new().unwrap().into_path();
+        let run_data = RunData {
+            profile_folder: profile_dir.clone(),
+        };
+
+        let (_permit, executor) = get_walltime_executor().await;
+
+        // NOTE: Even though `go test` doesn't work because we don't have benchmarks it should still
+        //  create a few perf events that are written to perf.pipedata.
+        //```
+        // [DEBUG go.sh] Called with arguments: test -bench=.
+        // [DEBUG go.sh] Number of arguments: 2
+        // [DEBUG go.sh] Detected 'test' command, routing to go-runner
+        // [DEBUG go.sh] Using go-runner at: /home/not-matthias/.cargo/bin/codspeed-go-runner
+        // [DEBUG go.sh] Full command: RUST_LOG=info /home/not-matthias/.cargo/bin/codspeed-go-runner test -bench=.
+        // Error: Failed to execute 'go list': [DEBUG go.sh] Called with arguments: list -test -compiled -json ./...
+        // [DEBUG go.sh] Number of arguments: 5
+        // [DEBUG go.sh] Detected non-test command ('list'), routing to standard go binary
+        // [DEBUG go.sh] Full command: /nix/store/k1kn1c59ss7nq6agdppzq3krwmi3xqy4-go-1.25.2/bin/go list -test -compiled -json ./...
+        // pattern ./...: directory prefix . does not contain main module or its selected dependencies
+        //
+        // [ perf record: Woken up 4 times to write data ]
+        // [ perf record: Captured and wrote 0.200 MB - ]
+        // ```
+        let config = walltime_config("go test -bench=.", true);
+
+        let _result = executor.run(&config, &system_info, &run_data, &None).await;
+
+        let perf_runner = executor.perf_runner();
+        let perf_data_path = perf_runner.perf_file().path();
+        assert!(perf_data_path.exists(), "perf.pipedata should exist");
+
+        // Assert it starts with PERFPIPEPERFILE2
+        let mut file = std::fs::File::open(perf_data_path).unwrap();
+        let expected = b"PERFILE2";
+        let mut actual = [0u8; 8];
+        file.read_exact(&mut actual).unwrap();
+        assert_eq!(actual, *expected);
     }
 }

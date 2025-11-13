@@ -29,6 +29,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
+use tempfile::NamedTempFile;
 
 mod jit_dump;
 mod setup;
@@ -45,9 +46,15 @@ const PERF_DATA_FILE_NAME: &str = "perf.pipedata";
 
 pub struct PerfRunner {
     benchmark_data: OnceCell<BenchmarkData>,
+    perf_file: NamedTempFile,
 }
 
 impl PerfRunner {
+    #[cfg(test)]
+    pub fn perf_file(&self) -> &NamedTempFile {
+        &self.perf_file
+    }
+
     pub async fn setup_environment(
         system_info: &crate::run::check_system::SystemInfo,
         setup_cache_dir: Option<&Path>,
@@ -82,6 +89,7 @@ impl PerfRunner {
     pub fn new() -> Self {
         Self {
             benchmark_data: OnceCell::new(),
+            perf_file: NamedTempFile::new().unwrap(),
         }
     }
 
@@ -89,7 +97,6 @@ impl PerfRunner {
         &self,
         mut cmd_builder: CommandBuilder,
         config: &Config,
-        profile_folder: &Path,
     ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
@@ -146,8 +153,8 @@ impl PerfRunner {
         ]);
         cmd_builder.wrap_with(perf_wrapper_builder);
 
-        // Copy the perf data to the profile folder
-        let perf_data_file_path = profile_folder.join(PERF_DATA_FILE_NAME);
+        // Get the perf data file path from the stored tempfile
+        let perf_data_file_path = self.perf_file.path();
 
         let raw_command = format!(
             "set -o pipefail && {} | cat > {}",
@@ -177,6 +184,12 @@ impl PerfRunner {
 
     pub async fn save_files_to(&self, profile_folder: &Path) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
+
+        // Copy perf data from tempfile to profile folder
+        let dest_path = profile_folder.join(PERF_DATA_FILE_NAME);
+        std::fs::copy(&self.perf_file, &dest_path)
+            .context("Failed to copy perf.pipedata from tempfile to profile folder")?;
+        debug!("Copied perf.pipedata to {}", dest_path.display());
 
         let bench_data = self
             .benchmark_data

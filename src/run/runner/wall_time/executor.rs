@@ -98,6 +98,11 @@ impl WallTimeExecutor {
         }
     }
 
+    #[cfg(test)]
+    pub fn perf_runner(&self) -> &PerfRunner {
+        self.perf.as_ref().expect("PerfRunner is not available")
+    }
+
     fn walltime_bench_cmd(
         config: &Config,
         run_data: &RunData,
@@ -191,8 +196,7 @@ impl Executor for WallTimeExecutor {
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
-                perf.run(cmd_builder, config, &run_data.profile_folder)
-                    .await
+                perf.run(cmd_builder, config).await
             } else {
                 let cmd = wrap_with_sudo(cmd_builder)?.build();
                 debug!("cmd: {cmd:?}");
