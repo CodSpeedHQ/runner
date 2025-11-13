@@ -156,6 +156,19 @@ impl PerfRunner {
         // Get the perf data file path from the stored tempfile
         let perf_data_file_path = self.perf_file.path();
 
+        // Ensure we have the permissions to write to the tempfile when running with sudo
+        run_with_sudo(
+            "chown",
+            [
+                &format!(
+                    "{}:{}",
+                    nix::unistd::Uid::current(),
+                    nix::unistd::Gid::current()
+                ),
+                &perf_data_file_path.to_string_lossy().to_string(),
+            ],
+        )?;
+
         let raw_command = format!(
             "set -o pipefail && {} | cat > {}",
             &cmd_builder.as_command_line(),
