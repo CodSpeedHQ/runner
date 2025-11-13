@@ -6,6 +6,14 @@ pub fn get_base_injected_env(
     mode: RunnerMode,
     profile_folder: &Path,
 ) -> HashMap<&'static str, String> {
+    let runner_mode_internal_env_value = match mode {
+        RunnerMode::Instrumentation => "instrumentation",
+        // While the runner now deprecates the usage of instrumentation with a message, we
+        // internally still use instrumentation temporarily to give time to users to upgrade their
+        // integrations to a version that accepts both instrumentation and simulation.
+        RunnerMode::Simulation => "instrumentation",
+        RunnerMode::Walltime => "walltime",
+    };
     HashMap::from([
         ("PYTHONHASHSEED", "0".into()),
         (
@@ -18,7 +26,10 @@ pub fn get_base_injected_env(
         ),
         ("ARCH", ARCH.into()),
         ("CODSPEED_ENV", "runner".into()),
-        ("CODSPEED_RUNNER_MODE", mode.to_string()),
+        (
+            "CODSPEED_RUNNER_MODE",
+            runner_mode_internal_env_value.into(),
+        ),
         (
             "CODSPEED_PROFILE_FOLDER",
             profile_folder.to_string_lossy().to_string(),

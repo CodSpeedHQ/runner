@@ -72,6 +72,14 @@ impl TryFrom<RunArgs> for Config {
         let upload_url = Url::parse(&raw_upload_url)
             .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
 
+        // Emit deprecation warning if using "instrumentation" mode
+        if args.mode == RunnerMode::Instrumentation {
+            warn!(
+                "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
+                Please use 'simulation' instead."
+            );
+        }
+
         Ok(Self {
             upload_url,
             token: args.token,

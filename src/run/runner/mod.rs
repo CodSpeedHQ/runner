@@ -22,6 +22,7 @@ impl Display for RunnerMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RunnerMode::Instrumentation => write!(f, "instrumentation"),
+            RunnerMode::Simulation => write!(f, "simulation"),
             RunnerMode::Walltime => write!(f, "walltime"),
         }
     }
@@ -32,6 +33,7 @@ pub const EXECUTOR_TARGET: &str = "executor";
 pub fn get_executor_from_mode(mode: &RunnerMode) -> Box<dyn Executor> {
     match mode {
         RunnerMode::Instrumentation => Box::new(ValgrindExecutor),
+        RunnerMode::Simulation => Box::new(ValgrindExecutor),
         RunnerMode::Walltime => Box::new(WallTimeExecutor::new()),
     }
 }
