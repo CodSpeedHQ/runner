@@ -1,3 +1,4 @@
+use super::helpers::validate_walltime_results;
 use super::perf::PerfRunner;
 use crate::prelude::*;
 use crate::run::RunnerMode;
@@ -223,6 +224,8 @@ impl Executor for WallTimeExecutor {
         {
             perf.save_files_to(&run_data.profile_folder).await?;
         }
+
+        validate_walltime_results(&run_data.profile_folder)?;
 
         Ok(())
     }
