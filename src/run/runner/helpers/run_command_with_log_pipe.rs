@@ -32,20 +32,48 @@ where
     ) -> Result<()> {
         let prefix = log_prefix.unwrap_or("");
         let mut buffer = [0; 1024];
+        let mut line_buffer = Vec::new();
+
         loop {
             let bytes_read = reader.read(&mut buffer)?;
             if bytes_read == 0 {
+                // Flush any remaining data in the line buffer
+                if !line_buffer.is_empty() {
+                    suspend_progress_bar(|| {
+                        writer.write_all(&line_buffer).unwrap();
+                        trace!(
+                            target: EXECUTOR_TARGET,
+                            "{}{}",
+                            prefix,
+                            String::from_utf8_lossy(&line_buffer)
+                        );
+                    });
+                }
                 break;
             }
-            suspend_progress_bar(|| {
-                writer.write_all(&buffer[..bytes_read]).unwrap();
-                trace!(
-                    target: EXECUTOR_TARGET,
-                    "{}{}",
-                    prefix,
-                    String::from_utf8_lossy(&buffer[..bytes_read])
-                );
-            });
+
+            // Add the chunk to our line buffer
+            line_buffer.extend_from_slice(&buffer[..bytes_read]);
+
+            // Check if we have any complete lines (ending with \n or \r)
+            if let Some(last_newline_pos) =
+                line_buffer.iter().rposition(|&b| b == b'\n' || b == b'\r')
+            {
+                // We have at least one complete line, flush up to and including the last newline
+                let to_flush = &line_buffer[..=last_newline_pos];
+                suspend_progress_bar(|| {
+                    writer.write_all(to_flush).unwrap();
+                    trace!(
+                        target: EXECUTOR_TARGET,
+                        "{}{}",
+                        prefix,
+                        String::from_utf8_lossy(to_flush)
+                    );
+                });
+
+                // Keep the remainder in the buffer
+                line_buffer = line_buffer[last_newline_pos + 1..].to_vec();
+            }
         }
         Ok(())
     }
