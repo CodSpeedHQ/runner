@@ -306,7 +306,7 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "codspeed-runner"
-version = "4.3.4"
+version = "4.3.5-beta.1"
 dependencies = [
  "addr2line 0.25.1",
  "anyhow",

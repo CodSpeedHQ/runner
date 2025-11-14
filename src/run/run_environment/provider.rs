@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use git2::Repository;
 use simplelog::SharedLogger;
 
@@ -18,6 +19,7 @@ pub trait RunEnvironmentDetector {
 
 /// `RunEnvironmentProvider` is a trait that defines the necessary methods
 /// for a continuous integration provider.
+#[async_trait(?Send)]
 pub trait RunEnvironmentProvider {
     /// Returns the logger for the RunEnvironment.
     fn get_logger(&self) -> Box<dyn SharedLogger>;
@@ -33,6 +35,9 @@ pub trait RunEnvironmentProvider {
 
     /// Return the metadata necessary to identify the `RunPart`
     fn get_run_provider_run_part(&self) -> Option<RunPart>;
+
+    /// Get an OIDC token for the current run environment, if supported.
+    async fn get_oidc_token(&self) -> Option<String>;
 
     /// Returns the metadata necessary for uploading results to CodSpeed.
     ///

@@ -195,6 +195,13 @@ pub async fn run(
         }
         debug!("Using the token from the CodSpeed configuration file");
         config.set_token(codspeed_config.auth.token.clone());
+    } else {
+        let oidc_token = provider.get_oidc_token().await;
+        if oidc_token.is_some() {
+            debug!("Using OIDC token for authentication");
+
+            config.set_token(oidc_token);
+        }
     }
 
     let system_info = SystemInfo::new()?;
