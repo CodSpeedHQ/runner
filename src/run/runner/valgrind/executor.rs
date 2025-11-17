@@ -50,6 +50,13 @@ impl Executor for ValgrindExecutor {
     ) -> Result<()> {
         harvest_perf_maps(&run_data.profile_folder).await?;
 
+        // No matter the command in input, at this point valgrind will have been run and have produced output files.
+        //
+        // Contrary to walltime, checking that benchmarks have been detected here would require
+        // parsing the valgrind output files, which is not ideal at this stage.
+        // A comprehensive message will be sent to the user if no benchmarks are detected,
+        // even if it's later in the process than technically possible.
+
         Ok(())
     }
 }
