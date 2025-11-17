@@ -294,6 +294,7 @@ impl PerfRunner {
                 .num_nanoseconds() as u64
         };
 
+        let mut benchmark_started = false;
         loop {
             let perf_ping =
                 tokio::time::timeout(Duration::from_secs(perf_ping_timeout), perf_fifo.ping())
@@ -334,12 +335,25 @@ impl PerfRunner {
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
+                    if benchmark_started {
+                        warn!("Received duplicate StartBenchmark command, ignoring");
+                        runner_fifo.send_cmd(FifoCommand::Ack).await?;
+                        continue;
+                    }
+                    benchmark_started = true;
                     markers.push(MarkerType::SampleStart(current_time()));
 
                     perf_fifo.start_events().await?;
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StopBenchmark => {
+                    if !benchmark_started {
+                        warn!("Received StopBenchmark command before StartBenchmark, ignoring");
+                        runner_fifo.send_cmd(FifoCommand::Ack).await?;
+                        continue;
+                    }
+                    benchmark_started = false;
+
                     markers.push(MarkerType::SampleEnd(current_time()));
 
                     perf_fifo.stop_events().await?;
