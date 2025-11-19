@@ -5,6 +5,23 @@
 
 
 
+## [4.4.0] - 2025-11-19
+
+### <!-- 0 -->🚀 Features
+- Add support for oidc token authentication by @fargito in [#156](https://github.com/CodSpeedHQ/runner/pull/156)
+- Accept simulation as runner mode by @GuillaumeLagrange in [#152](https://github.com/CodSpeedHQ/runner/pull/152)
+- Add a comment explaining why we do not check for emptiness in valgrind teardown by @GuillaumeLagrange in [#157](https://github.com/CodSpeedHQ/runner/pull/157)
+- Validate walltime results before uploading by @GuillaumeLagrange
+- Import walltime_results from monorepo by @GuillaumeLagrange
+
+### <!-- 1 -->🐛 Bug Fixes
+- Dont start perf unless it's not already started by @not-matthias in [#158](https://github.com/CodSpeedHQ/runner/pull/158)
+- Use a line buffer when reading stdout/stderr streams by @GuillaumeLagrange
+
+### <!-- 7 -->⚙️ Internals
+- Update AGENTS.md to use cargo nextest if available by @GuillaumeLagrange
+
+
 ## [4.3.4] - 2025-11-10
 
 ### <!-- 0 -->🚀 Features
@@ -580,6 +597,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.4.0]: https://github.com/CodSpeedHQ/runner/compare/v4.3.4..v4.4.0
 [4.3.4]: https://github.com/CodSpeedHQ/runner/compare/v4.3.3..v4.3.4
 [4.3.3]: https://github.com/CodSpeedHQ/runner/compare/v4.3.2..v4.3.3
 [4.3.2]: https://github.com/CodSpeedHQ/runner/compare/v4.3.1..v4.3.2
