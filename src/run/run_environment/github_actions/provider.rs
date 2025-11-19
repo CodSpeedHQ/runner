@@ -284,7 +284,7 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
             info!(
                 "CodSpeed now supports OIDC tokens for authentication.\n\
                 Benefit from enhanced security by adding the `id-token: write` permission to your workflow and removing the static token from your configuration.\n\
-                Learn more at https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+                Learn more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
             );
 
             return Ok(());
@@ -305,14 +305,14 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
                 bail!(
                     "Unable to retrieve OIDC token for authentication. \n\
                     Make sure your workflow has the `id-token: write` permission set. \n\
-                    See https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+                    See https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
                 )
             }
 
             info!(
                 "CodSpeed now supports OIDC tokens for authentication.\n\
                 Benefit from enhanced security and faster processing times by adding the `id-token: write` permission to your workflow.\n\
-                Learn more at https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+                Learn more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
             );
 
             return Ok(());
@@ -343,7 +343,7 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
             bail!(
                 "Unable to retrieve OIDC token for authentication. \n\
                 Make sure your workflow has the `id-token: write` permission set. \n\
-                See https://codspeed.io/docs/integrations/ci/github-actions#openid-connect-oidc-authentication"
+                See https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
             )
         } else {
             warn!("Failed to retrieve OIDC token for authentication.");
