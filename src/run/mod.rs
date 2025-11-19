@@ -148,6 +148,7 @@ pub enum RunnerMode {
     Instrumentation,
     Simulation,
     Walltime,
+    Memory,
 }
 
 #[derive(ValueEnum, Clone, Debug, PartialEq)]

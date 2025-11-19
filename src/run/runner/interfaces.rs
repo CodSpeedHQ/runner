@@ -10,6 +10,7 @@ pub struct RunData {
 pub enum ExecutorName {
     Valgrind,
     WallTime,
+    Memory,
 }
 
 #[allow(clippy::to_string_trait_impl)]
@@ -18,6 +19,7 @@ impl ToString for ExecutorName {
         match self {
             ExecutorName::Valgrind => "valgrind".to_string(),
             ExecutorName::WallTime => "walltime".to_string(),
+            ExecutorName::Memory => "memory".to_string(),
         }
     }
 }
