@@ -1,0 +1,15 @@
+test:
+    #!/usr/bin/env bash
+    set -e
+
+    # Build tests and capture the integration test binary path from cargo output
+    output=$(cargo test --release --no-run 2>&1)
+    test_binary=$(echo "$output" | grep "tests/integration_test.rs" | sed 's/.*(\(.*\)).*/\1/')
+    if [[ -z "$test_binary" ]]; then
+        echo "Error: Could not find integration_test binary in cargo output"
+        exit 1
+    fi
+    echo "Found test binary: $test_binary"
+    # Run the test with sudo (required for BPF and /sys/fs/bpf access)
+    echo "Running integration tests..."
+    sudo LD_LIBRARY_PATH="$LD_LIBRARY_PATH" "$test_binary" --nocapture --test-threads=1
