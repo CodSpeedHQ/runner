@@ -326,7 +326,7 @@ impl PerfRunner {
                     return Ok(FifoCommand::RunnerModeResponse(FifoRunnerMode::Perf));
                 }
                 _ => {
-                    warn!("Unhandled FIFO command: {:?}", cmd);
+                    warn!("Unhandled FIFO command: {cmd:?}");
                     return Ok(FifoCommand::Err);
                 }
             }

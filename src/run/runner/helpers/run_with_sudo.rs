@@ -68,7 +68,7 @@ pub fn wrap_with_sudo(mut cmd_builder: CommandBuilder) -> Result<CommandBuilder>
         cmd_builder.wrap(
             "sudo",
             // Password prompt should not appear here since it has already been validated
-            ["--non-interactive"],
+            ["--non-interactive", "-E"],
         );
         Ok(cmd_builder)
     } else {
