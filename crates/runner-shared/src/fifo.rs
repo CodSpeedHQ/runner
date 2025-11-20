@@ -19,15 +19,26 @@ pub enum MarkerType {
     BenchmarkEnd(u64),
 }
 
+// FIXME: Rename this  (IntegrationMode?)
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunnerMode {
+    Analysis,
+    Perf,
+    Simulation,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 pub enum Command {
     CurrentBenchmark { pid: i32, uri: String },
     StartBenchmark,
     StopBenchmark,
     Ack,
+    // FIXME: Deprecate this in favor of get_runner_mode
     PingPerf,
     SetIntegration { name: String, version: String },
     Err,
     AddMarker { pid: i32, marker: MarkerType },
     SetVersion(u64),
+    GetRunnerMode,
+    RunnerModeResponse(RunnerMode),
 }
