@@ -35,7 +35,7 @@ impl HeaptrackBpf {
         );
 
         Ok(Self {
-            skel: skel,
+            skel,
             probes: Vec::new(),
         })
     }

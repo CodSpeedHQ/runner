@@ -8,7 +8,7 @@ name = "heaptrack"
 path = "src/lib.rs"
 
 [[bin]]
-name = "heaptrack"
+name = "codspeed-heaptrack"
 path = "src/main.rs"
 
 [dependencies]
