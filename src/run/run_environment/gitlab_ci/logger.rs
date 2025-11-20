@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    logger::{GroupEvent, get_group_event, get_json_event},
+    logger::{GroupEvent, get_announcement_event, get_group_event, get_json_event},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 
@@ -109,6 +109,11 @@ impl Log for GitLabCILogger {
                     *section_id = None;
                 }
             }
+            return;
+        }
+
+        if let Some(announcement) = get_announcement_event(record) {
+            println!("{}", style(announcement).green());
             return;
         }
 

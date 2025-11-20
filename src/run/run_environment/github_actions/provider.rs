@@ -292,10 +292,10 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
     fn check_oidc_configuration(&mut self, config: &Config) -> Result<()> {
         // Check if a static token is already set
         if config.token.is_some() {
-            info!(
-                "CodSpeed now supports OIDC tokens for authentication.\n\
-                Benefit from enhanced security by adding the `id-token: write` permission to your workflow and removing the static token from your configuration.\n\
-                Learn more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
+            announcement!(
+                "You can now authenticate your CI workflows using OpenID Connect (OIDC) tokens instead of `CODSPEED_TOKEN` secrets.\n\
+                This makes integrating and authenticating jobs safer and simpler.\n\
+                Learn more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended\n"
             );
 
             return Ok(());
@@ -320,10 +320,10 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
                 )
             }
 
-            info!(
-                "CodSpeed now supports OIDC tokens for authentication.\n\
-                Benefit from enhanced security and faster processing times by adding the `id-token: write` permission to your workflow.\n\
-                Learn more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
+            announcement!(
+                "You can now authenticate your CI workflows using OpenID Connect (OIDC).\n\
+                This makes integrating and authenticating jobs safer and simpler.\n\
+                Learn more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended\n"
             );
 
             return Ok(());
