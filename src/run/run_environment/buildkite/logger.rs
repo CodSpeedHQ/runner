@@ -1,5 +1,5 @@
 use crate::{
-    logger::{GroupEvent, get_group_event, get_json_event},
+    logger::{GroupEvent, get_announcement_event, get_group_event, get_json_event},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 use log::*;
@@ -50,6 +50,11 @@ impl Log for BuildkiteLogger {
         }
 
         if get_json_event(record).is_some() {
+            return;
+        }
+
+        if let Some(announcement) = get_announcement_event(record) {
+            println!("[ANNOUNCEMENT] {announcement}");
             return;
         }
 

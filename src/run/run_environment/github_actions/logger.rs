@@ -1,5 +1,5 @@
 use crate::{
-    logger::{GroupEvent, get_group_event, get_json_event},
+    logger::{GroupEvent, get_announcement_event, get_group_event, get_json_event},
     run::run_environment::logger::should_provider_logger_handle_record,
 };
 use log::*;
@@ -52,6 +52,12 @@ impl Log for GithubActionLogger {
                     println!("::endgroup::");
                 }
             }
+            return;
+        }
+
+        if let Some(announcement) = get_announcement_event(record) {
+            let escaped_announcement = announcement.replace('\n', "%0A");
+            println!("::notice title=New CodSpeed Feature::{escaped_announcement}");
             return;
         }
 

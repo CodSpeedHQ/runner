@@ -1,6 +1,7 @@
 /// This target is used exclusively to handle group events.
 pub const GROUP_TARGET: &str = "codspeed::group";
 pub const OPENED_GROUP_TARGET: &str = "codspeed::group::opened";
+pub const ANNOUNCEMENT_TARGET: &str = "codspeed::announcement";
 
 #[macro_export]
 /// Start a new log group. All logs between this and the next `end_group!` will be grouped together.
@@ -43,6 +44,15 @@ macro_rules! end_group {
     };
 }
 
+#[macro_export]
+/// Logs at the announcement level. This is intended for important announcements like new features,
+/// that do not require immediate user action.
+macro_rules! announcement {
+    ($name:expr) => {
+        log::log!(target: $crate::logger::ANNOUNCEMENT_TARGET, log::Level::Info, "{}", $name);
+    };
+}
+
 pub enum GroupEvent {
     Start(String),
     StartOpened(String),
@@ -70,6 +80,14 @@ pub(super) fn get_group_event(record: &log::Record) -> Option<GroupEvent> {
         }
         _ => None,
     }
+}
+
+pub(super) fn get_announcement_event(record: &log::Record) -> Option<String> {
+    if record.target() != ANNOUNCEMENT_TARGET {
+        return None;
+    }
+
+    Some(record.args().to_string())
 }
 
 #[macro_export]
