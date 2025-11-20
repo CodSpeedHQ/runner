@@ -56,6 +56,8 @@ impl Log for GithubActionLogger {
         }
 
         if let Some(announcement) = get_announcement_event(record) {
+            // properly escape newlines so that GitHub Actions interprets them correctly
+            // https://github.com/actions/toolkit/issues/193#issuecomment-605394935
             let escaped_announcement = announcement.replace('\n', "%0A");
             // TODO: make the announcement title configurable
             println!("::notice title=New CodSpeed Feature::{escaped_announcement}");
@@ -77,10 +79,10 @@ impl Log for GithubActionLogger {
             Level::Debug => "::debug::",
             Level::Trace => "::debug::[TRACE]",
         };
-        let message_string = message.to_string();
-        let lines = message_string.lines();
-        // ensure that all the lines of the message have the prefix, otherwise GitHub Actions will not recognize the command for the whole string
-        lines.for_each(|line| println!("{prefix}{line}"));
+        // properly escape newlines so that GitHub Actions interprets them correctly
+        // https://github.com/actions/toolkit/issues/193#issuecomment-605394935
+        let message_string = message.to_string().replace('\n', "%0A");
+        println!("{prefix}{message_string}");
     }
 
     fn flush(&self) {
