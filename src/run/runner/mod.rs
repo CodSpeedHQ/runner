@@ -7,6 +7,7 @@ use super::{RunnerMode, config::Config};
 mod executor;
 mod helpers;
 mod interfaces;
+mod shared;
 #[cfg(test)]
 mod tests;
 mod valgrind;
