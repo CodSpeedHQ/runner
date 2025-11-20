@@ -8,6 +8,7 @@ mod executor;
 mod helpers;
 mod interfaces;
 mod memory;
+mod shared;
 #[cfg(test)]
 mod tests;
 mod valgrind;
