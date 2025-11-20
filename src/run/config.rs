@@ -25,6 +25,7 @@ pub struct Config {
     pub skip_upload: bool,
     pub skip_run: bool,
     pub skip_setup: bool,
+    pub allow_empty: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -58,6 +59,7 @@ impl Config {
             skip_upload: false,
             skip_run: false,
             skip_setup: false,
+            allow_empty: false,
         }
     }
 }
@@ -97,6 +99,7 @@ impl TryFrom<RunArgs> for Config {
             skip_upload: args.skip_upload,
             skip_run: args.skip_run,
             skip_setup: args.skip_setup,
+            allow_empty: args.allow_empty,
         })
     }
 }
@@ -131,6 +134,7 @@ mod tests {
             skip_upload: false,
             skip_run: false,
             skip_setup: false,
+            allow_empty: false,
             perf_run_args: PerfRunArgs {
                 enable_perf: false,
                 perf_unwinding_mode: None,
@@ -146,6 +150,7 @@ mod tests {
         assert!(!config.skip_upload);
         assert!(!config.skip_run);
         assert!(!config.skip_setup);
+        assert!(!config.allow_empty);
         assert_eq!(config.command, "cargo codspeed bench");
     }
 
@@ -165,6 +170,7 @@ mod tests {
             skip_upload: true,
             skip_run: true,
             skip_setup: true,
+            allow_empty: true,
             perf_run_args: PerfRunArgs {
                 enable_perf: false,
                 perf_unwinding_mode: Some(UnwindingMode::FramePointer),
@@ -199,6 +205,7 @@ mod tests {
         assert!(config.skip_upload);
         assert!(config.skip_run);
         assert!(config.skip_setup);
+        assert!(config.allow_empty);
         assert_eq!(config.command, "cargo codspeed bench");
     }
 

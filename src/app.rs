@@ -60,7 +60,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Run the bench command and upload the results to CodSpeed
-    Run(run::RunArgs),
+    Run(Box<run::RunArgs>),
     /// Manage the CLI authentication state
     Auth(auth::AuthArgs),
     /// Pre-install the codspeed executors
@@ -88,7 +88,7 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Commands::Run(args) => {
-            run::run(args, &api_client, &codspeed_config, setup_cache_dir).await?
+            run::run(*args, &api_client, &codspeed_config, setup_cache_dir).await?
         }
         Commands::Auth(args) => auth::run(args, &api_client, cli.config_name.as_deref()).await?,
         Commands::Setup => setup::setup(setup_cache_dir).await?,

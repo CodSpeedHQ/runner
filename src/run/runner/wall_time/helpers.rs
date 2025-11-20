@@ -11,10 +11,15 @@ fn add_empty_result_error_explanation(error_details: &str) -> String {
 }
 
 /// Validates that walltime results exist and contain at least one benchmark.
-pub fn validate_walltime_results(profile_folder: &Path) -> Result<()> {
+/// When `allow_empty` is true, empty benchmark results are allowed.
+pub fn validate_walltime_results(profile_folder: &Path, allow_empty: bool) -> Result<()> {
     let results_dir = profile_folder.join("results");
 
     if !results_dir.exists() {
+        if allow_empty {
+            warn!("No walltime results found in profile folder: {results_dir:?}.");
+            return Ok(());
+        }
         bail!(add_empty_result_error_explanation(&format!(
             "No walltime results found in profile folder: {results_dir:?}."
         )));
@@ -22,7 +27,7 @@ pub fn validate_walltime_results(profile_folder: &Path) -> Result<()> {
 
     debug!("Validating walltime results in {results_dir:?}");
 
-    let mut found_valid_results = false;
+    let mut found_benchmark_results = false;
 
     for entry in std::fs::read_dir(&results_dir)? {
         let entry = entry?;
@@ -41,19 +46,26 @@ pub fn validate_walltime_results(profile_folder: &Path) -> Result<()> {
             .with_context(|| format!("Failed to parse walltime results from: {path:?}"))?;
 
         if results.benchmarks.is_empty() {
-            bail!(add_empty_result_error_explanation(&format!(
-                "No benchmarks found in walltime results file: {path:?}."
-            )));
+            if !allow_empty {
+                bail!(add_empty_result_error_explanation(&format!(
+                    "No benchmarks found in walltime results file: {path:?}."
+                )));
+            }
+            debug!("No benchmarks found in {path:?} (allowed)");
         }
 
-        found_valid_results = true;
+        found_benchmark_results = true;
         debug!(
             "Found {} benchmark(s) in {path:?}",
             results.benchmarks.len()
         );
     }
 
-    if !found_valid_results {
+    if !found_benchmark_results {
+        if allow_empty {
+            warn!("No JSON result files found in: {results_dir:?}.");
+            return Ok(());
+        }
         bail!(add_empty_result_error_explanation(&format!(
             "No JSON result files found in: {results_dir:?}."
         )));
@@ -174,7 +186,7 @@ mod tests {
         let profile = TestProfileFolder::new();
         profile.write_json_file("results.json", &valid_walltime_results_json(1));
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_ok());
     }
 
@@ -184,7 +196,7 @@ mod tests {
         profile.write_json_file("results1.json", &valid_walltime_results_json(2));
         profile.write_json_file("results2.json", &valid_walltime_results_json(3));
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_ok());
     }
 
@@ -195,7 +207,7 @@ mod tests {
         profile.write_text_file("readme.txt", "This is a text file");
         profile.write_text_file("data.csv", "col1,col2");
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_ok());
     }
 
@@ -206,7 +218,7 @@ mod tests {
         let profile = TestProfileFolder::new();
         // Don't create results directory
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("No walltime results found in profile folder"));
@@ -217,7 +229,7 @@ mod tests {
         let profile = TestProfileFolder::new();
         profile.create_results_dir();
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("No JSON result files found in"));
@@ -229,7 +241,7 @@ mod tests {
         profile.write_text_file("readme.txt", "some text");
         profile.write_text_file("data.csv", "col1,col2");
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("No JSON result files found in"));
@@ -240,7 +252,7 @@ mod tests {
         let profile = TestProfileFolder::new();
         profile.write_json_file("results.json", &empty_benchmarks_json());
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("No benchmarks found in walltime results file"));
@@ -251,7 +263,7 @@ mod tests {
         let profile = TestProfileFolder::new();
         profile.write_json_file("results.json", "{ invalid json }");
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("Failed to parse walltime results from"));
@@ -263,9 +275,38 @@ mod tests {
         profile.write_json_file("results1.json", &valid_walltime_results_json(2));
         profile.write_json_file("results2.json", &empty_benchmarks_json());
 
-        let result = validate_walltime_results(profile.path());
+        let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_err());
         let error = result.unwrap_err().to_string();
         assert!(error.contains("No benchmarks found in walltime results file"));
+    }
+
+    // Allow empty cases
+
+    #[test]
+    fn test_allow_empty_with_empty_benchmarks() {
+        let profile = TestProfileFolder::new();
+        profile.write_json_file("results.json", &empty_benchmarks_json());
+
+        let result = validate_walltime_results(profile.path(), true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_allow_empty_with_missing_results_directory() {
+        let profile = TestProfileFolder::new();
+        // Don't create results directory
+
+        let result = validate_walltime_results(profile.path(), true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_allow_empty_with_no_json_files() {
+        let profile = TestProfileFolder::new();
+        profile.create_results_dir();
+
+        let result = validate_walltime_results(profile.path(), true);
+        assert!(result.is_ok());
     }
 }

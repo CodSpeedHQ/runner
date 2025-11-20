@@ -130,6 +130,10 @@ pub struct RunArgs {
     #[arg(long, default_value = "false", hide = true)]
     pub skip_setup: bool,
 
+    /// Allow runs without any benchmarks to succeed instead of failing
+    #[arg(long, default_value = "false", hide = true)]
+    pub allow_empty: bool,
+
     #[command(flatten)]
     pub perf_run_args: PerfRunArgs,
 
@@ -169,6 +173,7 @@ impl RunArgs {
             skip_upload: false,
             skip_run: false,
             skip_setup: false,
+            allow_empty: false,
             perf_run_args: PerfRunArgs {
                 enable_perf: false,
                 perf_unwinding_mode: None,

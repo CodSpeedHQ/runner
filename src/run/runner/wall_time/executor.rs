@@ -225,7 +225,7 @@ impl Executor for WallTimeExecutor {
             perf.save_files_to(&run_data.profile_folder).await?;
         }
 
-        validate_walltime_results(&run_data.profile_folder)?;
+        validate_walltime_results(&run_data.profile_folder, config.allow_empty)?;
 
         Ok(())
     }
