@@ -5,6 +5,19 @@
 
 
 
+## [4.4.1] - 2025-11-21
+
+### <!-- 0 -->🚀 Features
+- Display oidc as announcement by @fargito
+- Add --allow-empty run option by @GuillaumeLagrange in [#160](https://github.com/CodSpeedHQ/runner/pull/160)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Do not espace trailing newlines in logger by @fargito
+- Make multiline logs appear correctly in summary by @fargito in [#162](https://github.com/CodSpeedHQ/runner/pull/162)
+- Request OIDC token just before upload by @fargito
+- Update docs links to oidc by @fargito in [#159](https://github.com/CodSpeedHQ/runner/pull/159)
+
+
 ## [4.4.0] - 2025-11-19
 
 ### <!-- 0 -->🚀 Features
@@ -597,6 +610,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.4.1]: https://github.com/CodSpeedHQ/runner/compare/v4.4.0..v4.4.1
 [4.4.0]: https://github.com/CodSpeedHQ/runner/compare/v4.3.4..v4.4.0
 [4.3.4]: https://github.com/CodSpeedHQ/runner/compare/v4.3.3..v4.3.4
 [4.3.3]: https://github.com/CodSpeedHQ/runner/compare/v4.3.2..v4.3.3
