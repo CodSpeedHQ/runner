@@ -22,7 +22,6 @@ use crate::run::{
 
 use super::logger::GithubActionLogger;
 
-#[derive(Debug)]
 pub struct GitHubActionsProvider {
     pub owner: String,
     pub repository: String,
@@ -39,6 +38,16 @@ pub struct GitHubActionsProvider {
 
     /// Indicates whether the repository is private.
     is_repository_private: bool,
+
+    /// OIDC configuration data necessary to request an OIDC token.
+    ///
+    /// If None, OIDC is not configured for this run.
+    oidc_config: Option<OIDCTokenRequestData>,
+}
+
+struct OIDCTokenRequestData {
+    request_url: String,
+    request_token: String,
 }
 
 impl GitHubActionsProvider {
@@ -139,6 +148,7 @@ impl TryFrom<&Config> for GitHubActionsProvider {
             repository_root_path,
             is_head_repo_fork,
             is_repository_private,
+            oidc_config: None,
         })
     }
 }
@@ -259,17 +269,18 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
         Ok(commit_hash)
     }
 
-    /// Set the OIDC token for GitHub Actions if necessary
+    /// Validate that the environment is correctly configured for OIDC usage.
     ///
     /// ## Logic
-    /// - If the user has explicitly set a token in the configuration (i.e. "static token"), do not override it, but display an info message.
+    /// - If the user has explicitly set a token in the configuration (i.e. "static token"), inform the user that OIDC is available but do nothing.
     /// - Otherwise, check if the necessary environment variables are set to use OIDC.
-    /// - Then attempt to request an OIDC token.
     ///
+    /// For Github Actions, there are two necessary environment variables:
+    /// - `ACTIONS_ID_TOKEN_REQUEST_TOKEN`
+    /// - `ACTIONS_ID_TOKEN_REQUEST_URL`
     /// If environment variables are not set, this could be because:
     ///   - The user has misconfigured the workflow (missing `id-token` permission)
     ///   - The run is from a public fork, in which case GitHub Actions does not provide these environment variables for security reasons.
-    ///
     ///
     /// ## Notes
     /// Retrieving the token requires that the workflow has the `id-token` permission enabled.
@@ -278,7 +289,7 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
     /// - https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows
     /// - https://docs.github.com/en/actions/concepts/security/openid-connect
     /// - https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token
-    async fn set_oidc_token(&self, config: &mut Config) -> Result<()> {
+    fn check_oidc_configuration(&mut self, config: &Config) -> Result<()> {
         // Check if a static token is already set
         if config.token.is_some() {
             info!(
@@ -303,8 +314,8 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
 
             if self.is_repository_private {
                 bail!(
-                    "Unable to retrieve OIDC token for authentication. \n\
-                    Make sure your workflow has the `id-token: write` permission set. \n\
+                    "Unable to retrieve OIDC token for authentication.\n\
+                    Make sure your workflow has the `id-token: write` permission set.\n\
                     See https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
                 )
             }
@@ -319,34 +330,57 @@ impl RunEnvironmentProvider for GitHubActionsProvider {
         }
 
         let request_url = request_url.unwrap();
-        let request_url = format!("{request_url}&audience={}", self.get_oidc_audience());
         let request_token = request_token.unwrap();
 
-        let token = match OIDC_CLIENT
-            .get(request_url)
-            .header("Accept", "application/json")
-            .header("Authorization", format!("Bearer {request_token}"))
-            .send()
-            .await
-        {
-            Ok(response) => match response.json::<OIDCResponse>().await {
-                Ok(oidc_response) => oidc_response.value,
-                Err(_) => None,
-            },
-            Err(_) => None,
-        };
+        self.oidc_config = Some(OIDCTokenRequestData {
+            request_url,
+            request_token,
+        });
 
-        if token.is_some() {
-            debug!("Successfully retrieved OIDC token for authentication.");
-            config.set_token(token);
-        } else if self.is_repository_private {
-            bail!(
-                "Unable to retrieve OIDC token for authentication. \n\
-                Make sure your workflow has the `id-token: write` permission set. \n\
-                See https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
-            )
-        } else {
-            warn!("Failed to retrieve OIDC token for authentication.");
+        Ok(())
+    }
+
+    /// Request the OIDC token from GitHub Actions if necessary.
+    ///
+    /// All the validation has already been performed in `check_oidc_configuration`.
+    /// So if the oidc_config is None, we simply return.
+    async fn set_oidc_token(&self, config: &mut Config) -> Result<()> {
+        if let Some(oidc_config) = &self.oidc_config {
+            let request_url = format!(
+                "{}&audience={}",
+                oidc_config.request_url,
+                self.get_oidc_audience()
+            );
+
+            let token = match OIDC_CLIENT
+                .get(request_url)
+                .header("Accept", "application/json")
+                .header(
+                    "Authorization",
+                    format!("Bearer {}", oidc_config.request_token),
+                )
+                .send()
+                .await
+            {
+                Ok(response) => match response.json::<OIDCResponse>().await {
+                    Ok(oidc_response) => oidc_response.value,
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            };
+
+            if token.is_some() {
+                debug!("Successfully retrieved OIDC token for authentication.");
+                config.set_token(token);
+            } else if self.is_repository_private {
+                bail!(
+                    "Unable to retrieve OIDC token for authentication. \n\
+                    Make sure your workflow has the `id-token: write` permission set. \n\
+                    See https://codspeed.io/docs/integrations/ci/github-actions/configuration#oidc-recommended"
+                )
+            } else {
+                warn!("Failed to retrieve OIDC token for authentication.");
+            }
         }
 
         Ok(())
@@ -641,6 +675,7 @@ mod tests {
                 repository_root_path: "/home/work/my-repo".into(),
                 is_head_repo_fork: false,
                 is_repository_private: false,
+                oidc_config: None,
             };
 
             let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
@@ -685,6 +720,7 @@ mod tests {
                     repository_root_path: "/home/work/my-repo".into(),
                     is_head_repo_fork: false,
                     is_repository_private: false,
+                    oidc_config: None,
                 };
 
                 let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
@@ -738,6 +774,7 @@ mod tests {
                     repository_root_path: "/home/work/my-repo".into(),
                     is_head_repo_fork: false,
                     is_repository_private: false,
+                    oidc_config: None,
                 };
 
                 let run_part = github_actions_provider.get_run_provider_run_part().unwrap();
@@ -789,6 +826,7 @@ mod tests {
                     repository_root_path: "/home/work/my-repo".into(),
                     is_head_repo_fork: false,
                     is_repository_private: false,
+                    oidc_config: None,
                 };
 
                 let run_part = github_actions_provider.get_run_provider_run_part().unwrap();

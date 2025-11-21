@@ -50,12 +50,20 @@ pub trait RunEnvironmentProvider {
         OIDC_AUDIENCE
     }
 
+    /// Check the OIDC configuration for the current run environment, if supported.
+    fn check_oidc_configuration(&mut self, _config: &Config) -> Result<()> {
+        Ok(())
+    }
+
     /// Handle an OIDC token for the current run environment, if supported.
     ///
     /// Updates the config if necessary.
     ///
     /// Depending on the provider, this may involve requesting the token,
     /// warning the user about potential misconfigurations, or other necessary steps.
+    ///
+    /// Warning: OIDC tokens are typically short-lived. This method must be called
+    /// just before the upload step to ensure the token is valid during the upload.
     async fn set_oidc_token(&self, _config: &mut Config) -> Result<()> {
         Ok(())
     }

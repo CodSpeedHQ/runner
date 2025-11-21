@@ -191,7 +191,7 @@ pub async fn run(
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
     let mut config = Config::try_from(args)?;
-    let provider = run_environment::get_provider(&config)?;
+    let mut provider = run_environment::get_provider(&config)?;
     let logger = Logger::new(&provider)?;
 
     #[allow(deprecated)]
@@ -214,8 +214,7 @@ pub async fn run(
         debug!("Using the token from the CodSpeed configuration file");
         config.set_token(codspeed_config.auth.token.clone());
     } else {
-        // If relevant, set the OIDC token for authentication
-        provider.set_oidc_token(&mut config).await?;
+        provider.check_oidc_configuration(&config)?;
     }
 
     let system_info = SystemInfo::new()?;
@@ -266,6 +265,12 @@ pub async fn run(
     };
 
     if !config.skip_upload {
+        if provider.get_run_environment() != RunEnvironment::Local {
+            // If relevant, set the OIDC token for authentication
+            // Note: OIDC tokens can expire quickly, so we set it just before the upload
+            provider.set_oidc_token(&mut config).await?;
+        }
+
         start_group!("Uploading performance data");
         let upload_result =
             uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
