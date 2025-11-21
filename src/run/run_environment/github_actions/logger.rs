@@ -56,9 +56,7 @@ impl Log for GithubActionLogger {
         }
 
         if let Some(announcement) = get_announcement_event(record) {
-            // properly escape newlines so that GitHub Actions interprets them correctly
-            // https://github.com/actions/toolkit/issues/193#issuecomment-605394935
-            let escaped_announcement = announcement.replace('\n', "%0A");
+            let escaped_announcement = escape_multiline_message(&announcement);
             // TODO: make the announcement title configurable
             println!("::notice title=New CodSpeed Feature::{escaped_announcement}");
             return;
@@ -79,9 +77,7 @@ impl Log for GithubActionLogger {
             Level::Debug => "::debug::",
             Level::Trace => "::debug::[TRACE]",
         };
-        // properly escape newlines so that GitHub Actions interprets them correctly
-        // https://github.com/actions/toolkit/issues/193#issuecomment-605394935
-        let message_string = message.to_string().replace('\n', "%0A");
+        let message_string = escape_multiline_message(&message.to_string());
         println!("{prefix}{message_string}");
     }
 
@@ -101,5 +97,70 @@ impl SharedLogger for GithubActionLogger {
 
     fn as_log(self: Box<Self>) -> Box<dyn Log> {
         Box::new(*self)
+    }
+}
+
+/// Escapes newlines in a message for GitHub Actions logging.
+/// GitHub Actions requires newlines to be replaced with `%0A` to be interpreted correctly.
+///
+/// See https://github.com/actions/toolkit/issues/193#issuecomment-605394935
+///
+/// One exception: trailing newlines are preserved as actual newlines to maintain formatting.
+/// Otherwise, the message gets displayed with extra `%0A` at the end.
+fn escape_multiline_message(message: &str) -> String {
+    let trailing_newlines = message.len() - message.trim_end_matches('\n').len();
+    if trailing_newlines > 0 {
+        let stripped = &message[..message.len() - trailing_newlines];
+        let escaped = stripped.replace('\n', "%0A");
+        let newlines = "\n".repeat(trailing_newlines);
+        format!("{escaped}{newlines}")
+    } else {
+        message.replace('\n', "%0A")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escape_multiline_message_no_newlines() {
+        assert_eq!(escape_multiline_message("hello world"), "hello world");
+    }
+
+    #[test]
+    fn test_escape_multiline_message_single_trailing_newline() {
+        assert_eq!(escape_multiline_message("hello world\n"), "hello world\n");
+    }
+
+    #[test]
+    fn test_escape_multiline_message_internal_newlines() {
+        assert_eq!(
+            escape_multiline_message("line1\nline2\nline3"),
+            "line1%0Aline2%0Aline3"
+        );
+    }
+
+    #[test]
+    fn test_escape_multiline_message_internal_and_trailing_newline() {
+        assert_eq!(
+            escape_multiline_message("line1\nline2\nline3\n"),
+            "line1%0Aline2%0Aline3\n"
+        );
+    }
+
+    #[test]
+    fn test_escape_multiline_message_empty_string() {
+        assert_eq!(escape_multiline_message(""), "");
+    }
+
+    #[test]
+    fn test_escape_multiline_message_only_newline() {
+        assert_eq!(escape_multiline_message("\n"), "\n");
+    }
+
+    #[test]
+    fn test_escape_multiline_message_multiple_trailing_newlines() {
+        assert_eq!(escape_multiline_message("hello\n\n"), "hello\n\n");
     }
 }
