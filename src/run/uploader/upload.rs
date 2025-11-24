@@ -1,8 +1,8 @@
 use crate::run::{
     check_system::SystemInfo,
     config::Config,
+    executor::{ExecutorName, RunData},
     run_environment::{RunEnvironment, RunEnvironmentProvider},
-    runner::{ExecutorName, RunData},
     uploader::{UploadError, profile_archive::ProfileArchiveContent},
 };
 use crate::{

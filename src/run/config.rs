@@ -1,5 +1,5 @@
+use crate::instruments::Instruments;
 use crate::prelude::*;
-use crate::run::instruments::Instruments;
 use std::path::PathBuf;
 use url::Url;
 
@@ -113,8 +113,8 @@ fn extract_owner_and_repository_from_arg(owner_and_repository: &str) -> Result<(
 
 #[cfg(test)]
 mod tests {
+    use crate::instruments::MongoDBConfig;
     use crate::run::PerfRunArgs;
-    use crate::run::instruments::MongoDBConfig;
 
     use super::*;
 
