@@ -5,7 +5,7 @@ use simplelog::SharedLogger;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
 use crate::run::config::Config;
-use crate::run::runner::ExecutorName;
+use crate::run::executor::ExecutorName;
 use crate::run::uploader::{
     LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
 };
