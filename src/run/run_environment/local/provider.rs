@@ -6,9 +6,9 @@ use crate::local_logger::get_local_logger;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
 use crate::run::config::RepositoryOverride;
+use crate::run::executor::ExecutorName;
 use crate::run::helpers::{GitRemote, parse_git_remote};
 use crate::run::run_environment::{RunEnvironment, RunPart};
-use crate::run::runner::ExecutorName;
 use crate::run::uploader::{
     LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
 };
