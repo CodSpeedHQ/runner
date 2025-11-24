@@ -1,23 +1,21 @@
 use crate::VERSION;
 use crate::api_client::CodSpeedAPIClient;
 use crate::config::CodSpeedConfig;
+use crate::executor;
+use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
 use crate::run::{config::Config, logger::Logger};
+use crate::runner_mode::RunnerMode;
 use check_system::SystemInfo;
 use clap::{Args, ValueEnum};
-use instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use run_environment::interfaces::{RepositoryProvider, RunEnvironment};
-use runner::get_run_data;
-use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
 
 pub mod check_system;
 pub mod helpers;
-mod instruments;
 mod poll_results;
 pub mod run_environment;
-pub mod runner;
 mod uploader;
 
 pub mod config;
@@ -141,16 +139,6 @@ pub struct RunArgs {
     pub command: Vec<String>,
 }
 
-#[derive(ValueEnum, Clone, Debug, Serialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum RunnerMode {
-    #[deprecated(note = "Use `RunnerMode::Simulation` instead")]
-    Instrumentation,
-    Simulation,
-    Walltime,
-    Memory,
-}
-
 #[derive(ValueEnum, Clone, Debug, PartialEq)]
 pub enum MessageFormat {
     Json,
@@ -221,7 +209,7 @@ pub async fn run(
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let executor = runner::get_executor_from_mode(&config.mode);
+    let executor = executor::get_executor_from_mode(&config.mode);
 
     if !config.skip_setup {
         start_group!("Preparing the environment");
@@ -234,7 +222,7 @@ pub async fn run(
         end_group!();
     }
 
-    let run_data = get_run_data(&config)?;
+    let run_data = executor::get_run_data(&config)?;
 
     if !config.skip_run {
         start_opened_group!("Running the benchmarks");
