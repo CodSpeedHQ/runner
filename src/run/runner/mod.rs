@@ -7,6 +7,7 @@ use super::{RunnerMode, config::Config};
 mod executor;
 mod helpers;
 mod interfaces;
+mod memory;
 mod shared;
 #[cfg(test)]
 mod tests;
@@ -16,6 +17,7 @@ mod wall_time;
 use executor::Executor;
 use helpers::profile_folder::create_profile_folder;
 pub use interfaces::{ExecutorName, RunData};
+use memory::executor::MemoryExecutor;
 use valgrind::executor::ValgrindExecutor;
 use wall_time::executor::WallTimeExecutor;
 
@@ -26,6 +28,7 @@ impl Display for RunnerMode {
             RunnerMode::Instrumentation => write!(f, "instrumentation"),
             RunnerMode::Simulation => write!(f, "simulation"),
             RunnerMode::Walltime => write!(f, "walltime"),
+            RunnerMode::Memory => write!(f, "memory"),
         }
     }
 }
@@ -37,6 +40,7 @@ pub fn get_executor_from_mode(mode: &RunnerMode) -> Box<dyn Executor> {
         #[allow(deprecated)]
         RunnerMode::Instrumentation | RunnerMode::Simulation => Box::new(ValgrindExecutor),
         RunnerMode::Walltime => Box::new(WallTimeExecutor::new()),
+        RunnerMode::Memory => Box::new(MemoryExecutor),
     }
 }
 
@@ -44,6 +48,7 @@ pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     vec![
         Box::new(ValgrindExecutor),
         Box::new(WallTimeExecutor::new()),
+        Box::new(MemoryExecutor),
     ]
 }
 

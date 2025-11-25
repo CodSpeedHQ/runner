@@ -58,6 +58,7 @@ async fn create_profile_archive(
 ) -> Result<ProfileArchive> {
     let time_start = std::time::Instant::now();
     let profile_archive = match executor_name {
+        ExecutorName::Memory => todo!(),
         ExecutorName::Valgrind => {
             debug!("Creating compressed tar archive for Valgrind");
             let enc = GzipEncoder::new(Vec::new());
