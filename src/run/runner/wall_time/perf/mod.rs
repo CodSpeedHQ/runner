@@ -215,15 +215,13 @@ impl PerfRunner {
             procfs::process::Process::new(pid as _).expect("Failed to find benchmark process");
         let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
 
-        if is_codspeed_debug_enabled() {
-            debug!("Process memory mappings for PID {pid}:");
-            for map in exe_maps.iter().sorted_by_key(|m| m.address.0) {
-                let (base_addr, end_addr) = map.address;
-                debug!(
-                    "  {:016x}-{:016x} {:08x} {:?} {:?} ",
-                    base_addr, end_addr, map.offset, map.pathname, map.perms,
-                );
-            }
+        debug!("Process memory mappings for PID {pid}:");
+        for map in exe_maps.iter().sorted_by_key(|m| m.address.0) {
+            let (base_addr, end_addr) = map.address;
+            debug!(
+                "  {:016x}-{:016x} {:08x} {:?} {:?} ",
+                base_addr, end_addr, map.offset, map.pathname, map.perms,
+            );
         }
 
         for map in &exe_maps {
