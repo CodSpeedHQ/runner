@@ -15,6 +15,7 @@ pub fn get_base_injected_env(
         #[allow(deprecated)]
         RunnerMode::Instrumentation | RunnerMode::Simulation => "instrumentation",
         RunnerMode::Walltime => "walltime",
+        RunnerMode::Memory => "memory",
     };
     HashMap::from([
         ("PYTHONHASHSEED", "0".into()),

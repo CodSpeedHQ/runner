@@ -2,6 +2,7 @@ use crate::run::check_system::SystemInfo;
 use crate::run::config::Config;
 use crate::run::runner::executor::Executor;
 use crate::run::runner::interfaces::RunData;
+use crate::run::runner::memory::executor::MemoryExecutor;
 use crate::run::runner::valgrind::executor::ValgrindExecutor;
 use crate::run::{RunnerMode, runner::wall_time::executor::WallTimeExecutor};
 use rstest_reuse::{self, *};
@@ -297,5 +298,69 @@ fi
         let config = walltime_config("exit 1", enable_perf);
         let result = executor.run(&config, &system_info, &run_data, &None).await;
         assert!(result.is_err(), "Command should fail");
+    }
+}
+
+mod memory {
+    use super::*;
+
+    async fn get_memory_executor() -> (SemaphorePermit<'static>, MemoryExecutor) {
+        static MEMORY_INIT: OnceCell<()> = OnceCell::const_new();
+        static MEMORY_SEMAPHORE: OnceCell<Semaphore> = OnceCell::const_new();
+
+        MEMORY_INIT
+            .get_or_init(|| async {
+                let executor = MemoryExecutor;
+                let system_info = SystemInfo::new().unwrap();
+                executor.setup(&system_info, None).await.unwrap();
+            })
+            .await;
+
+        let semaphore = MEMORY_SEMAPHORE
+            .get_or_init(|| async { Semaphore::new(1) })
+            .await;
+        let permit = semaphore.acquire().await.unwrap();
+
+        (permit, MemoryExecutor)
+    }
+
+    #[cfg(test)]
+    fn memory_config(command: &str) -> Config {
+        Config {
+            mode: RunnerMode::Memory,
+            command: command.to_string(),
+            ..Config::test()
+        }
+    }
+
+    #[apply(test_cases)]
+    #[tokio::test]
+    async fn test_memory_executor(#[case] cmd: &str) {
+        let (system_info, run_data, _temp_dir) = create_test_setup().await;
+        let (_permit, executor) = get_memory_executor().await;
+
+        let config = memory_config(cmd);
+        executor
+            .run(&config, &system_info, &run_data, &None)
+            .await
+            .unwrap();
+    }
+
+    #[apply(env_test_cases)]
+    #[tokio::test]
+    async fn test_memory_executor_with_env(#[case] env_case: (&str, &str)) {
+        let (system_info, run_data, _temp_dir) = create_test_setup().await;
+        let (_permit, executor) = get_memory_executor().await;
+
+        let (env_var, env_value) = env_case;
+        temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
+            let cmd = env_var_validation_script(env_var, env_value);
+            let config = memory_config(&cmd);
+            executor
+                .run(&config, &system_info, &run_data, &None)
+                .await
+                .unwrap();
+        })
+        .await;
     }
 }

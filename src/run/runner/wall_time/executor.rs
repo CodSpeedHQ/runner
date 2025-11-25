@@ -202,7 +202,7 @@ impl Executor for WallTimeExecutor {
         };
 
         let status = status.map_err(|e| anyhow!("failed to execute the benchmark process. {e}"))?;
-        debug!("cmd exit status: {:?}", status);
+        debug!("cmd exit status: {status:?}");
 
         if !status.success() {
             bail!("failed to execute the benchmark process: {status}");
@@ -248,7 +248,7 @@ mod tests {
             let mut script_file = tempfile::Builder::new()
                 .suffix(".sh")
                 .permissions(rwx)
-                .keep(true)
+                .disable_cleanup(true)
                 .tempfile()?;
             script_file.write_all(content.as_bytes())?;
 

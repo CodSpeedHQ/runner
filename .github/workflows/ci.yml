@@ -24,6 +24,15 @@ jobs:
         with:
           lfs: true
       - uses: moonrepo/setup-rust@v1
+
+      # Install memtrack for the memory integration tests
+      - name: Install dependencies required for libbpf-sys (vendored feature)
+        run: sudo apt-get update && sudo apt-get install -y autopoint bison flex
+      - name: Install memtrack
+        run: |
+          cargo install --path crates/memtrack --locked
+          echo "CODSPEED_MEMTRACK_BINARY=$(which codspeed-memtrack)" >> $GITHUB_ENV
+
       - run: cargo test --all --exclude memtrack
 
   bpf-tests:
