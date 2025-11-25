@@ -1,4 +1,5 @@
 use crate::executor::Executor;
+use crate::executor::config::Config;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::get_bench_command::get_bench_command;
 use crate::executor::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
@@ -7,7 +8,7 @@ use crate::executor::shared::fifo::RunnerFifo;
 use crate::executor::{ExecutorName, RunData};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
-use crate::run::{check_system::SystemInfo, config::Config};
+use crate::run::check_system::SystemInfo;
 use async_trait::async_trait;
 use ipc_channel::ipc;
 use memtrack::MemtrackIpcClient;

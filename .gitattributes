@@ -1,2 +1,2 @@
 testdata/perf_map/* filter=lfs diff=lfs merge=lfs -text
-src/run/runner/wall_time/perf/snapshots/*.snap filter=lfs diff=lfs merge=lfs -text
+*.snap filter=lfs diff=lfs merge=lfs -text

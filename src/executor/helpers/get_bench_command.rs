@@ -1,5 +1,5 @@
+use crate::executor::Config;
 use crate::prelude::*;
-use crate::run::config::Config;
 
 pub fn get_bench_command(config: &Config) -> Result<String> {
     let bench_command = &config.command.trim();

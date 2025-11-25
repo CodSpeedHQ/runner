@@ -1,3 +1,4 @@
+use crate::executor::Config;
 use crate::executor::RunnerMode;
 use crate::executor::helpers::env::get_base_injected_env;
 use crate::executor::helpers::get_bench_command::get_bench_command;
@@ -8,7 +9,6 @@ use crate::executor::valgrind::helpers::ignored_objects_path::get_objects_path_t
 use crate::executor::valgrind::helpers::python::is_free_threaded_python;
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
-use crate::run::config::Config;
 use lazy_static::lazy_static;
 use std::env;
 use std::fs::canonicalize;

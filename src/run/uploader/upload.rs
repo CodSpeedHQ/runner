@@ -1,10 +1,10 @@
+use crate::executor::Config;
 use crate::run::{
     check_system::SystemInfo,
-    config::Config,
     executor::{ExecutorName, RunData},
-    run_environment::{RunEnvironment, RunEnvironmentProvider},
     uploader::{UploadError, profile_archive::ProfileArchiveContent},
 };
+use crate::run_environment::{RunEnvironment, RunEnvironmentProvider};
 use crate::{
     prelude::*,
     request_client::{REQUEST_CLIENT, STREAMING_CLIENT},
@@ -347,7 +347,7 @@ mod tests {
                 ("VERSION", Some("0.1.0")),
             ],
             async {
-                let provider = crate::run::run_environment::get_provider(&config).unwrap();
+                let provider = crate::run_environment::get_provider(&config).unwrap();
                 upload(
                     &mut config,
                     &system_info,
