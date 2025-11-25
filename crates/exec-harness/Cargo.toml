@@ -1,0 +1,8 @@
+[package]
+name = "exec-harness"
+version = "4.4.1"
+edition = "2024"
+
+[dependencies]
+codspeed = "4.1.0"
+clap = { workspace = true }

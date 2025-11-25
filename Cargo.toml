@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.75"
-clap = { version = "4.4.8", features = ["derive", "env", "color"] }
+clap = { workspace = true }
 itertools = "0.11.0"
 lazy_static = "1.4.0"
 log = "0.4.20"
@@ -76,7 +76,10 @@ rstest_reuse = "0.7.0"
 shell-quote = "0.7.2"
 
 [workspace]
-members = ["crates/runner-shared"]
+members = ["crates/exec-harness", "crates/runner-shared"]
+
+[workspace.dependencies]
+clap = { version = "4.4.8", features = ["derive", "env", "color"] }
 
 [workspace.metadata.release]
 sign-tag = true
