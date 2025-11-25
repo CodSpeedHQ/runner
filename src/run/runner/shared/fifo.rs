@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use anyhow::Context;
 use nix::{sys::time::TimeValLike, time::clock_gettime};
+use runner_shared::artifacts::ExecutionTimestamps;
 use runner_shared::fifo::{Command as FifoCommand, MarkerType};
 use runner_shared::fifo::{RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use std::cmp::Ordering;
@@ -65,10 +66,7 @@ impl GenericFifo {
 pub struct FifoBenchmarkData {
     /// Name and version of the integration
     pub integration: Option<(String, String)>,
-
-    pub uri_by_ts: Vec<(u64, String)>,
     pub bench_pids: HashSet<pid_t>,
-    pub markers: Vec<MarkerType>,
 }
 
 pub struct RunnerFifo {
@@ -129,7 +127,7 @@ impl RunnerFifo {
         &mut self,
         mut health_check: impl AsyncFnMut() -> anyhow::Result<bool>,
         mut handle_cmd: impl AsyncFnMut(&FifoCommand) -> anyhow::Result<FifoCommand>,
-    ) -> anyhow::Result<FifoBenchmarkData> {
+    ) -> anyhow::Result<(MarkerResult, FifoBenchmarkData)> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
         let mut markers = Vec::<MarkerType>::new();
@@ -215,11 +213,12 @@ impl RunnerFifo {
             self.send_cmd(handle_cmd(&cmd).await?).await?;
         }
 
-        Ok(FifoBenchmarkData {
+        let marker_result = MarkerResult::new(&bench_order_by_timestamp, &markers);
+        let fifo_data = FifoBenchmarkData {
             integration,
-            uri_by_ts: bench_order_by_timestamp,
             bench_pids,
-            markers,
-        })
+        };
+
+        Ok((marker_result, fifo_data))
     }
 }

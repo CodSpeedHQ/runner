@@ -20,6 +20,8 @@ use anyhow::Context;
 use fifo::PerfFifo;
 use libc::pid_t;
 use perf_map::ProcessSymbols;
+use runner_shared::artifacts::ArtifactExt;
+use runner_shared::artifacts::ExecutionTimestamps;
 use runner_shared::debug_info::ModuleDebugInfo;
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
@@ -334,11 +336,12 @@ impl PerfRunner {
             Ok(FifoCommand::Ack)
         };
 
-        let data = runner_fifo
+        let (marker_result, fifo_data) = runner_fifo
             .handle_fifo_messages(health_check, on_cmd)
             .await?;
         Ok(BenchmarkData {
-            fifo_data: data,
+            fifo_data,
+            marker_result,
             symbols_by_pid,
             unwind_data_by_pid,
         })
@@ -347,6 +350,7 @@ impl PerfRunner {
 
 pub struct BenchmarkData {
     fifo_data: FifoBenchmarkData,
+    marker_result: MarkerResult,
     pub symbols_by_pid: HashMap<pid_t, ProcessSymbols>,
     pub unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
 }
@@ -361,6 +365,8 @@ impl BenchmarkData {
         &self,
         path: P,
     ) -> Result<(), BenchmarkDataSaveError> {
+        self.marker_result.save_to(&path).unwrap();
+
         for proc_sym in self.symbols_by_pid.values() {
             proc_sym.save_to(&path).unwrap();
         }
@@ -380,7 +386,7 @@ impl BenchmarkData {
             }
         }
 
-        // TODO: This shouldn't be in here
+        #[allow(deprecated)]
         let metadata = PerfMetadata {
             version: PERF_METADATA_CURRENT_VERSION,
             integration: self
@@ -388,7 +394,12 @@ impl BenchmarkData {
                 .integration
                 .clone()
                 .ok_or(BenchmarkDataSaveError::MissingIntegration)?,
-            uri_by_ts: self.fifo_data.uri_by_ts.clone(),
+            uri_by_ts: self
+                .marker_result
+                .uri_by_ts
+                .iter()
+                .map(|uri| (uri.timestamp, uri.uri.clone()))
+                .collect(),
             ignored_modules: {
                 let mut to_ignore = vec![];
 
@@ -434,7 +445,12 @@ impl BenchmarkData {
 
                 to_ignore
             },
-            markers: self.fifo_data.markers.clone(),
+            markers: self
+                .marker_result
+                .markers
+                .iter()
+                .map(|m| (*m).into())
+                .collect(),
             debug_info_by_pid,
         };
         metadata.save_to(&path).unwrap();

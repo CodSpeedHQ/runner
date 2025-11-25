@@ -14,12 +14,14 @@ pub struct PerfMetadata {
     pub integration: (String, String),
 
     /// The URIs of the benchmarks with the timestamps they were executed at.
+    #[deprecated(note = "Use ExecutionTimestamps in the 'artifacts' module instead")]
     pub uri_by_ts: Vec<(u64, String)>,
 
     /// Modules that should be ignored and removed from the folded trace and callgraph (e.g. python interpreter)
     pub ignored_modules: Vec<(String, u64, u64)>,
 
     /// Marker for certain regions in the profiling data
+    #[deprecated(note = "Use ExecutionTimestamps in the 'artifacts' module instead")]
     pub markers: Vec<MarkerType>,
 
     /// Debug info for all modules across all processes, mapping PID to module debug info

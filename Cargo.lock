@@ -2094,6 +2094,8 @@ dependencies = [
  "anyhow",
  "bincode",
  "log",
+ "rmp",
+ "rmp-serde",
  "serde",
  "serde_json",
 ]
