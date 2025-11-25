@@ -37,6 +37,7 @@ pub enum Command {
     Ack,
     #[deprecated(note = "Use `GetIntegrationMode` instead")]
     PingPerf,
+    #[deprecated(note = "Not needed anymore, use `integration` from WalltimeResults instead")]
     SetIntegration {
         name: String,
         version: String,
