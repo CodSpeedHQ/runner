@@ -57,6 +57,8 @@ memmap2 = "0.9.5"
 nix = { version = "0.29.0", features = ["fs", "time", "user"] }
 futures = "0.3.31"
 runner-shared = { path = "crates/runner-shared" }
+memtrack = { path = "crates/memtrack", default-features = false }
+ipc-channel = "0.18"
 shellexpand = { version = "3.1.1", features = ["tilde"] }
 addr2line = "0.25"
 gimli = "0.32"

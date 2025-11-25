@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use anyhow::Context;
 use nix::{sys::time::TimeValLike, time::clock_gettime};
-use runner_shared::benchmark_results::MarkerResult;
+use runner_shared::benchmark_results::ExecutionTimestamps;
 use runner_shared::fifo::{Command as FifoCommand, MarkerType};
 use runner_shared::fifo::{RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use std::cmp::Ordering;
@@ -127,7 +127,7 @@ impl RunnerFifo {
         &mut self,
         mut health_check: impl AsyncFnMut() -> anyhow::Result<bool>,
         mut handle_cmd: impl AsyncFnMut(&FifoCommand) -> anyhow::Result<FifoCommand>,
-    ) -> anyhow::Result<(MarkerResult, FifoBenchmarkData)> {
+    ) -> anyhow::Result<(ExecutionTimestamps, FifoBenchmarkData)> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
         let mut markers = Vec::<MarkerType>::new();
@@ -214,7 +214,7 @@ impl RunnerFifo {
             self.send_cmd(handle_cmd(&cmd).await?).await?;
         }
 
-        let marker_result = MarkerResult::new(&bench_order_by_timestamp, &markers);
+        let marker_result = ExecutionTimestamps::new(&bench_order_by_timestamp, &markers);
         let fifo_data = FifoBenchmarkData {
             integration,
             bench_pids,

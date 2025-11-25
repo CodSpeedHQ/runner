@@ -20,8 +20,8 @@ use anyhow::Context;
 use fifo::PerfFifo;
 use libc::pid_t;
 use perf_map::ProcessSymbols;
-use runner_shared::benchmark_results::BenchmarkResultExt;
-use runner_shared::benchmark_results::MarkerResult;
+use runner_shared::benchmark_results::ArtifactExt;
+use runner_shared::benchmark_results::ExecutionTimestamps;
 use runner_shared::debug_info::ModuleDebugInfo;
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
@@ -351,7 +351,7 @@ impl PerfRunner {
 
 pub struct BenchmarkData {
     fifo_data: FifoBenchmarkData,
-    marker_result: MarkerResult,
+    marker_result: ExecutionTimestamps,
     pub symbols_by_pid: HashMap<pid_t, ProcessSymbols>,
     pub unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
 }
@@ -395,12 +395,7 @@ impl BenchmarkData {
                 .integration
                 .clone()
                 .ok_or(BenchmarkDataSaveError::MissingIntegration)?,
-            uri_by_ts: self
-                .marker_result
-                .uri_by_ts
-                .iter()
-                .map(|uri| (uri.timestamp, uri.uri.clone()))
-                .collect(),
+            uri_by_ts: self.marker_result.uri_by_ts.clone(),
             ignored_modules: {
                 let mut to_ignore = vec![];
 
@@ -446,12 +441,7 @@ impl BenchmarkData {
 
                 to_ignore
             },
-            markers: self
-                .marker_result
-                .markers
-                .iter()
-                .map(|m| (*m).into())
-                .collect(),
+            markers: self.marker_result.markers.clone(),
             debug_info_by_pid,
         };
         metadata.save_to(&path).unwrap();
