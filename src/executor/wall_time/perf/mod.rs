@@ -1,5 +1,6 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
+use crate::executor::Config;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::is_codspeed_debug_enabled;
 use crate::executor::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
@@ -13,7 +14,6 @@ use crate::executor::wall_time::perf::perf_executable::get_working_perf_executab
 use crate::executor::wall_time::perf::unwind_data::UnwindDataExt;
 use crate::prelude::*;
 use crate::run::UnwindingMode;
-use crate::run::config::Config;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
 use libc::pid_t;
