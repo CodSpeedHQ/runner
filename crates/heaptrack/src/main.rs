@@ -28,6 +28,10 @@ enum Commands {
         /// Output folder for the allocations data
         #[arg(short, long, default_value = ".")]
         output: PathBuf,
+
+        /// Optional IPC server name for receiving control commands
+        #[arg(long)]
+        ipc_server: Option<String>,
     },
 }
 

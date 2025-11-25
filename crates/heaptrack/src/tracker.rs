@@ -80,4 +80,14 @@ impl Tracker {
 
         Ok(())
     }
+
+    /// Enable event tracking in the BPF program
+    pub fn enable(&mut self) -> anyhow::Result<()> {
+        self.heaptrack.enable_tracking()
+    }
+
+    /// Disable event tracking in the BPF program
+    pub fn disable(&mut self) -> anyhow::Result<()> {
+        self.heaptrack.disable_tracking()
+    }
 }

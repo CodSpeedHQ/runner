@@ -29,6 +29,26 @@ struct {
     __uint(max_entries, 256 * 1024);
 } events SEC(".maps");
 
+/* Map to control whether tracking is enabled (0 = disabled, 1 = enabled) */
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, __u8);
+} tracking_enabled SEC(".maps");
+
+/* Helper to check if tracking is currently enabled */
+static __always_inline int is_enabled(void) {
+    __u32 key = 0;
+    __u8 *enabled = bpf_map_lookup_elem(&tracking_enabled, &key);
+
+    /* Default to enabled if map not initialized */
+    if (!enabled) {
+        return 1;
+    }
+
+    return *enabled;
+}
 
 /* Helper to check if a PID or any of its ancestors should be tracked */
 static __always_inline int is_tracked(__u32 pid) {
@@ -76,14 +96,16 @@ int tracepoint_sched_fork(struct trace_event_raw_sched_process_fork *ctx) {
 
 SEC("tracepoint/syscalls/sys_enter_execve")
 int tracepoint_sys_execve(struct trace_event_raw_sys_enter *ctx) {
-    __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    __u64 tid = bpf_get_current_pid_tgid();
+    __u32 pid = tid >> 32;
 
     /* Check if this process or any parent is being tracked */
-    if (is_tracked(pid)) {
+    if (is_tracked(pid) && is_enabled()) {
         struct event *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
         if (e) {
             e->timestamp = bpf_ktime_get_ns();
             e->pid = pid;
+            e->tid = tid & 0xFFFFFFFF;
             e->event_type = EVENT_TYPE_EXECVE;
             e->addr = 0;
             e->size = 0;
@@ -123,7 +145,7 @@ int uretprobe_malloc(struct pt_regs *ctx) {
     __u32 pid = tid >> 32;
 
     /* Check if this PID is being tracked */
-    if (is_tracked(pid)) {
+    if (is_tracked(pid) && is_enabled()) {
         __u64 *size_ptr = bpf_map_lookup_elem(&malloc_size, &tid);
         if (size_ptr) {
             __u64 addr = PT_REGS_RC(ctx);
@@ -135,6 +157,7 @@ int uretprobe_malloc(struct pt_regs *ctx) {
                 if (e) {
                     e->timestamp = bpf_ktime_get_ns();
                     e->pid = pid;
+                    e->tid = tid & 0xFFFFFFFF;
                     e->event_type = EVENT_TYPE_MALLOC;
                     e->addr = addr;
                     e->size = size;
@@ -151,10 +174,11 @@ int uretprobe_malloc(struct pt_regs *ctx) {
 
 SEC("uprobe")
 int uprobe_free(struct pt_regs *ctx) {
-    __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    __u64 tid = bpf_get_current_pid_tgid();
+    __u32 pid = tid >> 32;
 
     /* Check if this PID is being tracked */
-    if (is_tracked(pid)) {
+    if (is_tracked(pid) && is_enabled()) {
         __u64 addr = PT_REGS_PARM1(ctx);
 
         /* Only track non-NULL frees */
@@ -163,6 +187,7 @@ int uprobe_free(struct pt_regs *ctx) {
             if (e) {
                 e->timestamp = bpf_ktime_get_ns();
                 e->pid = pid;
+                e->tid = tid & 0xFFFFFFFF;
                 e->event_type = EVENT_TYPE_FREE;
                 e->addr = addr;
                 e->size = 0;  /* size unknown for free */
@@ -205,7 +230,7 @@ int uretprobe_calloc(struct pt_regs *ctx) {
     __u32 pid = tid >> 32;
 
     /* Check if this PID is being tracked */
-    if (is_tracked(pid)) {
+    if (is_tracked(pid) && is_enabled()) {
         __u64 *size_ptr = bpf_map_lookup_elem(&calloc_size, &tid);
         if (size_ptr) {
             __u64 addr = PT_REGS_RC(ctx);
@@ -217,6 +242,7 @@ int uretprobe_calloc(struct pt_regs *ctx) {
                 if (e) {
                     e->timestamp = bpf_ktime_get_ns();
                     e->pid = pid;
+                    e->tid = tid & 0xFFFFFFFF;
                     e->event_type = EVENT_TYPE_CALLOC;
                     e->addr = addr;
                     e->size = size;
@@ -260,7 +286,7 @@ int uretprobe_realloc(struct pt_regs *ctx) {
     __u32 pid = tid >> 32;
 
     /* Check if this PID is being tracked */
-    if (is_tracked(pid)) {
+    if (is_tracked(pid) && is_enabled()) {
         __u64 *size_ptr = bpf_map_lookup_elem(&realloc_size, &tid);
         if (size_ptr) {
             __u64 addr = PT_REGS_RC(ctx);
@@ -272,6 +298,7 @@ int uretprobe_realloc(struct pt_regs *ctx) {
                 if (e) {
                     e->timestamp = bpf_ktime_get_ns();
                     e->pid = pid;
+                    e->tid = tid & 0xFFFFFFFF;
                     e->event_type = EVENT_TYPE_REALLOC;
                     e->addr = addr;
                     e->size = size;
@@ -315,7 +342,7 @@ int uretprobe_aligned_alloc(struct pt_regs *ctx) {
     __u32 pid = tid >> 32;
 
     /* Check if this PID is being tracked */
-    if (is_tracked(pid)) {
+    if (is_tracked(pid) && is_enabled()) {
         __u64 *size_ptr = bpf_map_lookup_elem(&aligned_alloc_size, &tid);
         if (size_ptr) {
             __u64 addr = PT_REGS_RC(ctx);
@@ -327,6 +354,7 @@ int uretprobe_aligned_alloc(struct pt_regs *ctx) {
                 if (e) {
                     e->timestamp = bpf_ktime_get_ns();
                     e->pid = pid;
+                    e->tid = tid & 0xFFFFFFFF;
                     e->event_type = EVENT_TYPE_ALIGNED_ALLOC;
                     e->addr = addr;
                     e->size = size;

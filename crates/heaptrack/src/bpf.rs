@@ -55,6 +55,38 @@ impl HeaptrackBpf {
         Ok(())
     }
 
+    /// Enable event tracking
+    pub fn enable_tracking(&mut self) -> Result<()> {
+        let key = 0u32;
+        let value = true as u8;
+        self.skel
+            .maps
+            .tracking_enabled
+            .update(
+                &key.to_le_bytes(),
+                &value.to_le_bytes(),
+                libbpf_rs::MapFlags::ANY,
+            )
+            .context("Failed to enable tracking")?;
+        Ok(())
+    }
+
+    /// Disable event tracking
+    pub fn disable_tracking(&mut self) -> Result<()> {
+        let key = 0u32;
+        let value = false as u8;
+        self.skel
+            .maps
+            .tracking_enabled
+            .update(
+                &key.to_le_bytes(),
+                &value.to_le_bytes(),
+                libbpf_rs::MapFlags::ANY,
+            )
+            .context("Failed to disable tracking")?;
+        Ok(())
+    }
+
     pub fn attach_malloc(&mut self, libc_path: &Path) -> Result<()> {
         let malloc_opts = UprobeOpts {
             func_name: Some("malloc".to_string()),
