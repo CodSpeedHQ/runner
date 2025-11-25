@@ -1,10 +1,10 @@
+use super::Config;
 use crate::executor::Executor;
 use crate::executor::interfaces::RunData;
 use crate::executor::memory::executor::MemoryExecutor;
 use crate::executor::valgrind::executor::ValgrindExecutor;
 use crate::executor::wall_time::executor::WallTimeExecutor;
 use crate::run::check_system::SystemInfo;
-use crate::run::config::Config;
 use crate::runner_mode::RunnerMode;
 use rstest_reuse::{self, *};
 use shell_quote::{Bash, QuoteRefExt};
