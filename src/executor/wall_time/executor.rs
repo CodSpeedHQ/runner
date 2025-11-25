@@ -1,5 +1,6 @@
 use super::helpers::validate_walltime_results;
 use super::perf::PerfRunner;
+use crate::executor::Config;
 use crate::executor::Executor;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::{get_base_injected_env, is_codspeed_debug_enabled};
@@ -11,7 +12,7 @@ use crate::executor::helpers::run_with_sudo::wrap_with_sudo;
 use crate::executor::{ExecutorName, RunData};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
-use crate::run::{check_system::SystemInfo, config::Config};
+use crate::run::check_system::SystemInfo;
 use crate::runner_mode::RunnerMode;
 use async_trait::async_trait;
 use std::fs::canonicalize;

@@ -1,17 +1,3 @@
----
-source: src/executor/wall_time/perf/unwind_data.rs
-expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, end_addr,\nNone)"
----
-Ok(
-    UnwindData {
-        path: "testdata/perf_map/divan_sleep_benches.bin",
-        timestamp: None,
-        avma_range: 5555555a2000..555555692000,
-        base_avma: 555555554000,
-        base_svma: 0,
-        eh_frame_hdr_svma: 2ac74..2ea60,
-        eh_frame_hdr_hash: f579da4368e627c1,
-        eh_frame_hash: 791501d5a9c438d,
-        eh_frame_svma: 11540..2ac74,
-    },
-)
+version https://git-lfs.github.com/spec/v1
+oid sha256:87e7744313c8f604f31c725c4d0263a4a0e5cfddd63e255ad2bd179686da0721
+size 535

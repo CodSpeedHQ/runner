@@ -15,15 +15,15 @@ mod tests {
 
     use insta::{assert_json_snapshot, assert_snapshot};
 
+    use crate::executor::ExecutorName;
     use crate::instruments::InstrumentName;
     use crate::run::{
         check_system::SystemInfo,
-        executor::ExecutorName,
-        run_environment::{
-            GhData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, RunPart,
-            Sender,
-        },
         uploader::{LATEST_UPLOAD_METADATA_VERSION, Runner, UploadMetadata},
+    };
+    use crate::run_environment::{
+        GhData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, RunPart,
+        Sender,
     };
 
     #[test]

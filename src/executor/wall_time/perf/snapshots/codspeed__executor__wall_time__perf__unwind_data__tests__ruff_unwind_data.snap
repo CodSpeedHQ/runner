@@ -1,17 +1,3 @@
----
-source: src/executor/wall_time/perf/unwind_data.rs
-expression: "UnwindData::new(MODULE_PATH.as_bytes(), file_offset, start_addr, end_addr,\nNone)"
----
-Ok(
-    UnwindData {
-        path: "testdata/perf_map/ty_walltime",
-        timestamp: None,
-        avma_range: 555555e6d000..555556813000,
-        base_avma: 555555554000,
-        base_svma: 0,
-        eh_frame_hdr_svma: 7ec298..80f67c,
-        eh_frame_hdr_hash: 6d6dd1e2c782318a,
-        eh_frame_hash: ee27244db791265a,
-        eh_frame_svma: 80f680..918a9c,
-    },
-)
+version https://git-lfs.github.com/spec/v1
+oid sha256:06ee96bd69fe1f0e4cbff05561dced0c3119e648ed0c28f8c59db1b0125d64a1
+size 528

@@ -1,6 +1,7 @@
+use crate::executor::RunData;
 use crate::logger::{GROUP_TARGET, OPENED_GROUP_TARGET};
 use crate::prelude::*;
-use crate::run::{executor::RunData, run_environment::RunEnvironmentProvider};
+use crate::run_environment::RunEnvironmentProvider;
 use log::LevelFilter;
 use simplelog::{CombinedLogger, WriteLogger};
 use std::fs::copy;
