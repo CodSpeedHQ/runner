@@ -1,5 +1,11 @@
+use crate::walltime_results::WalltimeResults;
 use clap::Parser;
 use codspeed::instrument_hooks::InstrumentHooks;
+use codspeed::walltime_results::WalltimeBenchmark;
+use std::path::PathBuf;
+use std::time::Instant;
+
+mod walltime_results;
 
 #[derive(Parser, Debug)]
 #[command(name = "exec-harness")]
@@ -39,13 +45,41 @@ fn main() {
         .unwrap();
     hooks.start_benchmark().unwrap();
 
+    // Start monotonic timer
+    let start = Instant::now();
+
     // Execute the command
     let status = std::process::Command::new(&args.command[0])
         .args(&args.command[1..])
         .status();
 
+    // Measure elapsed time
+    let elapsed = start.elapsed();
+    let elapsed_ns = elapsed.as_nanos();
+
     hooks.stop_benchmark().unwrap();
     hooks.set_executed_benchmark(&bench_name).unwrap();
+
+    // Collect walltime results
+    // Single execution: 1 round with 1 iteration
+    let walltime_benchmark = WalltimeBenchmark::from_runtime_data(
+        bench_name.clone(), // name
+        bench_name.clone(), // uri (using name as uri)
+        vec![1],            // 1 iteration per round
+        vec![elapsed_ns],   // timing for the single round
+        Some(elapsed_ns),   // Max
+    );
+
+    let walltime_results = WalltimeResults::from_benchmarks(vec![walltime_benchmark])
+        .expect("Failed to create walltime results");
+
+    walltime_results
+        .save_to_file(
+            std::env::var("CODSPEED_PROFILE_FOLDER")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| std::env::current_dir().unwrap().join(".codspeed")),
+        )
+        .expect("Failed to save walltime results");
 
     // Propagate exit code
     match status {

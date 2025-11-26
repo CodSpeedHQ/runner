@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 
 [dependencies]
-anyhow = "1.0.75"
+anyhow = { workspace = true }
 clap = { workspace = true }
 itertools = "0.11.0"
 lazy_static = "1.4.0"
@@ -26,8 +26,8 @@ reqwest = { version = "0.11.22", features = [
 ] }
 reqwest-middleware = "0.2.4"
 reqwest-retry = "0.3.0"
-serde = { version = "1.0.192", features = ["derive"] }
-serde_json = { version = "1.0.108", features = ["preserve_order"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
 url = "2.4.1"
 sha256 = "1.4.0"
 tokio = { version = "1", features = ["macros", "rt"] }
@@ -76,10 +76,13 @@ rstest_reuse = "0.7.0"
 shell-quote = "0.7.2"
 
 [workspace]
-members = ["crates/exec-harness", "crates/runner-shared"]
+members = ["crates/exec-harness", "crates/fibo", "crates/runner-shared"]
 
 [workspace.dependencies]
+anyhow = "1.0.75"
 clap = { version = "4.4.8", features = ["derive", "env", "color"] }
+serde = { version = "1.0.192", features = ["derive"] }
+serde_json = { version = "1.0.108", features = ["preserve_order"] }
 
 [workspace.metadata.release]
 sign-tag = true
