@@ -211,6 +211,7 @@ impl PerfRunner {
     fn process_memory_mappings(
         pid: pid_t,
         symbols_by_pid: &mut HashMap<pid_t, ProcessSymbols>,
+        unwind_data_by_pid: &mut HashMap<pid_t, Vec<UnwindData>>,
     ) -> anyhow::Result<()> {
         use procfs::process::MMPermissions;
 
@@ -330,10 +331,14 @@ impl PerfRunner {
                     bench_pids.insert(pid);
 
                     #[cfg(target_os = "linux")]
-                    if !symbols_by_pid.contains_key(&pid) {
-                        Self::process_memory_mappings(pid, &mut symbols_by_pid)?;
-                    }
-
+                    // if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
+                    // {
+                    //     Self::process_memory_mappings(
+                    //         pid,
+                    //         &mut symbols_by_pid,
+                    //         &mut unwind_data_by_pid,
+                    //     )?;
+                    // }
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
@@ -431,10 +436,6 @@ impl BenchmarkData {
         &mut self,
         path: P,
     ) -> Result<(), BenchmarkDataSaveError> {
-        for proc_sym in self.symbols_by_pid.values() {
-            proc_sym.save_to(&path).unwrap();
-        }
-
         debug!("Reading perf data from file for mmap extraction");
         let perf_file_path = get_perf_file_path(&path);
         let reader = std::fs::File::open(&perf_file_path).unwrap();
@@ -459,14 +460,27 @@ impl BenchmarkData {
                 continue;
             };
 
-            let path_slice = mmap2_record.path.as_slice();
-            let path = String::from_utf8_lossy(&path_slice);
             if !self.bench_pids.contains(&mmap2_record.pid) {
                 continue;
             }
 
+            let path_slice = mmap2_record.path.as_slice();
+            let path_string = String::from_utf8_lossy(&path_slice);
+            let path = PathBuf::from(path_string.as_ref());
+
+            self.symbols_by_pid
+                .entry(mmap2_record.pid)
+                .or_insert(ProcessSymbols::new(mmap2_record.pid))
+                .add_mapping(
+                    mmap2_record.pid,
+                    path,
+                    mmap2_record.address,
+                    mmap2_record.address + mmap2_record.length,
+                    mmap2_record.page_offset,
+                );
+
             match UnwindData::new(
-                path.as_bytes(),
+                &path_slice,
                 mmap2_record.page_offset,
                 mmap2_record.address,
                 mmap2_record.address + mmap2_record.length,
@@ -479,9 +493,13 @@ impl BenchmarkData {
                         .push(unwind_data);
                 }
                 Err(error) => {
-                    debug!("Failed to create unwind data for module {path}: {error}",);
+                    debug!("Failed to create unwind data for module {path_string}: {error}",);
                 }
             }
+        }
+
+        for proc_sym in self.symbols_by_pid.values() {
+            proc_sym.save_to(&path).unwrap();
         }
 
         // Collect debug info for each process by looking up file/line for symbols
