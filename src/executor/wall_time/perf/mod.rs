@@ -211,7 +211,6 @@ impl PerfRunner {
     fn process_memory_mappings(
         pid: pid_t,
         symbols_by_pid: &mut HashMap<pid_t, ProcessSymbols>,
-        unwind_data_by_pid: &mut HashMap<pid_t, Vec<UnwindData>>,
     ) -> anyhow::Result<()> {
         use procfs::process::MMPermissions;
 
@@ -330,14 +329,9 @@ impl PerfRunner {
                     }
                     bench_pids.insert(pid);
 
-                    // #[cfg(target_os = "linux")]
-                    if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
-                    {
-                        Self::process_memory_mappings(
-                            pid,
-                            &mut symbols_by_pid,
-                            &mut unwind_data_by_pid,
-                        )?;
+                    #[cfg(target_os = "linux")]
+                    if !symbols_by_pid.contains_key(&pid) {
+                        Self::process_memory_mappings(pid, &mut symbols_by_pid)?;
                     }
 
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
