@@ -2,8 +2,10 @@ use crate::walltime_results::WalltimeResults;
 use clap::Parser;
 use codspeed::instrument_hooks::InstrumentHooks;
 use codspeed::walltime_results::WalltimeBenchmark;
+use nix::libc::pid_t;
+use nix::sys::signal::{self, Signal};
+use nix::unistd::Pid;
 use std::path::PathBuf;
-use std::time::Instant;
 
 mod walltime_results;
 
@@ -40,34 +42,87 @@ fn main() {
 
     let hooks = InstrumentHooks::instance();
 
+    // TODO: Change this
     hooks
-        .set_integration("codspeed-exec", env!("CARGO_PKG_VERSION"))
+        .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
         .unwrap();
     hooks.start_benchmark().unwrap();
 
-    // Start monotonic timer
-    let start = Instant::now();
+    // Run 10 iterations
+    const NUM_ITERATIONS: usize = 10;
+    let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
 
-    // Execute the command
-    let status = std::process::Command::new(&args.command[0])
-        .args(&args.command[1..])
-        .status();
+    for _ in 0..NUM_ITERATIONS {
+        // Spawn the command
+        let mut child = match std::process::Command::new(&args.command[0])
+            .args(&args.command[1..])
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(e) => {
+                eprintln!("Failed to spawn command: {e}");
+                std::process::exit(1);
+            }
+        };
 
-    // Measure elapsed time
-    let elapsed = start.elapsed();
-    let elapsed_ns = elapsed.as_nanos();
+        // Get the PID
+        let pid = child.id() as pid_t;
+        let nix_pid = Pid::from_raw(pid);
+
+        // Stop the process
+        if let Err(e) = signal::kill(nix_pid, Signal::SIGSTOP) {
+            eprintln!("Failed to send SIGSTOP to process {pid}: {e}");
+            std::process::exit(1);
+        }
+
+        // TODO: Do something with the PID
+        hooks
+            .set_executed_benchmark_with_pid(&bench_name, pid)
+            .unwrap();
+
+        // Start monotonic timer for this iteration
+        let bench_start = InstrumentHooks::current_timestamp();
+        // Resume the process
+        if let Err(e) = signal::kill(nix_pid, Signal::SIGCONT) {
+            eprintln!("Failed to send SIGCONT to process {pid}: {e}");
+            std::process::exit(1);
+        }
+
+        // Wait for the process to complete
+        let status = match child.wait() {
+            Ok(status) => status,
+            Err(e) => {
+                eprintln!("Failed to wait for command: {e}");
+                std::process::exit(1);
+            }
+        };
+
+        // Measure elapsed time
+        let bench_end = InstrumentHooks::current_timestamp();
+        hooks.add_benchmark_timestamps(bench_start, bench_end);
+
+        // Exit immediately if any iteration fails
+        if !status.success() {
+            eprintln!("Command failed with exit code: {:?}", status.code());
+            std::process::exit(status.code().unwrap_or(1));
+        }
+
+        // Calculate and store the elapsed time in nanoseconds
+        let elapsed_ns = (bench_end - bench_start) as u128;
+        times_per_round_ns.push(elapsed_ns);
+    }
 
     hooks.stop_benchmark().unwrap();
-    hooks.set_executed_benchmark(&bench_name).unwrap();
 
     // Collect walltime results
-    // Single execution: 1 round with 1 iteration
+    // 10 iterations: 10 rounds with 1 iteration each
+    let max_time_ns = times_per_round_ns.iter().copied().max();
     let walltime_benchmark = WalltimeBenchmark::from_runtime_data(
-        bench_name.clone(), // name
-        bench_name.clone(), // uri (using name as uri)
-        vec![1],            // 1 iteration per round
-        vec![elapsed_ns],   // timing for the single round
-        Some(elapsed_ns),   // Max
+        bench_name.clone(),      // name
+        bench_name.clone(),      // uri (using name as uri)
+        vec![1; NUM_ITERATIONS], // 1 iteration per round for each of 10 rounds
+        times_per_round_ns,      // timing for each round
+        max_time_ns,             // max time across all rounds
     );
 
     let walltime_results = WalltimeResults::from_benchmarks(vec![walltime_benchmark])
@@ -81,14 +136,6 @@ fn main() {
         )
         .expect("Failed to save walltime results");
 
-    // Propagate exit code
-    match status {
-        Ok(exit_status) => {
-            std::process::exit(exit_status.code().unwrap_or(1));
-        }
-        Err(e) => {
-            eprintln!("Failed to execute command: {e}");
-            std::process::exit(1);
-        }
-    }
+    // All iterations succeeded
+    std::process::exit(0);
 }

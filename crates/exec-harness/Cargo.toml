@@ -5,7 +5,8 @@ edition = "2024"
 
 [dependencies]
 anyhow = { workspace = true }
-codspeed = "4.1.0"
+codspeed = { git = "https://github.com/CodSpeedHQ/codspeed-rust", branch = "cod-1746-manage-multiple-pids-for-a-single-benchmark-in-walltime" }
 clap = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
+nix = { workspace = true, features = ["signal"] }

@@ -295,6 +295,7 @@ impl PerfRunner {
         };
 
         let mut benchmark_started = false;
+        let mut current_benchmark_uri = "".to_owned();
         loop {
             let perf_ping =
                 tokio::time::timeout(Duration::from_secs(perf_ping_timeout), perf_fifo.ping())
@@ -319,7 +320,10 @@ impl PerfRunner {
 
             match cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
-                    bench_order_by_timestamp.push((current_time(), uri));
+                    if uri != current_benchmark_uri {
+                        bench_order_by_timestamp.push((current_time(), uri.clone()));
+                        current_benchmark_uri = uri;
+                    }
                     bench_pids.insert(pid);
 
                     #[cfg(target_os = "linux")]
