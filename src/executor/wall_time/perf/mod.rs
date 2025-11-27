@@ -17,6 +17,9 @@ use crate::run::UnwindingMode;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
 use libc::pid_t;
+use linux_perf_data::PerfFileReader;
+use linux_perf_data::PerfFileRecord;
+use linux_perf_data::linux_perf_event_reader::EventRecord;
 use nix::sys::time::TimeValLike;
 use nix::time::clock_gettime;
 use perf_map::ProcessSymbols;
@@ -27,6 +30,7 @@ use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
 use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 
@@ -146,8 +150,8 @@ impl PerfRunner {
         ]);
         cmd_builder.wrap_with(perf_wrapper_builder);
 
-        // Copy the perf data to the profile folder
-        let perf_data_file_path = profile_folder.join(PERF_DATA_FILE_NAME);
+        // Output the perf data to the profile folder
+        let perf_data_file_path = get_perf_file_path(profile_folder);
 
         let raw_command = format!(
             "set -o pipefail && {} | cat > {}",
@@ -425,6 +429,7 @@ pub struct BenchmarkData {
 #[derive(Debug)]
 pub enum BenchmarkDataSaveError {
     MissingIntegration,
+    FailedToParsePerfFile(linux_perf_data::Error),
 }
 
 impl BenchmarkData {
@@ -434,6 +439,30 @@ impl BenchmarkData {
     ) -> Result<(), BenchmarkDataSaveError> {
         for proc_sym in self.symbols_by_pid.values() {
             proc_sym.save_to(&path).unwrap();
+        }
+
+        let perf_file_path = get_perf_file_path(&path);
+        let reader = std::fs::File::open(&perf_file_path).unwrap();
+
+        let PerfFileReader {
+            mut perf_file,
+            mut record_iter,
+        } = PerfFileReader::parse_pipe(reader)
+            .map_err(BenchmarkDataSaveError::FailedToParsePerfFile)?;
+
+        // Iterate over perf samples
+        while let Some(record) = record_iter.next_record(&mut perf_file).unwrap() {
+            let PerfFileRecord::EventRecord { record, .. } = record else {
+                continue;
+            };
+
+            let Ok(parsed_record) = record.parse() else {
+                continue;
+            };
+
+            let EventRecord::Mmap2(mmap2_record) = parsed_record else {
+                continue;
+            };
         }
 
         // Collect debug info for each process by looking up file/line for symbols
@@ -510,4 +539,8 @@ impl BenchmarkData {
 
         Ok(())
     }
+}
+
+fn get_perf_file_path<P: AsRef<Path>>(profile_folder: P) -> PathBuf {
+    profile_folder.as_ref().join(PERF_DATA_FILE_NAME)
 }

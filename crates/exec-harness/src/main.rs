@@ -49,7 +49,7 @@ fn main() {
     hooks.start_benchmark().unwrap();
 
     // Run 10 iterations
-    const NUM_ITERATIONS: usize = 10;
+    const NUM_ITERATIONS: usize = 1;
     let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
 
     for _ in 0..NUM_ITERATIONS {
@@ -64,29 +64,15 @@ fn main() {
                 std::process::exit(1);
             }
         };
+        // Start monotonic timer for this iteration
+        let bench_start = InstrumentHooks::current_timestamp();
 
         // Get the PID
         let pid = child.id() as pid_t;
-        let nix_pid = Pid::from_raw(pid);
 
-        // Stop the process
-        if let Err(e) = signal::kill(nix_pid, Signal::SIGSTOP) {
-            eprintln!("Failed to send SIGSTOP to process {pid}: {e}");
-            std::process::exit(1);
-        }
-
-        // TODO: Do something with the PID
         hooks
             .set_executed_benchmark_with_pid(&bench_name, pid)
             .unwrap();
-
-        // Start monotonic timer for this iteration
-        let bench_start = InstrumentHooks::current_timestamp();
-        // Resume the process
-        if let Err(e) = signal::kill(nix_pid, Signal::SIGCONT) {
-            eprintln!("Failed to send SIGCONT to process {pid}: {e}");
-            std::process::exit(1);
-        }
 
         // Wait for the process to complete
         let status = match child.wait() {
