@@ -85,7 +85,7 @@ pub trait Executor {
     ) -> Result<()>;
 
     async fn teardown(
-        &self,
+        &mut self,
         config: &Config,
         system_info: &SystemInfo,
         run_data: &RunData,
@@ -130,7 +130,7 @@ pub async fn execute_benchmarks(
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let executor = get_executor_from_mode(&config.mode);
+    let mut executor = get_executor_from_mode(&config.mode);
 
     if !config.skip_setup {
         start_group!("Preparing the environment");

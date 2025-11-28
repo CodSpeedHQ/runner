@@ -213,14 +213,14 @@ impl Executor for WallTimeExecutor {
     }
 
     async fn teardown(
-        &self,
+        &mut self,
         config: &Config,
         _system_info: &SystemInfo,
         run_data: &RunData,
     ) -> Result<()> {
         debug!("Copying files to the profile folder");
 
-        if let Some(perf) = &self.perf
+        if let Some(perf) = &mut self.perf
             && config.enable_perf
         {
             perf.save_files_to(&run_data.profile_folder).await?;

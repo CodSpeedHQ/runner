@@ -79,7 +79,30 @@ impl ModuleSymbols {
             }));
         }
 
-        symbols.retain(|symbol| symbol.addr > 0 && symbol.size > 0);
+        // Update zero-sized symbols to cover the range until the next symbol
+        // This is what perf does
+        // https://github.com/torvalds/linux/blob/e538109ac71d801d26776af5f3c54f548296c29c/tools/perf/util/symbol.c#L256
+        // A common source for these is inline assembly functions.
+        symbols.sort_by_key(|symbol| symbol.addr);
+        for i in 0..symbols.len() {
+            if symbols[i].size == 0 {
+                if i + 1 < symbols.len() {
+                    // Set size to the distance to the next symbol
+                    symbols[i].size = symbols[i + 1].addr.saturating_sub(symbols[i].addr);
+                } else {
+                    // Last symbol: round up to next 4KB page boundary and add 4KiB
+                    // This matches perf's behavior: roundup(curr->start, 4096) + 4096
+                    const PAGE_SIZE: u64 = 4096;
+                    let addr = symbols[i].addr;
+                    let end_addr = addr.next_multiple_of(PAGE_SIZE) + PAGE_SIZE;
+                    symbols[i].size = end_addr.saturating_sub(addr);
+                }
+            }
+        }
+
+        // Filter out any symbols that still have zero size
+        symbols.retain(|symbol| symbol.size > 0);
+
         if symbols.is_empty() {
             return Err(anyhow::anyhow!("No symbols found"));
         }
@@ -143,7 +166,10 @@ impl ProcessSymbols {
             return;
         }
 
-        debug!("Loading module symbols at {start_addr:x}-{end_addr:x} (offset: {file_offset:x})");
+        let module_path_str = module_path.as_ref().to_string_lossy();
+        debug!(
+            "Loading module {module_path_str} symbols at {start_addr:x}-{end_addr:x} (offset: {file_offset:x})"
+        );
         let path = module_path.as_ref().to_path_buf();
         match ModuleSymbols::new(module_path, start_addr, end_addr, file_offset) {
             Ok(symbol) => {

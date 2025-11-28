@@ -4,5 +4,9 @@ version = "4.4.1"
 edition = "2024"
 
 [dependencies]
+anyhow = { workspace = true }
 codspeed = "4.1.0"
 clap = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+nix = { workspace = true, features = ["signal"] }

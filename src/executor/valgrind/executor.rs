@@ -44,7 +44,7 @@ impl Executor for ValgrindExecutor {
     }
 
     async fn teardown(
-        &self,
+        &mut self,
         _config: &Config,
         _system_info: &SystemInfo,
         run_data: &RunData,
