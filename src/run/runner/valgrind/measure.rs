@@ -6,6 +6,7 @@ use crate::run::runner::helpers::introspected_golang;
 use crate::run::runner::helpers::introspected_nodejs;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
+use crate::run::runner::valgrind::helpers::python::is_free_threaded_python;
 use crate::run::{config::Config, instruments::mongo_tracer::MongoTracer};
 use lazy_static::lazy_static;
 use std::env;
@@ -87,9 +88,16 @@ pub async fn measure(
     cmd.envs(get_base_injected_env(
         RunnerMode::Simulation,
         profile_folder,
-    ))
-    .env("PYTHONMALLOC", "malloc")
-    .env(
+    ));
+
+    // Only set PYTHONMALLOC=malloc for non-free-threaded Python builds.
+    // Free-threaded Python (with GIL disabled) manages memory differently and
+    // should not have PYTHONMALLOC overridden.
+    if !is_free_threaded_python() {
+        cmd.env("PYTHONMALLOC", "malloc");
+    }
+
+    cmd.env(
         "PATH",
         format!(
             "{}:{}:{}",
