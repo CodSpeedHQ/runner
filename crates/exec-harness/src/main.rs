@@ -37,6 +37,8 @@ fn main() {
             .map(|s| s.to_string())
             .unwrap_or_else(|| "exec_benchmark".to_string())
     });
+    // TODO: Better URI generation
+    let bench_uri = format!("standalone_run::{bench_name}");
 
     let hooks = InstrumentHooks::instance();
 
@@ -45,7 +47,7 @@ fn main() {
         .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
         .unwrap();
 
-    const NUM_ITERATIONS: usize = 10;
+    const NUM_ITERATIONS: usize = 1;
     let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
 
     hooks.start_benchmark().unwrap();
@@ -89,13 +91,13 @@ fn main() {
     }
 
     hooks.stop_benchmark().unwrap();
-    hooks.set_executed_benchmark(&bench_name).unwrap();
+    hooks.set_executed_benchmark(&bench_uri).unwrap();
 
     // Collect walltime results
     let max_time_ns = times_per_round_ns.iter().copied().max();
     let walltime_benchmark = WalltimeBenchmark::from_runtime_data(
         bench_name.clone(),
-        format!("standalone_run::{bench_name}"),
+        bench_uri.clone(),
         vec![1; NUM_ITERATIONS],
         times_per_round_ns,
         max_time_ns,
