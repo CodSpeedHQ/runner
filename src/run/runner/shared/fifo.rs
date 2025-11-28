@@ -4,6 +4,7 @@ use nix::{sys::time::TimeValLike, time::clock_gettime};
 use runner_shared::benchmark_results::MarkerResult;
 use runner_shared::fifo::{Command as FifoCommand, MarkerType};
 use runner_shared::fifo::{RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
+use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::{collections::HashSet, time::Duration};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -62,8 +63,7 @@ impl GenericFifo {
     }
 }
 
-// TODO: Find a better name for this (SharedBenchmarkData? BenchmarkData?)
-pub struct FifoData {
+pub struct FifoBenchmarkData {
     /// Name and version of the integration
     pub integration: Option<(String, String)>,
     pub bench_pids: HashSet<pid_t>,
@@ -127,7 +127,7 @@ impl RunnerFifo {
         &mut self,
         mut health_check: impl AsyncFnMut() -> anyhow::Result<bool>,
         mut handle_cmd: impl AsyncFnMut(&FifoCommand) -> anyhow::Result<FifoCommand>,
-    ) -> anyhow::Result<(MarkerResult, FifoData)> {
+    ) -> anyhow::Result<(MarkerResult, FifoBenchmarkData)> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
         let mut markers = Vec::<MarkerType>::new();
@@ -181,6 +181,7 @@ impl RunnerFifo {
                     benchmark_started = false;
                     markers.push(MarkerType::SampleEnd(current_time()));
                 }
+                #[allow(deprecated)]
                 FifoCommand::SetIntegration { name, version } => {
                     integration = Some((name.into(), version.into()));
                     self.send_cmd(FifoCommand::Ack).await?;
@@ -192,19 +193,20 @@ impl RunnerFifo {
                     continue;
                 }
                 FifoCommand::SetVersion(protocol_version) => {
-                    if *protocol_version < runner_shared::fifo::CURRENT_PROTOCOL_VERSION {
-                        panic!(
+                    match protocol_version.cmp(&runner_shared::fifo::CURRENT_PROTOCOL_VERSION) {
+                        Ordering::Less => panic!(
                             "Integration is using an incompatible protocol version ({protocol_version} < {}). Please update the integration to the latest version.",
                             runner_shared::fifo::CURRENT_PROTOCOL_VERSION
-                        )
-                    } else if *protocol_version > runner_shared::fifo::CURRENT_PROTOCOL_VERSION {
-                        panic!(
+                        ),
+                        Ordering::Greater => panic!(
                             "Runner is using an incompatible protocol version ({} < {protocol_version}). Please update the runner to the latest version.",
                             runner_shared::fifo::CURRENT_PROTOCOL_VERSION
-                        )
-                    };
-                    self.send_cmd(FifoCommand::Ack).await?;
-                    continue;
+                        ),
+                        Ordering::Equal => {
+                            self.send_cmd(FifoCommand::Ack).await?;
+                            continue;
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -213,7 +215,7 @@ impl RunnerFifo {
         }
 
         let marker_result = MarkerResult::new(&bench_order_by_timestamp, &markers);
-        let fifo_data = FifoData {
+        let fifo_data = FifoBenchmarkData {
             integration,
             bench_pids,
         };

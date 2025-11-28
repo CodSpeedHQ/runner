@@ -8,7 +8,7 @@ use crate::run::runner::helpers::env::is_codspeed_debug_enabled;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::run_with_sudo::run_with_sudo;
 use crate::run::runner::helpers::run_with_sudo::wrap_with_sudo;
-use crate::run::runner::shared::fifo::FifoData;
+use crate::run::runner::shared::fifo::FifoBenchmarkData;
 use crate::run::runner::shared::fifo::RunnerFifo;
 use crate::run::runner::valgrind::helpers::ignored_objects_path::get_objects_path_to_ignore;
 use crate::run::runner::valgrind::helpers::perf_maps::harvest_perf_maps_for_pids;
@@ -352,7 +352,7 @@ impl PerfRunner {
 }
 
 pub struct BenchmarkData {
-    fifo_data: FifoData,
+    fifo_data: FifoBenchmarkData,
     marker_result: MarkerResult,
     pub symbols_by_pid: HashMap<pid_t, ProcessSymbols>,
     pub unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
@@ -463,7 +463,7 @@ impl BenchmarkData {
 }
 
 impl Deref for BenchmarkData {
-    type Target = FifoData;
+    type Target = FifoBenchmarkData;
 
     fn deref(&self) -> &Self::Target {
         &self.fifo_data
