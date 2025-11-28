@@ -167,9 +167,6 @@ impl ProcessSymbols {
         }
 
         let module_path_str = module_path.as_ref().to_string_lossy();
-        debug!(
-            "Loading module {module_path_str} symbols at {start_addr:x}-{end_addr:x} (offset: {file_offset:x})"
-        );
         let path = module_path.as_ref().to_path_buf();
         match ModuleSymbols::new(module_path, start_addr, end_addr, file_offset) {
             Ok(symbol) => {
