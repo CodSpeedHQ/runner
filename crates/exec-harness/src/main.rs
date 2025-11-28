@@ -48,8 +48,7 @@ fn main() {
         .unwrap();
     hooks.start_benchmark().unwrap();
 
-    // Run 10 iterations
-    const NUM_ITERATIONS: usize = 5;
+    const NUM_ITERATIONS: usize = 1;
     let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
 
     hooks.set_executed_benchmark(&bench_name).unwrap();

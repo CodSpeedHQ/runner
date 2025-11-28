@@ -60,6 +60,13 @@ impl ModuleSymbols {
         let mut symbols = Vec::new();
 
         if let Some(symbol_table) = object.symbol_table() {
+            for symbol in symbol_table.symbols() {
+                if let Ok(symbol_name) = symbol.name() {
+                    if symbol_name.starts_with("__libc_start") {
+                        warn!("ADDING LIBC START SYMBOL {symbol_name}");
+                    }
+                }
+            }
             symbols.extend(symbol_table.symbols().filter_map(|symbol| {
                 Some(Symbol {
                     addr: symbol.address(),
@@ -70,6 +77,13 @@ impl ModuleSymbols {
         }
 
         if let Some(symbol_table) = object.dynamic_symbol_table() {
+            for symbol in symbol_table.symbols() {
+                if let Ok(symbol_name) = symbol.name() {
+                    if symbol_name.starts_with("__libc_start") {
+                        warn!("[DYN] ADDING LIBC START SYMBOL {symbol_name}");
+                    }
+                }
+            }
             symbols.extend(symbol_table.symbols().filter_map(|symbol| {
                 Some(Symbol {
                     addr: symbol.address(),
@@ -143,7 +157,10 @@ impl ProcessSymbols {
             return;
         }
 
-        debug!("Loading module symbols at {start_addr:x}-{end_addr:x} (offset: {file_offset:x})");
+        let module_path_str = module_path.as_ref().to_string_lossy();
+        debug!(
+            "Loading module {module_path_str} symbols at {start_addr:x}-{end_addr:x} (offset: {file_offset:x})"
+        );
         let path = module_path.as_ref().to_path_buf();
         match ModuleSymbols::new(module_path, start_addr, end_addr, file_offset) {
             Ok(symbol) => {
