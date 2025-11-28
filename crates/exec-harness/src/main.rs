@@ -47,7 +47,7 @@ fn main() {
         .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
         .unwrap();
 
-    const NUM_ITERATIONS: usize = 1;
+    const NUM_ITERATIONS: usize = 5;
     let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
 
     hooks.start_benchmark().unwrap();
