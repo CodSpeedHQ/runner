@@ -49,8 +49,10 @@ fn main() {
     hooks.start_benchmark().unwrap();
 
     // Run 10 iterations
-    const NUM_ITERATIONS: usize = 1;
+    const NUM_ITERATIONS: usize = 5;
     let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
+
+    hooks.set_executed_benchmark(&bench_name).unwrap();
 
     for _ in 0..NUM_ITERATIONS {
         // Spawn the command
@@ -66,13 +68,6 @@ fn main() {
         };
         // Start monotonic timer for this iteration
         let bench_start = InstrumentHooks::current_timestamp();
-
-        // Get the PID
-        let pid = child.id() as pid_t;
-
-        hooks
-            .set_executed_benchmark_with_pid(&bench_name, pid)
-            .unwrap();
 
         // Wait for the process to complete
         let status = match child.wait() {

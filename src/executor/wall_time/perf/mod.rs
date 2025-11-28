@@ -299,7 +299,6 @@ impl PerfRunner {
         };
 
         let mut benchmark_started = false;
-        let mut current_benchmark_uri = "".to_owned();
         loop {
             let perf_ping =
                 tokio::time::timeout(Duration::from_secs(perf_ping_timeout), perf_fifo.ping())
@@ -324,21 +323,9 @@ impl PerfRunner {
 
             match cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
-                    if uri != current_benchmark_uri {
-                        bench_order_by_timestamp.push((current_time(), uri.clone()));
-                        current_benchmark_uri = uri;
-                    }
+                    bench_order_by_timestamp.push((current_time(), uri.clone()));
                     bench_pids.insert(pid);
 
-                    #[cfg(target_os = "linux")]
-                    // if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
-                    // {
-                    //     Self::process_memory_mappings(
-                    //         pid,
-                    //         &mut symbols_by_pid,
-                    //         &mut unwind_data_by_pid,
-                    //     )?;
-                    // }
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
@@ -440,6 +427,7 @@ impl BenchmarkData {
         let perf_file_path = get_perf_file_path(&path);
         let reader = std::fs::File::open(&perf_file_path).unwrap();
 
+        // TODO: Only do this on linux
         let PerfFileReader {
             mut perf_file,
             mut record_iter,
@@ -460,13 +448,19 @@ impl BenchmarkData {
                 continue;
             };
 
-            if !self.bench_pids.contains(&mmap2_record.pid) {
-                continue;
-            }
-
             let path_slice = mmap2_record.path.as_slice();
             let path_string = String::from_utf8_lossy(&path_slice);
             let path = PathBuf::from(path_string.as_ref());
+
+            if path_string == "//anon" {
+                // Skip annonymous mappings
+                continue;
+            }
+
+            if path_string.starts_with("[") && path_string.ends_with("]") {
+                // Skip special kernel mappings
+                continue;
+            }
 
             self.symbols_by_pid
                 .entry(mmap2_record.pid)

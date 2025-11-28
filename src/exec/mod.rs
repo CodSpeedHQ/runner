@@ -4,9 +4,6 @@ use crate::prelude::*;
 use clap::Args;
 use std::path::Path;
 
-mod run_with_harness;
-use run_with_harness::wrap_command_with_harness;
-
 #[derive(Args, Debug)]
 pub struct ExecArgs {
     #[command(flatten)]
@@ -26,10 +23,14 @@ pub async fn run(
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    // Wrap the user's command with exec-harness BEFORE creating config
-    let wrapped_command = wrap_command_with_harness(&args.command, args.name.as_deref())?;
+    // Assume exec-harness is in the PATH for now
+    let wrapped_command = std::iter::once("exec-harness".to_string())
+        .chain(args.command)
+        .collect::<Vec<String>>();
 
-    info!("Executing: {}", wrapped_command.join(" "));
+    let warped_command_string = wrapped_command.join(" ");
+
+    info!("Executing: {warped_command_string}");
 
     // Convert ExecArgs to executor::Config using shared args
     let config = crate::executor::Config {
@@ -54,7 +55,7 @@ pub async fn run(
             })
             .transpose()?,
         working_directory: args.shared.working_directory,
-        command: wrapped_command.join(" "), // Use wrapped command
+        command: warped_command_string,
         mode: args.shared.mode,
         instruments: crate::instruments::Instruments { mongodb: None }, // exec doesn't support MongoDB
         enable_perf: args.shared.perf_run_args.enable_perf,

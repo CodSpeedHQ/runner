@@ -1,0 +1,37 @@
+{
+  "creator": {
+    "name": "codspeed-rust",
+    "version": "4.4.1",
+    "pid": 260146
+  },
+  "instrument": {
+    "type": "walltime"
+  },
+  "benchmarks": [
+    {
+      "name": "fibo",
+      "uri": "fibo",
+      "config": {
+        "warmup_time_ns": null,
+        "min_round_time_ns": null,
+        "max_time_ns": 14082729.0,
+        "max_rounds": null
+      },
+      "stats": {
+        "min_ns": 12611473.0,
+        "max_ns": 14082729.0,
+        "mean_ns": 13233969.6,
+        "stdev_ns": 548294.8643100718,
+        "q1_ns": 12826147.666666666,
+        "median_ns": 13243071.0,
+        "q3_ns": 13560303.0,
+        "rounds": 5,
+        "total_time": 0.066169848,
+        "iqr_outlier_rounds": 0,
+        "stdev_outlier_rounds": 0,
+        "iter_per_round": 1,
+        "warmup_iters": 0
+      }
+    }
+  ]
+}
