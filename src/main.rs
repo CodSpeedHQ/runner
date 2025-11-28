@@ -2,11 +2,16 @@ mod api_client;
 mod app;
 mod auth;
 mod config;
+mod exec;
+mod executor;
+mod instruments;
 mod local_logger;
 mod logger;
 mod prelude;
 mod request_client;
 mod run;
+mod run_environment;
+mod runner_mode;
 mod setup;
 
 use console::style;

@@ -212,7 +212,7 @@ impl CodSpeedAPIClient {
             Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
                 bail!("Your session has expired, please login again using `codspeed auth login`")
             }
-            Err(err) => bail!("Failed to fetch local run report: {err}"),
+            Err(err) => bail!("Failed to fetch local run report: {err:?}"),
         }
     }
 }

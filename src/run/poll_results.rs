@@ -10,8 +10,7 @@ use crate::api_client::{
 };
 use crate::prelude::*;
 use crate::run::helpers;
-
-use super::run_environment::RunEnvironmentProvider;
+use crate::run_environment::RunEnvironmentProvider;
 
 const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
 const POLLING_INTERVAL: Duration = Duration::from_secs(1);
