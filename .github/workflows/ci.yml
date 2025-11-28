@@ -13,7 +13,7 @@ jobs:
       - uses: moonrepo/setup-rust@v1
         with:
           components: rustfmt, clippy
-      - run: sudo apt-get update && sudo apt-get install -y libelf-dev protobuf-compiler
+      - run: sudo apt-get update && sudo apt-get install -y libelf-dev
       - uses: pre-commit/action@v3.0.1
         with:
           extra_args: --all-files
@@ -25,7 +25,7 @@ jobs:
         with:
           lfs: true
       - uses: moonrepo/setup-rust@v1
-      - run: sudo apt-get update && sudo apt-get install -y libelf-dev protobuf-compiler
+      - run: sudo apt-get update && sudo apt-get install -y libelf-dev
       - run: cargo test --all --exclude heaptrack
 
   bpf-tests:
@@ -36,5 +36,5 @@ jobs:
           lfs: true
       - uses: moonrepo/setup-rust@v1
       - uses: extractions/setup-just@v3
-      - run: sudo apt-get update && sudo apt-get install -y libelf-dev protobuf-compiler
+      - run: sudo apt-get update && sudo apt-get install -y libelf-dev
       - run: cd crates/heaptrack && just test
