@@ -459,6 +459,11 @@ impl BenchmarkData {
 
             if path_string.starts_with("[") && path_string.ends_with("]") {
                 // Skip special kernel mappings
+                debug!(
+                    "Skipping special mapping: {path_string} - {:x}-{:x}",
+                    mmap2_record.address,
+                    mmap2_record.address + mmap2_record.length
+                );
                 continue;
             }
 

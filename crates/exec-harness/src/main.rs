@@ -46,14 +46,15 @@ fn main() {
     hooks
         .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
         .unwrap();
-    hooks.start_benchmark().unwrap();
 
     const NUM_ITERATIONS: usize = 1;
     let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
 
-    hooks.set_executed_benchmark(&bench_name).unwrap();
-
+    hooks.start_benchmark().unwrap();
     for _ in 0..NUM_ITERATIONS {
+        // Start monotonic timer for this iteration
+        let bench_start = InstrumentHooks::current_timestamp();
+
         // Spawn the command
         let mut child = match std::process::Command::new(&args.command[0])
             .args(&args.command[1..])
@@ -65,9 +66,6 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        // Start monotonic timer for this iteration
-        let bench_start = InstrumentHooks::current_timestamp();
-
         // Wait for the process to complete
         let status = match child.wait() {
             Ok(status) => status,
@@ -93,6 +91,7 @@ fn main() {
     }
 
     hooks.stop_benchmark().unwrap();
+    hooks.set_executed_benchmark(&bench_name).unwrap();
 
     // Collect walltime results
     // 10 iterations: 10 rounds with 1 iteration each

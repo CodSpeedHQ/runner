@@ -59,11 +59,18 @@ impl ModuleSymbols {
 
         let mut symbols = Vec::new();
 
+        let path_string = path.as_ref().to_string_lossy();
         if let Some(symbol_table) = object.symbol_table() {
-            for symbol in symbol_table.symbols() {
-                if let Ok(symbol_name) = symbol.name() {
-                    if symbol_name.starts_with("__libc_start") {
-                        warn!("ADDING LIBC START SYMBOL {symbol_name}");
+            if path_string.contains("ld-linux") {
+                for symbol in symbol_table.symbols() {
+                    if let Ok(symbol_name) = symbol.name() {
+                        if symbol_name.starts_with("_start") {
+                            warn!(
+                                "ADDING _start SYMBOL {symbol_name}: {:x} - {:x}",
+                                symbol.address(),
+                                symbol.size()
+                            );
+                        }
                     }
                 }
             }
@@ -77,10 +84,16 @@ impl ModuleSymbols {
         }
 
         if let Some(symbol_table) = object.dynamic_symbol_table() {
-            for symbol in symbol_table.symbols() {
-                if let Ok(symbol_name) = symbol.name() {
-                    if symbol_name.starts_with("__libc_start") {
-                        warn!("[DYN] ADDING LIBC START SYMBOL {symbol_name}");
+            if path_string.contains("ld-linux") {
+                for symbol in symbol_table.symbols() {
+                    if let Ok(symbol_name) = symbol.name() {
+                        if symbol_name.starts_with("__start") {
+                            warn!(
+                                "ADDING _start SYMBOL {symbol_name}: {:x} - {:x}",
+                                symbol.address(),
+                                symbol.size()
+                            );
+                        }
                     }
                 }
             }
