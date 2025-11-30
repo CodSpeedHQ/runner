@@ -13,6 +13,7 @@ jobs:
       - uses: moonrepo/setup-rust@v1
         with:
           components: rustfmt, clippy
+      - run: sudo apt-get update && sudo apt-get install -y libelf-dev
       - uses: pre-commit/action@v3.0.1
         with:
           extra_args: --all-files
@@ -24,4 +25,16 @@ jobs:
         with:
           lfs: true
       - uses: moonrepo/setup-rust@v1
-      - run: cargo test --all
+      - run: sudo apt-get update && sudo apt-get install -y libelf-dev
+      - run: cargo test --all --exclude heaptrack
+
+  bpf-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+      - uses: moonrepo/setup-rust@v1
+      - uses: extractions/setup-just@v3
+      - run: sudo apt-get update && sudo apt-get install -y libelf-dev
+      - run: cd crates/heaptrack && just test

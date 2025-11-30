@@ -1,0 +1,65 @@
+syntax = "proto3";
+package codspeed.benchmark_results.v1;
+
+message BenchmarkResults {
+  repeated BenchmarkResult results = 1;
+}
+
+message BenchmarkResult {
+  oneof kind {
+    HeaptrackResult heaptrack = 10;
+    MarkerResult marker = 11;
+  }
+}
+
+// Marker related messages:
+//
+
+message MarkerResult {
+  repeated BenchmarkUri uri_by_ts = 1;
+  repeated Marker markers = 2;
+}
+
+message BenchmarkUri {
+  uint64 timestamp = 1;
+  string uri = 2;
+}
+
+message Marker {
+  MarkerType type = 1;
+  uint64 timestamp = 2;
+}
+
+enum MarkerType {
+  SAMPLE_START = 0;
+  SAMPLE_END = 1;
+  BENCHMARK_START = 2;
+  BENCHMARK_END = 3;
+}
+
+// Heaptrack related messages:
+//
+
+message HeaptrackResult {
+  repeated HeaptrackEvent events = 1;
+}
+
+message HeaptrackEvent {
+  uint32 pid = 1;
+  uint32 tid = 2;
+  uint64 timestamp = 3;
+  HeaptrackEventType type = 4;
+  uint64 addr = 5;
+  optional uint64 size = 6;   // Not used for FREE
+}
+
+enum HeaptrackEventType {
+  MALLOC = 0;
+  FREE = 1;
+  REALLOC = 2;
+  CALLOC = 3;
+  ALIGNED_ALLOC = 4;
+  MMAP = 5;
+  MUNMAP = 6;
+  BRK = 7;
+}
