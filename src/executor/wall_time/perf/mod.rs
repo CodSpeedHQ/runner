@@ -17,6 +17,9 @@ use crate::run::UnwindingMode;
 use anyhow::Context;
 use fifo::{PerfFifo, RunnerFifo};
 use libc::pid_t;
+use linux_perf_data::PerfFileReader;
+use linux_perf_data::PerfFileRecord;
+use linux_perf_data::linux_perf_event_reader::EventRecord;
 use nix::sys::time::TimeValLike;
 use nix::time::clock_gettime;
 use perf_map::ProcessSymbols;
@@ -27,6 +30,7 @@ use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashSet;
 use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 
@@ -90,6 +94,7 @@ impl PerfRunner {
         mut cmd_builder: CommandBuilder,
         config: &Config,
         profile_folder: &Path,
+        start_with_instrumentation_enabled: bool,
     ) -> anyhow::Result<ExitStatus> {
         let perf_fifo = PerfFifo::new()?;
         let runner_fifo = RunnerFifo::new()?;
@@ -131,7 +136,6 @@ impl PerfRunner {
             "-k",
             "CLOCK_MONOTONIC",
             "--freq=997", // Use a prime number to avoid synchronization with periodic tasks
-            "--delay=-1",
             "-g",
             "--user-callchains",
             &format!("--call-graph={cg_mode}"),
@@ -140,15 +144,20 @@ impl PerfRunner {
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy()
             ),
-            "-o",
-            "-", // forces pipe mode
+        ]);
+
+        if start_with_instrumentation_enabled {
+            perf_wrapper_builder.arg("--delay=-1");
+        }
+
+        perf_wrapper_builder.args([
+            "-o", "-", // forces pipe mode
             "--",
         ]);
         cmd_builder.wrap_with(perf_wrapper_builder);
 
-        // Copy the perf data to the profile folder
-        let perf_data_file_path = profile_folder.join(PERF_DATA_FILE_NAME);
-
+        // Output the perf data to the profile folder
+        let perf_data_file_path = get_perf_file_path(profile_folder);
         let raw_command = format!(
             "set -o pipefail && {} | cat > {}",
             &cmd_builder.as_command_line(),
@@ -203,86 +212,12 @@ impl PerfRunner {
         Ok(())
     }
 
-    #[cfg(target_os = "linux")]
-    fn process_memory_mappings(
-        pid: pid_t,
-        symbols_by_pid: &mut HashMap<pid_t, ProcessSymbols>,
-        unwind_data_by_pid: &mut HashMap<pid_t, Vec<UnwindData>>,
-    ) -> anyhow::Result<()> {
-        use procfs::process::MMPermissions;
-
-        let bench_proc =
-            procfs::process::Process::new(pid as _).expect("Failed to find benchmark process");
-        let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
-
-        if is_codspeed_debug_enabled() {
-            debug!("Process memory mappings for PID {pid}:");
-            for map in exe_maps.iter().sorted_by_key(|m| m.address.0) {
-                let (base_addr, end_addr) = map.address;
-                debug!(
-                    "  {:016x}-{:016x} {:08x} {:?} {:?} ",
-                    base_addr, end_addr, map.offset, map.pathname, map.perms,
-                );
-            }
-        }
-
-        for map in &exe_maps {
-            let page_offset = map.offset;
-            let (base_addr, end_addr) = map.address;
-            let path = match &map.pathname {
-                procfs::process::MMapPath::Path(path) => Some(path.clone()),
-                _ => None,
-            };
-
-            let Some(path) = &path else {
-                if map.perms.contains(MMPermissions::EXECUTE) {
-                    debug!("Found executable mapping without path: {base_addr:x} - {end_addr:x}");
-                }
-                continue;
-            };
-
-            if !map.perms.contains(MMPermissions::EXECUTE) {
-                continue;
-            }
-
-            symbols_by_pid
-                .entry(pid)
-                .or_insert(ProcessSymbols::new(pid))
-                .add_mapping(pid, path, base_addr, end_addr, map.offset);
-            debug!("Added mapping for module {path:?}");
-
-            match UnwindData::new(
-                path.to_string_lossy().as_bytes(),
-                page_offset,
-                base_addr,
-                end_addr,
-                None,
-            ) {
-                Ok(unwind_data) => {
-                    unwind_data_by_pid.entry(pid).or_default().push(unwind_data);
-                    debug!("Added unwind data for {path:?} ({base_addr:x} - {end_addr:x})");
-                }
-                Err(error) => {
-                    debug!(
-                        "Failed to create unwind data for module {}: {}",
-                        path.display(),
-                        error
-                    );
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     async fn handle_fifo(
         mut runner_fifo: RunnerFifo,
         mut perf_fifo: PerfFifo,
     ) -> anyhow::Result<BenchmarkData> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
-        let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
-        let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
         let mut markers = Vec::<MarkerType>::new();
 
         let mut integration = None;
@@ -319,18 +254,8 @@ impl PerfRunner {
 
             match cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
-                    bench_order_by_timestamp.push((current_time(), uri));
+                    bench_order_by_timestamp.push((current_time(), uri.clone()));
                     bench_pids.insert(pid);
-
-                    #[cfg(target_os = "linux")]
-                    if !symbols_by_pid.contains_key(&pid) && !unwind_data_by_pid.contains_key(&pid)
-                    {
-                        Self::process_memory_mappings(
-                            pid,
-                            &mut symbols_by_pid,
-                            &mut unwind_data_by_pid,
-                        )?;
-                    }
 
                     runner_fifo.send_cmd(FifoCommand::Ack).await?;
                 }
@@ -400,8 +325,6 @@ impl PerfRunner {
             integration,
             uri_by_ts: bench_order_by_timestamp,
             bench_pids,
-            symbols_by_pid,
-            unwind_data_by_pid,
             markers,
         })
     }
@@ -413,14 +336,14 @@ pub struct BenchmarkData {
 
     uri_by_ts: Vec<(u64, String)>,
     bench_pids: HashSet<pid_t>,
-    symbols_by_pid: HashMap<pid_t, ProcessSymbols>,
-    unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
     markers: Vec<MarkerType>,
 }
 
 #[derive(Debug)]
 pub enum BenchmarkDataSaveError {
     MissingIntegration,
+    #[allow(dead_code)] // TODO: Change this
+    FailedToParsePerfFile(linux_perf_data::Error),
 }
 
 impl BenchmarkData {
@@ -428,20 +351,124 @@ impl BenchmarkData {
         &self,
         path: P,
     ) -> Result<(), BenchmarkDataSaveError> {
-        for proc_sym in self.symbols_by_pid.values() {
+        debug!("Reading perf data from file for mmap extraction");
+        let perf_file_path = get_perf_file_path(&path);
+        let reader = std::fs::File::open(&perf_file_path).unwrap();
+        let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
+        let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
+
+        // TODO: Only do this on linux
+        let PerfFileReader {
+            mut perf_file,
+            mut record_iter,
+        } = PerfFileReader::parse_pipe(reader)
+            .map_err(BenchmarkDataSaveError::FailedToParsePerfFile)?;
+
+        const PROT_EXEC: u32 = 0x4;
+
+        // Collect all MMAP2 records as owned data for processing
+        while let Some(record) = record_iter.next_record(&mut perf_file).unwrap() {
+            let PerfFileRecord::EventRecord { record, .. } = record else {
+                continue;
+            };
+
+            let Ok(parsed_record) = record.parse() else {
+                continue;
+            };
+
+            let EventRecord::Mmap2(record) = parsed_record else {
+                continue;
+            };
+
+            // Extract all needed data as owned values
+            let record_path_string = {
+                let path_slice = record.path.as_slice();
+                String::from_utf8_lossy(&path_slice).into_owned()
+            };
+
+            let end_addr = record.address + record.length;
+
+            if record_path_string == "//anon" {
+                // Skip anonymous mappings
+                trace!(
+                    "Skipping anonymous mapping: {:x}-{:x}",
+                    record.address, end_addr
+                );
+                continue;
+            }
+
+            if record_path_string.starts_with("[") && record_path_string.ends_with("]") {
+                // Skip special mappings
+                debug!(
+                    "Skipping special mapping: {} - {:x}-{:x}",
+                    record_path_string, record.address, end_addr
+                );
+                continue;
+            }
+
+            debug!(
+                "Pid {}: {:016x}-{:016x} {:08x} {:?} (Prot {:?})",
+                record.pid,
+                record.address,
+                end_addr,
+                record.page_offset,
+                record_path_string,
+                record.protection,
+            );
+
+            if record.protection & PROT_EXEC == 0 {
+                continue;
+            }
+
+            symbols_by_pid
+                .entry(record.pid)
+                .or_insert(ProcessSymbols::new(record.pid))
+                .add_mapping(
+                    record.pid,
+                    &record_path_string,
+                    record.address,
+                    end_addr,
+                    record.page_offset,
+                );
+            debug!("Added symbols mapping for module {record_path_string:?}");
+
+            match UnwindData::new(
+                record_path_string.as_bytes(),
+                record.page_offset,
+                record.address,
+                end_addr,
+                None,
+            ) {
+                Ok(unwind_data) => {
+                    unwind_data_by_pid
+                        .entry(record.pid)
+                        .or_default()
+                        .push(unwind_data);
+                    debug!(
+                        "Added unwind data for {record_path_string} ({:x} - {:x})",
+                        record.address, end_addr
+                    );
+                }
+                Err(error) => {
+                    debug!("Failed to create unwind data for module {record_path_string}: {error}");
+                }
+            }
+        }
+
+        for proc_sym in symbols_by_pid.values() {
             proc_sym.save_to(&path).unwrap();
         }
 
         // Collect debug info for each process by looking up file/line for symbols
         let mut debug_info_by_pid = HashMap::<i32, Vec<ModuleDebugInfo>>::new();
-        for (pid, proc_sym) in &self.symbols_by_pid {
+        for (pid, proc_sym) in &symbols_by_pid {
             debug_info_by_pid
                 .entry(*pid)
                 .or_default()
                 .extend(ProcessDebugInfo::new(proc_sym).modules());
         }
 
-        for (pid, modules) in &self.unwind_data_by_pid {
+        for (pid, modules) in &unwind_data_by_pid {
             for module in modules {
                 module.save_to(&path, *pid).unwrap();
             }
@@ -459,7 +486,7 @@ impl BenchmarkData {
 
                 // Check if any of the ignored modules has been loaded in the process
                 for ignore_path in get_objects_path_to_ignore() {
-                    for proc in self.symbols_by_pid.values() {
+                    for proc in symbols_by_pid.values() {
                         if let Some(mapping) = proc.module_mapping(&ignore_path) {
                             let (Some((base_addr, _)), Some((_, end_addr))) = (
                                 mapping.iter().min_by_key(|(base_addr, _)| base_addr),
@@ -474,7 +501,7 @@ impl BenchmarkData {
                 }
 
                 // When python is statically linked, we'll not find it in the ignored modules. Add it manually:
-                let python_modules = self.symbols_by_pid.values().filter_map(|proc| {
+                let python_modules = symbols_by_pid.values().filter_map(|proc| {
                     proc.loaded_modules().find(|path| {
                         path.file_name()
                             .map(|name| name.to_string_lossy().starts_with("python"))
@@ -482,8 +509,7 @@ impl BenchmarkData {
                     })
                 });
                 for path in python_modules {
-                    if let Some(mapping) = self
-                        .symbols_by_pid
+                    if let Some(mapping) = symbols_by_pid
                         .values()
                         .find_map(|proc| proc.module_mapping(path))
                     {
@@ -506,4 +532,8 @@ impl BenchmarkData {
 
         Ok(())
     }
+}
+
+fn get_perf_file_path<P: AsRef<Path>>(profile_folder: P) -> PathBuf {
+    profile_folder.as_ref().join(PERF_DATA_FILE_NAME)
 }

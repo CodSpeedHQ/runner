@@ -19,6 +19,10 @@ impl Executor for ValgrindExecutor {
         ExecutorName::Valgrind
     }
 
+    fn start_with_instrumentation_enabled(&self) -> bool {
+        false
+    }
+
     async fn setup(&self, system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
         install_valgrind(system_info, setup_cache_dir).await?;
 
@@ -37,7 +41,6 @@ impl Executor for ValgrindExecutor {
         run_data: &RunData,
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        //TODO: add valgrind version check
         measure::measure(config, &run_data.profile_folder, mongo_tracer).await?;
 
         Ok(())

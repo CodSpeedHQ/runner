@@ -190,13 +190,14 @@ mod valgrind {
 mod walltime {
     use super::*;
 
+    #[cfg(test)]
     async fn get_walltime_executor() -> (SemaphorePermit<'static>, WallTimeExecutor) {
         static WALLTIME_INIT: OnceCell<()> = OnceCell::const_new();
         static WALLTIME_SEMAPHORE: OnceCell<Semaphore> = OnceCell::const_new();
 
         WALLTIME_INIT
             .get_or_init(|| async {
-                let executor = WallTimeExecutor::new();
+                let executor = WallTimeExecutor::new(true);
                 let system_info = SystemInfo::new().unwrap();
                 executor.setup(&system_info, None).await.unwrap();
             })
@@ -209,7 +210,7 @@ mod walltime {
             .await;
         let permit = semaphore.acquire().await.unwrap();
 
-        (permit, WallTimeExecutor::new())
+        (permit, WallTimeExecutor::new(true))
     }
 
     fn walltime_config(command: &str, enable_perf: bool) -> Config {

@@ -38,18 +38,23 @@ impl Display for RunnerMode {
 
 pub const EXECUTOR_TARGET: &str = "executor";
 
-pub fn get_executor_from_mode(mode: &RunnerMode) -> Box<dyn Executor> {
+pub fn get_executor_from_mode(
+    mode: &RunnerMode,
+    start_executor_with_instrumentation_enabled: bool,
+) -> Box<dyn Executor> {
     match mode {
         #[allow(deprecated)]
         RunnerMode::Instrumentation | RunnerMode::Simulation => Box::new(ValgrindExecutor),
-        RunnerMode::Walltime => Box::new(WallTimeExecutor::new()),
+        RunnerMode::Walltime => Box::new(WallTimeExecutor::new(
+            start_executor_with_instrumentation_enabled,
+        )),
     }
 }
 
 pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     vec![
         Box::new(ValgrindExecutor),
-        Box::new(WallTimeExecutor::new()),
+        Box::new(WallTimeExecutor::new(false)),
     ]
 }
 
@@ -65,6 +70,8 @@ pub fn get_run_data(config: &Config) -> Result<RunData> {
 #[async_trait(?Send)]
 pub trait Executor {
     fn name(&self) -> ExecutorName;
+
+    fn start_with_instrumentation_enabled(&self) -> bool;
 
     async fn setup(
         &self,
@@ -130,7 +137,7 @@ pub async fn execute_benchmarks(
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let executor = get_executor_from_mode(&config.mode);
+    let executor = get_executor_from_mode(&config.mode, false);
 
     if !config.skip_setup {
         start_group!("Preparing the environment");

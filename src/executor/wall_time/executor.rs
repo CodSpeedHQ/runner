@@ -90,12 +90,14 @@ fn get_exported_system_env() -> Result<String> {
 }
 
 pub struct WallTimeExecutor {
+    start_with_instrumentation_enabled: bool,
     perf: Option<PerfRunner>,
 }
 
 impl WallTimeExecutor {
-    pub fn new() -> Self {
+    pub fn new(start_with_instrumentation_enabled: bool) -> Self {
         Self {
+            start_with_instrumentation_enabled,
             perf: cfg!(target_os = "linux").then(PerfRunner::new),
         }
     }
@@ -170,6 +172,10 @@ impl Executor for WallTimeExecutor {
         ExecutorName::WallTime
     }
 
+    fn start_with_instrumentation_enabled(&self) -> bool {
+        self.start_with_instrumentation_enabled
+    }
+
     async fn setup(&self, system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
         if self.perf.is_some() {
             PerfRunner::setup_environment(system_info, setup_cache_dir).await?;
@@ -193,8 +199,13 @@ impl Executor for WallTimeExecutor {
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {
-                perf.run(cmd_builder, config, &run_data.profile_folder)
-                    .await
+                perf.run(
+                    cmd_builder,
+                    config,
+                    &run_data.profile_folder,
+                    self.start_with_instrumentation_enabled(),
+                )
+                .await
             } else {
                 let cmd = wrap_with_sudo(cmd_builder)?.build();
                 debug!("cmd: {cmd:?}");
