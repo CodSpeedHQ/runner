@@ -31,7 +31,10 @@ pub async fn run(
 ) -> Result<()> {
     let config = crate::executor::Config::try_from(args)?;
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
-    let executor = executor::get_executor_from_mode(&execution_context.config.mode);
+    let executor = executor::get_executor_from_mode(
+        &execution_context.config.mode,
+        executor::ExecutorCommand::Exec,
+    );
 
     let poll_results_fn = |run_id: String| poll_results::poll_results(api_client, run_id);
 
