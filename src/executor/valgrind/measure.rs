@@ -30,7 +30,6 @@ lazy_static! {
                 "--I1=32768,8,64",
                 "--D1=32768,8,64",
                 "--LL=8388608,16,64",
-                "--instr-atstart=no",
                 "--collect-systime=nsec",
                 "--compress-strings=no",
                 "--combine-dumps=yes",
@@ -80,6 +79,7 @@ pub async fn measure(
     config: &Config,
     profile_folder: &Path,
     mongo_tracer: &Option<MongoTracer>,
+    start_with_instrumentation_enabled: bool,
 ) -> Result<()> {
     // Create the command
     let mut cmd = Command::new("setarch");
@@ -120,6 +120,10 @@ pub async fn measure(
         )
         .arg(format!("--callgrind-out-file={}", profile_path.to_str().unwrap()).as_str())
         .arg(format!("--log-file={}", log_path.to_str().unwrap()).as_str());
+
+    if !start_with_instrumentation_enabled {
+        cmd.arg("--instr-atstart=no");
+    }
 
     // Set the command to execute:
     let script_path = create_run_script()?;

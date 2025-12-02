@@ -3,9 +3,7 @@ use crate::config::CodSpeedConfig;
 use crate::runner_mode::RunnerMode;
 use crate::{executor, prelude::*};
 use clap::Args;
-use runner_shared::walltime_results::{WalltimeBenchmark, WalltimeResults};
 use std::path::Path;
-use std::time::Instant;
 
 #[derive(Args, Debug)]
 pub struct ExecArgs {
@@ -84,7 +82,6 @@ pub async fn run(
     if !context.executor_config.skip_run {
         start_opened_group!("Running the benchmarks");
 
-        let start_time = Instant::now();
         executor
             .run(
                 &context.executor_config,
@@ -93,27 +90,6 @@ pub async fn run(
                 &None, // TODO: Do we support mongo tracer in exec ?
             )
             .await?;
-
-        let duration = start_time.elapsed();
-
-        dbg!(duration);
-
-        // TODO: use args.name or derive from command
-        let bench_name = "bench_name".to_string();
-        let walltime_benchmark = WalltimeBenchmark::from_runtime_data(
-            bench_name.clone(),
-            format!("standalone_run::{bench_name}"),
-            vec![1],
-            vec![duration.as_nanos()],
-            Some(duration.as_nanos()),
-        );
-
-        let walltime_results = WalltimeResults::from_benchmarks(vec![walltime_benchmark])
-            .expect("Failed to create walltime results");
-
-        walltime_results
-            .save_to_file(&context.run_data.profile_folder)
-            .expect("Failed to save walltime results");
 
         executor
             .teardown(

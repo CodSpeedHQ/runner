@@ -51,7 +51,13 @@ impl Executor for ValgrindExecutor {
         run_data: &RunData,
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
-        measure::measure(config, &run_data.profile_folder, mongo_tracer).await?;
+        measure::measure(
+            config,
+            &run_data.profile_folder,
+            mongo_tracer,
+            self.start_with_instrumentation_enabled,
+        )
+        .await?;
 
         Ok(())
     }
