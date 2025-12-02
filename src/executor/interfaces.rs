@@ -1,8 +1,22 @@
+use crate::{
+    executor,
+    run::{check_system::SystemInfo, logger::Logger},
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::run_environment::RunEnvironmentProvider;
+
 pub struct RunData {
     pub profile_folder: PathBuf,
+}
+
+pub struct ExecutionContext {
+    pub executor_config: executor::Config,
+    pub provider: Box<dyn RunEnvironmentProvider>,
+    pub logger: Logger,
+    pub system_info: SystemInfo,
+    pub run_data: RunData,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]

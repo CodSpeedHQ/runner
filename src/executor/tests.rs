@@ -138,7 +138,7 @@ mod valgrind {
 
         VALGRIND_EXECUTOR
             .get_or_init(|| async {
-                let executor = ValgrindExecutor;
+                let executor = ValgrindExecutor::new(false);
                 let system_info = SystemInfo::new().unwrap();
                 executor.setup(&system_info, None).await.unwrap();
                 executor

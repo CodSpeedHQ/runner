@@ -40,20 +40,20 @@ pub const EXECUTOR_TARGET: &str = "executor";
 
 pub fn get_executor_from_mode(
     mode: &RunnerMode,
-    start_executor_with_instrumentation_enabled: bool,
+    start_with_instrumentation_enabled: bool,
 ) -> Box<dyn Executor> {
     match mode {
         #[allow(deprecated)]
-        RunnerMode::Instrumentation | RunnerMode::Simulation => Box::new(ValgrindExecutor),
-        RunnerMode::Walltime => Box::new(WallTimeExecutor::new(
-            start_executor_with_instrumentation_enabled,
-        )),
+        RunnerMode::Instrumentation | RunnerMode::Simulation => {
+            Box::new(ValgrindExecutor::new(start_with_instrumentation_enabled))
+        }
+        RunnerMode::Walltime => Box::new(WallTimeExecutor::new(start_with_instrumentation_enabled)),
     }
 }
 
 pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     vec![
-        Box::new(ValgrindExecutor),
+        Box::new(ValgrindExecutor::new(false)),
         Box::new(WallTimeExecutor::new(false)),
     ]
 }
@@ -69,22 +69,16 @@ pub fn get_run_data(config: &Config) -> Result<RunData> {
 
 /// Initialize the execution environment (provider, logger, auth, system checks)
 ///
-/// This phase:
-/// - Detects the run environment provider
-/// - Sets up logging
-/// - Handles authentication (local token or OIDC check)
-/// - Validates system compatibility
-///
 /// Returns an ExecutionContext with all necessary state for subsequent phases.
-pub async fn initialize_execution_environment(
-    mut config: Config,
+pub async fn initialize_execution_context(
+    mut executor_config: Config,
     codspeed_config: &CodSpeedConfig,
 ) -> Result<ExecutionContext> {
-    let mut provider = run_environment::get_provider(&config)?;
+    let mut provider = run_environment::get_provider(&executor_config)?;
     let logger = Logger::new(&provider)?;
 
     #[allow(deprecated)]
-    if config.mode == RunnerMode::Instrumentation {
+    if executor_config.mode == RunnerMode::Instrumentation {
         warn!(
             "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
                 Please use 'simulation' instead."
@@ -94,25 +88,25 @@ pub async fn initialize_execution_environment(
     if provider.get_run_environment() != RunEnvironment::Local {
         show_banner();
     }
-    debug!("config: {config:#?}");
+    debug!("config: {executor_config:#?}");
 
     if provider.get_run_environment() == RunEnvironment::Local {
         if codspeed_config.auth.token.is_none() {
             bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
         }
         debug!("Using the token from the CodSpeed configuration file");
-        config.set_token(codspeed_config.auth.token.clone());
+        executor_config.set_token(codspeed_config.auth.token.clone());
     } else {
-        provider.check_oidc_configuration(&config)?;
+        provider.check_oidc_configuration(&executor_config)?;
     }
 
     let system_info = SystemInfo::new()?;
     check_system::check_system(&system_info)?;
 
-    let run_data = get_run_data(&config)?;
+    let run_data = get_run_data(&executor_config)?;
 
     Ok(ExecutionContext {
-        config,
+        executor_config,
         provider,
         logger,
         system_info,
@@ -121,11 +115,6 @@ pub async fn initialize_execution_environment(
 }
 
 /// Upload results and poll for completion
-///
-/// This phase:
-/// - Sets OIDC token if needed (non-local environments)
-/// - Uploads performance data
-/// - Polls results (local environments only)
 pub async fn upload_and_poll_results(
     executor: &dyn Executor,
     context: &mut ExecutionContext,
@@ -135,12 +124,15 @@ pub async fn upload_and_poll_results(
     // Set OIDC token just before upload (to avoid expiration)
     // Note: OIDC tokens can expire quickly, so we set it just before the upload
     if context.provider.get_run_environment() != RunEnvironment::Local {
-        context.provider.set_oidc_token(&mut context.config).await?;
+        context
+            .provider
+            .set_oidc_token(&mut context.executor_config)
+            .await?;
     }
 
     start_group!("Uploading performance data");
     let upload_result = uploader::upload(
-        &context.config,
+        &context.executor_config,
         &context.system_info,
         &context.provider,
         &context.run_data,

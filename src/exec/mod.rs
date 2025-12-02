@@ -1,5 +1,6 @@
 use crate::api_client::CodSpeedAPIClient;
 use crate::config::CodSpeedConfig;
+use crate::runner_mode::RunnerMode;
 use crate::{executor, prelude::*};
 use clap::Args;
 use runner_shared::walltime_results::{WalltimeBenchmark, WalltimeResults};
@@ -25,6 +26,10 @@ pub async fn run(
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
+    if args.shared.mode != RunnerMode::Simulation {
+        bail!("The 'exec' command only supports 'simulation' mode.");
+    }
+
     // Convert ExecArgs to executor::Config using shared args
     let config = crate::executor::Config {
         upload_url: args
@@ -61,11 +66,11 @@ pub async fn run(
         allow_empty: args.shared.allow_empty,
     };
 
-    let mut context = executor::initialize_execution_environment(config, codspeed_config).await?;
+    let mut context = executor::initialize_execution_context(config, codspeed_config).await?;
 
-    let executor = executor::get_executor_from_mode(&context.config.mode, true);
+    let executor = executor::get_executor_from_mode(&context.executor_config.mode, true);
 
-    if !context.config.skip_setup {
+    if !context.executor_config.skip_setup {
         start_group!("Preparing the environment");
 
         executor
@@ -76,13 +81,13 @@ pub async fn run(
         end_group!();
     }
 
-    if !context.config.skip_run {
+    if !context.executor_config.skip_run {
         start_opened_group!("Running the benchmarks");
 
         let start_time = Instant::now();
         executor
             .run(
-                &context.config,
+                &context.executor_config,
                 &context.system_info,
                 &context.run_data,
                 &None, // TODO: Do we support mongo tracer in exec ?
@@ -111,7 +116,11 @@ pub async fn run(
             .expect("Failed to save walltime results");
 
         executor
-            .teardown(&context.config, &context.system_info, &context.run_data)
+            .teardown(
+                &context.executor_config,
+                &context.system_info,
+                &context.run_data,
+            )
             .await?;
 
         context
@@ -123,7 +132,7 @@ pub async fn run(
         debug!("Skipping the run of the benchmarks");
     }
 
-    if !context.config.skip_upload {
+    if !context.executor_config.skip_upload {
         executor::upload_and_poll_results(executor.as_ref(), &mut context, api_client, false)
             .await?;
     }

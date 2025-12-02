@@ -3,6 +3,8 @@ use crate::api_client::CodSpeedAPIClient;
 use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::executor::Config;
+use crate::instruments::mongo_tracer::MongoTracer;
+use crate::instruments::mongo_tracer::install_mongodb_tracer;
 use crate::prelude::*;
 use crate::run_environment::interfaces::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
@@ -185,15 +187,87 @@ pub async fn run(
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
-    let config = Config::try_from(args)?;
-    executor::execute_benchmarks(
-        config,
-        api_client,
-        codspeed_config,
-        setup_cache_dir,
-        output_json,
-    )
-    .await
+    let executor_config = Config::try_from(args)?;
+    let mut execution_context =
+        executor::initialize_execution_context(executor_config, codspeed_config).await?;
+
+    let executor = executor::get_executor_from_mode(&execution_context.executor_config.mode, false);
+
+    if !execution_context.executor_config.skip_setup {
+        start_group!("Preparing the environment");
+        executor
+            .setup(&execution_context.system_info, setup_cache_dir)
+            .await?;
+        // TODO: refactor and move directly in the Instruments struct as a `setup` method
+        if execution_context
+            .executor_config
+            .instruments
+            .is_mongodb_enabled()
+        {
+            install_mongodb_tracer().await?;
+        }
+        info!("Environment ready");
+        end_group!();
+    }
+
+    if !execution_context.executor_config.skip_run {
+        start_opened_group!("Running the benchmarks");
+
+        // TODO: refactor and move directly in the Instruments struct as a `start` method
+        let mongo_tracer = if let Some(mongodb_config) =
+            &execution_context.executor_config.instruments.mongodb
+        {
+            let mut mongo_tracer =
+                MongoTracer::try_from(&execution_context.run_data.profile_folder, mongodb_config)?;
+            mongo_tracer.start().await?;
+            Some(mongo_tracer)
+        } else {
+            None
+        };
+
+        executor
+            .run(
+                &execution_context.executor_config,
+                &execution_context.system_info,
+                &execution_context.run_data,
+                &mongo_tracer,
+            )
+            .await?;
+
+        // TODO: refactor and move directly in the Instruments struct as a `stop` method
+        if let Some(mut mongo_tracer) = mongo_tracer {
+            mongo_tracer.stop().await?;
+        }
+        executor
+            .teardown(
+                &execution_context.executor_config,
+                &execution_context.system_info,
+                &execution_context.run_data,
+            )
+            .await?;
+
+        execution_context
+            .logger
+            .persist_log_to_profile_folder(&execution_context.run_data)?;
+
+        end_group!();
+    } else {
+        debug!("Skipping the run of the benchmarks");
+    };
+
+    if !execution_context.executor_config.skip_upload {
+        executor::upload_and_poll_results(
+            executor.as_ref(),
+            &mut execution_context,
+            api_client,
+            output_json,
+        )
+        .await?;
+    } else {
+        debug!("Skipping the upload of the results");
+    }
+
+    Ok(())
 }
 
 // We have to implement this manually, because deriving the trait makes the CLI values `git-hub`

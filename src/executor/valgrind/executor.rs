@@ -11,7 +11,17 @@ use crate::run::check_system::SystemInfo;
 use super::setup::install_valgrind;
 use super::{helpers::perf_maps::harvest_perf_maps, helpers::venv_compat, measure};
 
-pub struct ValgrindExecutor;
+pub struct ValgrindExecutor {
+    start_with_instrumentation_enabled: bool,
+}
+
+impl ValgrindExecutor {
+    pub fn new(start_with_instrumentation_enabled: bool) -> Self {
+        Self {
+            start_with_instrumentation_enabled,
+        }
+    }
+}
 
 #[async_trait(?Send)]
 impl Executor for ValgrindExecutor {
@@ -20,7 +30,7 @@ impl Executor for ValgrindExecutor {
     }
 
     fn start_with_instrumentation_enabled(&self) -> bool {
-        false
+        self.start_with_instrumentation_enabled
     }
 
     async fn setup(&self, system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
