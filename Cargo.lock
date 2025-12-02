@@ -1298,9 +1298,9 @@ checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "linux-perf-data"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f85f35725e15ad6c62b9db73f3d62439094e616a2f83500f7bcdc01ae5b84d8"
+checksum = "3ee44f48bb8d8ac1f6e55e294b211960d118c069863e7206913d138d2ddd6175"
 dependencies = [
  "byteorder",
  "linear-map",
