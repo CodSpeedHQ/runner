@@ -11,9 +11,9 @@ use std::ops::Range;
 pub trait UnwindDataExt {
     fn new(
         path_slice: &[u8],
-        mapping_start_file_offset: u64,
-        mapping_start_avma: u64,
-        mapping_size: u64,
+        runtime_file_offset: u64,
+        runtime_start_addr: u64,
+        runtime_end_addr: u64,
         build_id: Option<&[u8]>,
     ) -> anyhow::Result<Self>
     where
