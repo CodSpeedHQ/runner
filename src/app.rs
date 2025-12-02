@@ -4,6 +4,7 @@ use crate::{
     api_client::CodSpeedAPIClient,
     auth,
     config::CodSpeedConfig,
+    exec,
     local_logger::{CODSPEED_U8_COLOR_CODE, init_local_logger},
     prelude::*,
     run, setup,
@@ -59,8 +60,11 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Run the bench command and upload the results to CodSpeed
+    /// Run a benchmark program that already contains the CodSpeed instrumentation and upload the results to CodSpeed
     Run(Box<run::RunArgs>),
+    /// Run a command after adding CodSpeed instrumentation to it and upload the results to
+    /// CodSpeed
+    Exec(Box<exec::ExecArgs>),
     /// Manage the CLI authentication state
     Auth(auth::AuthArgs),
     /// Pre-install the codspeed executors
@@ -80,7 +84,7 @@ pub async fn run() -> Result<()> {
     let setup_cache_dir = setup_cache_dir.as_deref();
 
     match cli.command {
-        Commands::Run(_) => {} // Run is responsible for its own logger initialization
+        Commands::Run(_) | Commands::Exec(_) => {} // Run and Exec are responsible for their own logger initialization
         _ => {
             init_local_logger()?;
         }
@@ -89,6 +93,9 @@ pub async fn run() -> Result<()> {
     match cli.command {
         Commands::Run(args) => {
             run::run(*args, &api_client, &codspeed_config, setup_cache_dir).await?
+        }
+        Commands::Exec(args) => {
+            exec::run(*args, &api_client, &codspeed_config, setup_cache_dir).await?
         }
         Commands::Auth(args) => auth::run(args, &api_client, cli.config_name.as_deref()).await?,
         Commands::Setup => setup::setup(setup_cache_dir).await?,
