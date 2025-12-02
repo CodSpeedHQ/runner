@@ -1298,9 +1298,8 @@ checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "linux-perf-data"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f85f35725e15ad6c62b9db73f3d62439094e616a2f83500f7bcdc01ae5b84d8"
+version = "0.11.1"
+source = "git+ssh://git@github.com/CodSpeedHQ/linux-perf-data.git?branch=feat%2Fsupport-perf-pipe-data-parsing#a0f9ab7c94896c6060c5d10b542026ca34b12ab1"
 dependencies = [
  "byteorder",
  "linear-map",
