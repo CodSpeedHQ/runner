@@ -35,5 +35,6 @@ jobs:
       - uses: moonrepo/setup-rust@v1
       - name: Install dependencies required for libbpf-sys (vendored feature)
         run: sudo apt-get update && sudo apt-get install -y autopoint bison flex
+      - uses: moonrepo/setup-rust@v1
       - run: sudo -E cargo test
         working-directory: crates/memtrack
