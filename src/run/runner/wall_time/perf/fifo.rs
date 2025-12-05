@@ -9,7 +9,7 @@ pub struct PerfFifo {
 
 impl PerfFifo {
     pub fn new() -> anyhow::Result<Self> {
-        let fifo_dir = tempfile::tempdir()?.into_path();
+        let fifo_dir = tempfile::tempdir()?.keep();
         let fifo = GenericFifo::new(
             &fifo_dir.join("codspeed_perf.ctl.fifo"),
             &fifo_dir.join("codspeed_perf.ack.fifo"),

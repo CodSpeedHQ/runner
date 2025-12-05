@@ -62,7 +62,7 @@ impl Executor for MemoryExecutor {
         let memtrack_path = std::env::var("CODSPEED_MEMTRACK_BINARY")
             .unwrap_or_else(|_| "codspeed-memtrack".to_string());
 
-        info!("Validating memtrack binary at path: {}", memtrack_path);
+        info!("Validating memtrack binary at path: {memtrack_path}");
         let output = Command::new(&memtrack_path).arg("--version").output()?;
         if !output.status.success() {
             bail!("codspeed-memtrack command is not available or failed to execute");
@@ -98,7 +98,7 @@ impl Executor for MemoryExecutor {
         };
 
         let status = run_command_with_log_pipe_and_callback(cmd, on_process_started).await?;
-        debug!("cmd exit status: {:?}", status);
+        debug!("cmd exit status: {status:?}");
 
         if !status.success() {
             bail!("failed to execute memory tracker process: {status}");
