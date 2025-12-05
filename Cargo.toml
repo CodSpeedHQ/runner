@@ -77,7 +77,7 @@ rstest_reuse = "0.7.0"
 shell-quote = "0.7.2"
 
 [workspace]
-members = ["crates/runner-shared"]
+members = ["crates/runner-shared", "crates/memtrack"]
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -102,6 +102,9 @@ inherits = "release"
 lto = "thin"
 strip = true
 
+[package.metadata.dist]
+targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
+
 # Config for 'dist'
 [workspace.metadata.dist]
 # Whether to consider the binaries in a package for distribution (defaults true)
@@ -112,8 +115,6 @@ cargo-dist-version = "0.28.4"
 ci = "github"
 # The installers to generate for each app
 installers = ["shell"]
-# Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
 # The archive format to use for non-windows builds (defaults .tar.xz)
 unix-archive = ".tar.gz"
 # Which actions to run on pull requests
@@ -124,6 +125,7 @@ post-announce-jobs = ["./bump-action"]
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
+precise-builds = true
 
 [workspace.metadata.dist.github-custom-runners]
 aarch64-unknown-linux-musl = "buildjet-2vcpu-ubuntu-2204-arm"
