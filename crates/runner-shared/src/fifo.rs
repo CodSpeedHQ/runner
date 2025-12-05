@@ -19,15 +19,35 @@ pub enum MarkerType {
     BenchmarkEnd(u64),
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegrationMode {
+    Perf,
+    Simulation,
+    Analysis,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 pub enum Command {
-    CurrentBenchmark { pid: i32, uri: String },
+    CurrentBenchmark {
+        pid: i32,
+        uri: String,
+    },
     StartBenchmark,
     StopBenchmark,
     Ack,
+    #[deprecated(note = "Use `GetIntegrationMode` instead")]
     PingPerf,
-    SetIntegration { name: String, version: String },
+    #[deprecated(note = "Not needed anymore, use `integration` from WalltimeResults instead")]
+    SetIntegration {
+        name: String,
+        version: String,
+    },
     Err,
-    AddMarker { pid: i32, marker: MarkerType },
+    AddMarker {
+        pid: i32,
+        marker: MarkerType,
+    },
     SetVersion(u64),
+    GetIntegrationMode,
+    IntegrationModeResponse(IntegrationMode),
 }

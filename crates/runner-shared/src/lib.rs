@@ -1,3 +1,4 @@
+pub mod benchmark_results;
 pub mod debug_info;
 pub mod fifo;
 pub mod metadata;
