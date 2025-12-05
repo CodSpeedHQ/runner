@@ -1,9 +1,7 @@
-use anyhow::Result;
-use itertools::Itertools;
-use std::path::PathBuf;
-
 #[cfg(feature = "ebpf")]
-pub fn find_libc_paths() -> Result<Vec<PathBuf>> {
+pub fn find_libc_paths() -> anyhow::Result<Vec<std::path::PathBuf>> {
+    use itertools::Itertools;
+
     let mut paths = vec![
         "/lib/x86_64-linux-gnu/libc.so.6".into(),
         "/usr/lib/x86_64-linux-gnu/libc.so.6".into(),
