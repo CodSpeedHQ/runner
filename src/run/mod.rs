@@ -184,16 +184,50 @@ pub async fn run(
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
+    use crate::run_environment::RunEnvironment;
+
     let output_json = args.message_format == Some(MessageFormat::Json);
     let config = Config::try_from(args)?;
+
+    // Create execution context
+    let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
+
+    // Execute benchmarks
     executor::execute_benchmarks(
-        config,
-        api_client,
-        codspeed_config,
+        &mut execution_context,
         setup_cache_dir,
-        output_json,
     )
-    .await
+    .await?;
+
+    // Handle upload and polling
+    if !execution_context.config.skip_upload {
+        if execution_context.provider.get_run_environment() != RunEnvironment::Local {
+            // If relevant, set the OIDC token for authentication
+            // Note: OIDC tokens can expire quickly, so we set it just before the upload
+            execution_context
+                .provider
+                .set_oidc_token(&mut execution_context.config)
+                .await?;
+        }
+
+        start_group!("Uploading performance data");
+        let executor = executor::get_executor_from_mode(&execution_context.config.mode);
+        let upload_result = uploader::upload(&execution_context, executor.name()).await?;
+        end_group!();
+
+        if execution_context.is_local() {
+            poll_results::poll_results(
+                api_client,
+                &execution_context.provider,
+                upload_result.run_id,
+                output_json,
+            )
+            .await?;
+            end_group!();
+        }
+    }
+
+    Ok(())
 }
 
 // We have to implement this manually, because deriving the trait makes the CLI values `git-hub`

@@ -4,6 +4,8 @@ use crate::prelude::*;
 use clap::Args;
 use std::path::Path;
 
+mod poll_results;
+
 #[derive(Args, Debug)]
 pub struct ExecArgs {
     #[command(flatten)]
@@ -23,51 +25,40 @@ pub async fn run(
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    // Assume exec-harness is in the PATH for now
-    let wrapped_command = std::iter::once("exec-harness".to_string())
-        .chain(args.command)
-        .collect::<Vec<String>>();
+    use crate::run_environment::RunEnvironment;
 
-    let warped_command_string = wrapped_command.join(" ");
+    // Convert ExecArgs to executor::Config
+    let config = crate::executor::Config::try_from(args)?;
 
-    info!("Executing: {warped_command_string}");
+    // Create execution context
+    let mut execution_context =
+        crate::executor::ExecutionContext::try_from((config, codspeed_config))?;
 
-    // Convert ExecArgs to executor::Config using shared args
-    let config = crate::executor::Config {
-        upload_url: args
-            .shared
-            .upload_url
-            .as_ref()
-            .map(|url| url.parse())
-            .transpose()
-            .map_err(|e| anyhow!("Invalid upload URL: {e}"))?
-            .unwrap_or_else(|| {
-                "https://api.codspeed.io/upload"
-                    .parse()
-                    .expect("Default URL should be valid")
-            }),
-        token: args.shared.token,
-        repository_override: args
-            .shared
-            .repository
-            .map(|repo| {
-                crate::executor::config::RepositoryOverride::from_arg(repo, args.shared.provider)
-            })
-            .transpose()?,
-        working_directory: args.shared.working_directory,
-        command: warped_command_string,
-        mode: args.shared.mode,
-        instruments: crate::instruments::Instruments { mongodb: None }, // exec doesn't support MongoDB
-        enable_perf: args.shared.perf_run_args.enable_perf,
-        perf_unwinding_mode: args.shared.perf_run_args.perf_unwinding_mode,
-        profile_folder: args.shared.profile_folder,
-        skip_upload: args.shared.skip_upload,
-        skip_run: args.shared.skip_run,
-        skip_setup: args.shared.skip_setup,
-        allow_empty: args.shared.allow_empty,
-    };
+    // Execute benchmarks
+    crate::executor::execute_benchmarks(&mut execution_context, setup_cache_dir).await?;
 
-    // Delegate to shared execution logic
-    crate::executor::execute_benchmarks(config, api_client, codspeed_config, setup_cache_dir, false)
-        .await
+    // Handle upload and polling
+    if !execution_context.config.skip_upload {
+        if execution_context.provider.get_run_environment() != RunEnvironment::Local {
+            // If relevant, set the OIDC token for authentication
+            // Note: OIDC tokens can expire quickly, so we set it just before the upload
+            execution_context
+                .provider
+                .set_oidc_token(&mut execution_context.config)
+                .await?;
+        }
+
+        start_group!("Uploading performance data");
+        let executor = crate::executor::get_executor_from_mode(&execution_context.config.mode);
+        let upload_result =
+            crate::run::uploader::upload(&execution_context, executor.name()).await?;
+        end_group!();
+
+        if execution_context.is_local() {
+            poll_results::poll_results(api_client, upload_result.run_id).await?;
+            end_group!();
+        }
+    }
+
+    Ok(())
 }
