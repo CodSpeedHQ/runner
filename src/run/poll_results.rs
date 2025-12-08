@@ -1,55 +1,29 @@
-use std::time::Duration;
-
 use console::style;
-use tabled::settings::Style;
-use tabled::{Table, Tabled};
 use tokio::time::{Instant, sleep};
 
 use crate::api_client::{
     CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
 };
 use crate::prelude::*;
-use crate::run::helpers;
-use crate::run_environment::RunEnvironmentProvider;
-
-const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
-const POLLING_INTERVAL: Duration = Duration::from_secs(1);
-
-#[derive(Tabled)]
-struct BenchmarkRow {
-    #[tabled(rename = "Benchmark")]
-    name: String,
-    #[tabled(rename = "Time")]
-    time: String,
-}
-
-fn build_benchmark_table(results: &[crate::api_client::FetchLocalRunBenchmarkResult]) -> String {
-    let table_rows: Vec<BenchmarkRow> = results
-        .iter()
-        .map(|result| BenchmarkRow {
-            name: result.benchmark.name.clone(),
-            time: helpers::format_duration(result.time, Some(2)),
-        })
-        .collect();
-
-    Table::new(&table_rows).with(Style::modern()).to_string()
-}
+use crate::run::helpers::poll_results::{
+    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table, retry_on_timeout,
+};
+use crate::run_environment::RunEnvironmentMetadata;
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
     api_client: &CodSpeedAPIClient,
-    provider: &Box<dyn RunEnvironmentProvider>,
+    run_environment_metadata: &RunEnvironmentMetadata,
     run_id: String,
     output_json: bool,
 ) -> Result<()> {
     let start = Instant::now();
-    let run_environment_metadata = provider.get_run_environment_metadata()?;
-    let owner = run_environment_metadata.owner;
-    let name = run_environment_metadata.repository;
+    let owner = run_environment_metadata.owner.as_str();
+    let name = run_environment_metadata.repository.as_str();
     let fetch_local_run_report_vars = FetchLocalRunReportVars {
-        owner: owner.clone(),
-        name: name.clone(),
-        run_id: run_id.clone(),
+        owner: owner.to_owned(),
+        name: name.to_owned(),
+        run_id: run_id.to_owned(),
     };
 
     start_group!("Fetching the results");
@@ -59,10 +33,14 @@ pub async fn poll_results(
             bail!("Polling results timed out");
         }
 
-        match api_client
-            .fetch_local_run_report(fetch_local_run_report_vars.clone())
-            .await?
-        {
+        let fetch_result = retry_on_timeout(|| async {
+            api_client
+                .fetch_local_run_report(fetch_local_run_report_vars.clone())
+                .await
+        })
+        .await?;
+
+        match fetch_result {
             FetchLocalRunReportResponse { run, .. }
                 if run.status == RunStatus::Pending || run.status == RunStatus::Processing =>
             {
@@ -138,48 +116,4 @@ pub async fn poll_results(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::api_client::{FetchLocalRunBenchmark, FetchLocalRunBenchmarkResult};
-
-    #[test]
-    fn test_benchmark_table_formatting() {
-        let results = vec![
-            FetchLocalRunBenchmarkResult {
-                benchmark: FetchLocalRunBenchmark {
-                    name: "benchmark_fast".to_string(),
-                },
-                time: 0.001234, // 1.23 ms
-            },
-            FetchLocalRunBenchmarkResult {
-                benchmark: FetchLocalRunBenchmark {
-                    name: "benchmark_slow".to_string(),
-                },
-                time: 1.5678, // 1.57 s
-            },
-            FetchLocalRunBenchmarkResult {
-                benchmark: FetchLocalRunBenchmark {
-                    name: "benchmark_medium".to_string(),
-                },
-                time: 0.000567, // 567 µs
-            },
-        ];
-
-        let table = build_benchmark_table(&results);
-
-        insta::assert_snapshot!(table, @r###"
-        ┌──────────────────┬───────────┐
-        │ Benchmark        │ Time      │
-        ├──────────────────┼───────────┤
-        │ benchmark_fast   │ 1.23 ms   │
-        ├──────────────────┼───────────┤
-        │ benchmark_slow   │ 1.57 s    │
-        ├──────────────────┼───────────┤
-        │ benchmark_medium │ 567.00 µs │
-        └──────────────────┴───────────┘
-        "###);
-    }
 }
