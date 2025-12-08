@@ -401,6 +401,7 @@ dependencies = [
  "tabled",
  "temp-env",
  "tempfile",
+ "test-log",
  "test-with",
  "tokio",
  "tokio-tar",

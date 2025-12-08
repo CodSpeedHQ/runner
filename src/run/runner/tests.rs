@@ -156,7 +156,7 @@ mod valgrind {
     }
 
     #[apply(test_cases)]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_valgrind_executor(#[case] cmd: &str) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let executor = get_valgrind_executor().await;
@@ -169,7 +169,7 @@ mod valgrind {
     }
 
     #[apply(env_test_cases)]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_valgrind_executor_with_env(#[case] env_case: (&str, &str)) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let executor = get_valgrind_executor().await;
@@ -223,7 +223,7 @@ mod walltime {
 
     #[apply(test_cases)]
     #[rstest::rstest]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_walltime_executor(#[case] cmd: &str, #[values(false, true)] enable_perf: bool) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
@@ -237,7 +237,7 @@ mod walltime {
 
     #[apply(env_test_cases)]
     #[rstest::rstest]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_walltime_executor_with_env(
         #[case] env_case: (&str, &str),
         #[values(false, true)] enable_perf: bool,
@@ -259,7 +259,7 @@ mod walltime {
 
     // Ensure that the working directory is used correctly
     #[rstest::rstest]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_walltime_executor_in_working_dir(#[values(false, true)] enable_perf: bool) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
@@ -290,7 +290,7 @@ fi
 
     // Ensure that commands that fail actually fail
     #[rstest::rstest]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_walltime_executor_fails(#[values(false, true)] enable_perf: bool) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
@@ -334,7 +334,7 @@ mod memory {
     }
 
     #[apply(test_cases)]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_memory_executor(#[case] cmd: &str) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_memory_executor().await;
@@ -347,7 +347,7 @@ mod memory {
     }
 
     #[apply(env_test_cases)]
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_memory_executor_with_env(#[case] env_case: (&str, &str)) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_memory_executor().await;
