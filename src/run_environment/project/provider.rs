@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use simplelog::SharedLogger;
 
-use crate::executor::config::RepositoryOverride;
 use crate::executor::{Config, ExecutorName};
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
@@ -9,7 +8,7 @@ use crate::run::check_system::SystemInfo;
 use crate::run::uploader::{
     LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
 };
-use crate::run_environment::interfaces::{RepositoryProvider, RunEnvironmentMetadata, RunEvent};
+use crate::run_environment::interfaces::{RepositoryProvider, RunEnvironmentMetadata};
 use crate::run_environment::provider::{RunEnvironmentDetector, RunEnvironmentProvider};
 use crate::run_environment::{RunEnvironment, RunPart};
 
@@ -17,9 +16,7 @@ static FAKE_COMMIT_REF: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 #[derive(Debug)]
 pub struct ProjectProvider {
-    repository_override: Option<RepositoryOverride>,
     pub ref_: String,
-    pub event: RunEvent,
     pub repository_root_path: String,
 }
 
@@ -29,10 +26,8 @@ impl TryFrom<&Config> for ProjectProvider {
         let current_dir = std::env::current_dir()?;
 
         Ok(Self {
-            repository_override: config.repository_override.clone(),
             ref_: FAKE_COMMIT_REF.to_string(),
             repository_root_path: current_dir.to_string_lossy().to_string(),
-            event: RunEvent::Project,
         })
     }
 }
@@ -47,12 +42,7 @@ impl RunEnvironmentDetector for ProjectProvider {
 #[async_trait(?Send)]
 impl RunEnvironmentProvider for ProjectProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
-        // This should not be called in normal exec flow
-        // If it is called and there's no override, we return the default provider
-        self.repository_override
-            .as_ref()
-            .map(|override_| override_.repository_provider.clone())
-            .unwrap_or_default()
+        RepositoryProvider::Project
     }
 
     fn get_logger(&self) -> Box<dyn SharedLogger> {
@@ -64,24 +54,7 @@ impl RunEnvironmentProvider for ProjectProvider {
     }
 
     fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
-        let (owner, repository) = if let Some(override_) = &self.repository_override {
-            (override_.owner.clone(), override_.repository.clone())
-        } else {
-            bail!("Could not get repository information - no repository override provided");
-        };
-
-        Ok(RunEnvironmentMetadata {
-            base_ref: None,
-            head_ref: None,
-            event: self.event.clone(),
-            gh_data: None,
-            gl_data: None,
-            sender: None,
-            owner,
-            repository,
-            ref_: self.ref_.clone(),
-            repository_root_path: self.repository_root_path.clone(),
-        })
+        bail!("Unimplemented");
     }
 
     fn get_upload_metadata(

@@ -8,6 +8,7 @@ pub enum RepositoryProvider {
     #[default]
     GitHub,
     GitLab,
+    Project,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]

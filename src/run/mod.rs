@@ -243,6 +243,7 @@ impl clap::ValueEnum for RepositoryProvider {
         match self {
             Self::GitLab => Some(clap::builder::PossibleValue::new("gitlab").aliases(["gl"])),
             Self::GitHub => Some(clap::builder::PossibleValue::new("github").aliases(["gh"])),
+            Self::Project => None,
         }
     }
 }
