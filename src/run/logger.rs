@@ -1,4 +1,4 @@
-use crate::executor::RunData;
+use crate::executor::ExecutionContext;
 use crate::logger::{GROUP_TARGET, OPENED_GROUP_TARGET};
 use crate::prelude::*;
 use crate::run_environment::RunEnvironmentProvider;
@@ -13,24 +13,32 @@ pub struct Logger {
 }
 
 impl Logger {
-    #[allow(clippy::borrowed_box)]
-    pub fn new(provider: &Box<dyn RunEnvironmentProvider>) -> Result<Self> {
+    pub fn new(provider: &dyn RunEnvironmentProvider) -> Result<Self> {
         let provider_logger = provider.get_logger();
         let log_file = NamedTempFile::new().context("Failed to create log file")?;
         let log_file_path = log_file.path().to_path_buf();
+
         let file_logger_config = simplelog::ConfigBuilder::new()
             // Groups are not logged to the file
             .add_filter_ignore_str(GROUP_TARGET)
             .add_filter_ignore_str(OPENED_GROUP_TARGET)
             .build();
         let file_logger = WriteLogger::new(LevelFilter::Trace, file_logger_config, log_file);
-        CombinedLogger::init(vec![provider_logger, file_logger])
-            .context("Failed to init logger")?;
+
+        if let Err(_e) = CombinedLogger::init(vec![provider_logger, file_logger]) {
+            // In tests, test_log already initializes a logger, so we ignore the error
+            #[cfg(not(test))]
+            return Err(anyhow::Error::from(_e).context("Failed to init logger"));
+        }
+
         Ok(Self { log_file_path })
     }
 
-    pub fn persist_log_to_profile_folder(&self, run_data: &RunData) -> Result<()> {
-        let profile_folder = run_data.profile_folder.clone();
+    pub fn persist_log_to_profile_folder(
+        &self,
+        execution_context: &ExecutionContext,
+    ) -> Result<()> {
+        let profile_folder = execution_context.profile_folder.clone();
         let dest_log_file_path = profile_folder.join("runner.log");
         debug!("Persisting log file to {}", dest_log_file_path.display());
         log::logger().flush();

@@ -1,11 +1,10 @@
-use crate::executor::Executor;
-use crate::executor::config::Config;
+use crate::executor::ExecutorName;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::get_bench_command::get_bench_command;
 use crate::executor::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::executor::helpers::run_with_sudo::wrap_with_sudo;
 use crate::executor::shared::fifo::RunnerFifo;
-use crate::executor::{ExecutorName, RunData};
+use crate::executor::{ExecutionContext, Executor};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
@@ -24,8 +23,7 @@ pub struct MemoryExecutor;
 
 impl MemoryExecutor {
     fn build_memtrack_command(
-        config: &Config,
-        run_data: &RunData,
+        execution_context: &ExecutionContext,
     ) -> Result<(MemtrackIpcServer, CommandBuilder)> {
         // FIXME: We only support native languages for now
 
@@ -35,9 +33,9 @@ impl MemoryExecutor {
 
         let mut cmd_builder = CommandBuilder::new(memtrack_path);
         cmd_builder.arg("track");
-        cmd_builder.arg(get_bench_command(config)?);
+        cmd_builder.arg(get_bench_command(&execution_context.config)?);
         cmd_builder.arg("--output");
-        cmd_builder.arg(run_data.profile_folder.join("results"));
+        cmd_builder.arg(execution_context.profile_folder.join("results"));
 
         // Setup memtrack IPC server
         let (ipc_server, server_name) = ipc::IpcOneShotServer::new()?;
@@ -78,15 +76,13 @@ impl Executor for MemoryExecutor {
 
     async fn run(
         &self,
-        config: &Config,
-        _system_info: &SystemInfo,
-        run_data: &RunData,
+        execution_context: &ExecutionContext,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
         // Create the results/ directory inside the profile folder to avoid having memtrack create it with wrong permissions
-        std::fs::create_dir_all(run_data.profile_folder.join("results"))?;
+        std::fs::create_dir_all(execution_context.profile_folder.join("results"))?;
 
-        let (ipc, cmd_builder) = Self::build_memtrack_command(config, run_data)?;
+        let (ipc, cmd_builder) = Self::build_memtrack_command(execution_context)?;
         let cmd = wrap_with_sudo(cmd_builder)?.build();
         debug!("cmd: {cmd:?}");
 
@@ -96,7 +92,7 @@ impl Executor for MemoryExecutor {
 
             // Directly write to the profile folder, to avoid having to define another field
             marker_result
-                .save_to(run_data.profile_folder.join("results"))
+                .save_to(execution_context.profile_folder.join("results"))
                 .unwrap();
 
             Ok(())
@@ -112,12 +108,7 @@ impl Executor for MemoryExecutor {
         Ok(())
     }
 
-    async fn teardown(
-        &self,
-        _config: &Config,
-        _system_info: &SystemInfo,
-        _run_data: &RunData,
-    ) -> Result<()> {
+    async fn teardown(&self, _execution_context: &ExecutionContext) -> Result<()> {
         Ok(())
     }
 }

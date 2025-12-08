@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 pub mod config;
+mod execution_context;
 mod helpers;
 mod interfaces;
 mod memory;
@@ -14,15 +15,15 @@ use crate::api_client::CodSpeedAPIClient;
 use crate::config::CodSpeedConfig;
 use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
-use crate::run::check_system::{self, SystemInfo};
-use crate::run::logger::Logger;
+use crate::run::check_system::SystemInfo;
 use crate::run::{poll_results, show_banner, uploader};
-use crate::run_environment::{self, RunEnvironment};
+use crate::run_environment::RunEnvironment;
 use crate::runner_mode::RunnerMode;
 use async_trait::async_trait;
 pub use config::Config;
+pub use execution_context::ExecutionContext;
 pub use helpers::profile_folder::create_profile_folder;
-pub use interfaces::{ExecutorName, RunData};
+pub use interfaces::ExecutorName;
 use memory::executor::MemoryExecutor;
 use std::path::Path;
 use valgrind::executor::ValgrindExecutor;
@@ -59,15 +60,6 @@ pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     ]
 }
 
-pub fn get_run_data(config: &Config) -> Result<RunData> {
-    let profile_folder = if let Some(profile_folder) = &config.profile_folder {
-        profile_folder.clone()
-    } else {
-        create_profile_folder()?
-    };
-    Ok(RunData { profile_folder })
-}
-
 #[async_trait(?Send)]
 pub trait Executor {
     fn name(&self) -> ExecutorName;
@@ -83,124 +75,106 @@ pub trait Executor {
     /// Runs the executor
     async fn run(
         &self,
-        config: &Config,
-        system_info: &SystemInfo,
-        run_data: &RunData,
+        execution_context: &ExecutionContext,
         // TODO: use Instruments instead of directly passing the mongodb tracer
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()>;
 
-    async fn teardown(
-        &self,
-        config: &Config,
-        system_info: &SystemInfo,
-        run_data: &RunData,
-    ) -> Result<()>;
+    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()>;
 }
 
 /// Execute benchmarks with the given configuration
 /// This is the core execution logic shared between `run` and `exec` commands
 pub async fn execute_benchmarks(
-    mut config: Config,
+    config: Config,
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
     output_json: bool,
 ) -> Result<()> {
-    let mut provider = run_environment::get_provider(&config)?;
-    let logger = Logger::new(&provider)?;
+    let mut execution_context = ExecutionContext::try_from((config, codspeed_config))?;
 
     #[allow(deprecated)]
-    if config.mode == RunnerMode::Instrumentation {
+    if execution_context.config.mode == RunnerMode::Instrumentation {
         warn!(
             "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
                 Please use 'simulation' instead."
         );
     }
 
-    if provider.get_run_environment() != RunEnvironment::Local {
+    if !execution_context.is_local() {
         show_banner();
     }
-    debug!("config: {config:#?}");
+    debug!("config: {:#?}", execution_context.config);
 
-    if provider.get_run_environment() == RunEnvironment::Local {
-        if codspeed_config.auth.token.is_none() {
-            bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
-        }
-        debug!("Using the token from the CodSpeed configuration file");
-        config.set_token(codspeed_config.auth.token.clone());
-    } else {
-        provider.check_oidc_configuration(&config)?;
-    }
+    let executor = get_executor_from_mode(&execution_context.config.mode);
 
-    let system_info = SystemInfo::new()?;
-    check_system::check_system(&system_info)?;
-
-    let executor = get_executor_from_mode(&config.mode);
-
-    if !config.skip_setup {
+    if !execution_context.config.skip_setup {
         start_group!("Preparing the environment");
-        executor.setup(&system_info, setup_cache_dir).await?;
+        executor
+            .setup(&execution_context.system_info, setup_cache_dir)
+            .await?;
         // TODO: refactor and move directly in the Instruments struct as a `setup` method
-        if config.instruments.is_mongodb_enabled() {
+        if execution_context.config.instruments.is_mongodb_enabled() {
             install_mongodb_tracer().await?;
         }
         info!("Environment ready");
         end_group!();
     }
 
-    let run_data = get_run_data(&config)?;
-
-    if !config.skip_run {
+    if !execution_context.config.skip_run {
         start_opened_group!("Running the benchmarks");
 
         // TODO: refactor and move directly in the Instruments struct as a `start` method
-        let mongo_tracer = if let Some(mongodb_config) = &config.instruments.mongodb {
-            let mut mongo_tracer = MongoTracer::try_from(&run_data.profile_folder, mongodb_config)?;
-            mongo_tracer.start().await?;
-            Some(mongo_tracer)
-        } else {
-            None
-        };
+        let mongo_tracer =
+            if let Some(mongodb_config) = &execution_context.config.instruments.mongodb {
+                let mut mongo_tracer =
+                    MongoTracer::try_from(&execution_context.profile_folder, mongodb_config)?;
+                mongo_tracer.start().await?;
+                Some(mongo_tracer)
+            } else {
+                None
+            };
 
-        executor
-            .run(&config, &system_info, &run_data, &mongo_tracer)
-            .await?;
+        executor.run(&execution_context, &mongo_tracer).await?;
 
         // TODO: refactor and move directly in the Instruments struct as a `stop` method
         if let Some(mut mongo_tracer) = mongo_tracer {
             mongo_tracer.stop().await?;
         }
-        executor.teardown(&config, &system_info, &run_data).await?;
+        executor.teardown(&execution_context).await?;
 
-        logger.persist_log_to_profile_folder(&run_data)?;
+        execution_context
+            .logger
+            .persist_log_to_profile_folder(&execution_context)?;
 
         end_group!();
     } else {
         debug!("Skipping the run of the benchmarks");
     };
 
-    if !config.skip_upload {
-        if provider.get_run_environment() != RunEnvironment::Local {
+    if !execution_context.config.skip_upload {
+        if execution_context.provider.get_run_environment() != RunEnvironment::Local {
             // If relevant, set the OIDC token for authentication
             // Note: OIDC tokens can expire quickly, so we set it just before the upload
-            provider.set_oidc_token(&mut config).await?;
+            execution_context
+                .provider
+                .set_oidc_token(&mut execution_context.config)
+                .await?;
         }
 
         start_group!("Uploading performance data");
-        let upload_result = uploader::upload(
-            &mut config,
-            &system_info,
-            &provider,
-            &run_data,
-            executor.name(),
-        )
-        .await?;
+        let upload_result = uploader::upload(&mut execution_context, executor.name()).await?;
         end_group!();
 
-        if provider.get_run_environment() == RunEnvironment::Local {
-            poll_results::poll_results(api_client, &provider, upload_result.run_id, output_json)
-                .await?;
+        if execution_context.is_local() {
+            poll_results::poll_results(
+                api_client,
+                &execution_context.provider,
+                upload_result.run_id,
+                output_json,
+            )
+            .await?;
             end_group!();
         }
     }

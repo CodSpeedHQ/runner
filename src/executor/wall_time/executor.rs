@@ -9,7 +9,7 @@ use crate::executor::helpers::introspected_golang;
 use crate::executor::helpers::introspected_nodejs;
 use crate::executor::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
 use crate::executor::helpers::run_with_sudo::wrap_with_sudo;
-use crate::executor::{ExecutorName, RunData};
+use crate::executor::{ExecutionContext, ExecutorName};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
@@ -102,13 +102,13 @@ impl WallTimeExecutor {
 
     fn walltime_bench_cmd(
         config: &Config,
-        run_data: &RunData,
+        execution_context: &ExecutionContext,
     ) -> Result<(NamedTempFile, NamedTempFile, CommandBuilder)> {
         let bench_cmd = get_bench_command(config)?;
 
         let system_env = get_exported_system_env()?;
         let base_injected_env =
-            get_base_injected_env(RunnerMode::Walltime, &run_data.profile_folder)
+            get_base_injected_env(RunnerMode::Walltime, &execution_context.profile_folder)
                 .into_iter()
                 .map(|(k, v)| format!("export {k}={v}",))
                 .collect::<Vec<_>>()
@@ -180,21 +180,23 @@ impl Executor for WallTimeExecutor {
 
     async fn run(
         &self,
-        config: &Config,
-        _system_info: &SystemInfo,
-        run_data: &RunData,
+        execution_context: &ExecutionContext,
         _mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
         let status = {
             let _guard = HookScriptsGuard::setup();
 
             let (_env_file, _script_file, cmd_builder) =
-                WallTimeExecutor::walltime_bench_cmd(config, run_data)?;
+                WallTimeExecutor::walltime_bench_cmd(&execution_context.config, execution_context)?;
             if let Some(perf) = &self.perf
-                && config.enable_perf
+                && execution_context.config.enable_perf
             {
-                perf.run(cmd_builder, config, &run_data.profile_folder)
-                    .await
+                perf.run(
+                    cmd_builder,
+                    &execution_context.config,
+                    &execution_context.profile_folder,
+                )
+                .await
             } else {
                 let cmd = wrap_with_sudo(cmd_builder)?.build();
                 debug!("cmd: {cmd:?}");
@@ -212,21 +214,20 @@ impl Executor for WallTimeExecutor {
         Ok(())
     }
 
-    async fn teardown(
-        &self,
-        config: &Config,
-        _system_info: &SystemInfo,
-        run_data: &RunData,
-    ) -> Result<()> {
+    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()> {
         debug!("Copying files to the profile folder");
 
         if let Some(perf) = &self.perf
-            && config.enable_perf
+            && execution_context.config.enable_perf
         {
-            perf.save_files_to(&run_data.profile_folder).await?;
+            perf.save_files_to(&execution_context.profile_folder)
+                .await?;
         }
 
-        validate_walltime_results(&run_data.profile_folder, config.allow_empty)?;
+        validate_walltime_results(
+            &execution_context.profile_folder,
+            execution_context.config.allow_empty,
+        )?;
 
         Ok(())
     }

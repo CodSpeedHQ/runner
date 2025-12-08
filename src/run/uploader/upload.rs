@@ -1,10 +1,9 @@
 use crate::executor::Config;
 use crate::run::{
-    check_system::SystemInfo,
-    executor::{ExecutorName, RunData},
+    executor::{ExecutionContext, ExecutorName},
     uploader::{UploadError, profile_archive::ProfileArchiveContent},
 };
-use crate::run_environment::{RunEnvironment, RunEnvironmentProvider};
+use crate::run_environment::RunEnvironment;
 use crate::{
     prelude::*,
     request_client::{REQUEST_CLIENT, STREAMING_CLIENT},
@@ -53,7 +52,7 @@ async fn calculate_folder_size(path: &std::path::Path) -> Result<u64> {
 /// For WallTime, we check the folder size and create either a compressed or uncompressed tar archive
 /// based on the MAX_UNCOMPRESSED_PROFILE_SIZE_BYTES threshold.
 async fn create_profile_archive(
-    run_data: &RunData,
+    execution_context: &ExecutionContext,
     executor_name: ExecutorName,
 ) -> Result<ProfileArchive> {
     let time_start = std::time::Instant::now();
@@ -62,7 +61,7 @@ async fn create_profile_archive(
             debug!("Creating compressed tar archive for Valgrind");
             let enc = GzipEncoder::new(Vec::new());
             let mut tar = Builder::new(enc);
-            tar.append_dir_all(".", run_data.profile_folder.clone())
+            tar.append_dir_all(".", execution_context.profile_folder.clone())
                 .await?;
             let mut gzip_encoder = tar.into_inner().await?;
             gzip_encoder.shutdown().await?;
@@ -71,7 +70,8 @@ async fn create_profile_archive(
         }
         ExecutorName::WallTime => {
             // Check folder size to decide on compression
-            let folder_size_bytes = calculate_folder_size(&run_data.profile_folder).await?;
+            let folder_size_bytes =
+                calculate_folder_size(&execution_context.profile_folder).await?;
             let should_compress = folder_size_bytes >= MAX_UNCOMPRESSED_PROFILE_SIZE_BYTES;
 
             let temp_file = tempfile::NamedTempFile::new()?;
@@ -91,7 +91,7 @@ async fn create_profile_archive(
                 );
                 let enc = GzipEncoder::new(file);
                 let mut tar = Builder::new(enc);
-                tar.append_dir_all(".", run_data.profile_folder.clone())
+                tar.append_dir_all(".", execution_context.profile_folder.clone())
                     .await?;
                 let mut gzip_encoder = tar.into_inner().await?;
                 gzip_encoder.shutdown().await?;
@@ -105,7 +105,7 @@ async fn create_profile_archive(
                     bytes_to_mib(MAX_UNCOMPRESSED_PROFILE_SIZE_BYTES)
                 );
                 let mut tar = Builder::new(file);
-                tar.append_dir_all(".", run_data.profile_folder.clone())
+                tar.append_dir_all(".", execution_context.profile_folder.clone())
                     .await?;
                 tar.into_inner().await?.sync_all().await?;
 
@@ -238,29 +238,32 @@ pub struct UploadResult {
     pub run_id: String,
 }
 
-#[allow(clippy::borrowed_box)]
 pub async fn upload(
-    config: &mut Config,
-    system_info: &SystemInfo,
-    provider: &Box<dyn RunEnvironmentProvider>,
-    run_data: &RunData,
+    execution_context: &mut ExecutionContext,
     executor_name: ExecutorName,
 ) -> Result<UploadResult> {
-    let profile_archive = create_profile_archive(run_data, executor_name.clone()).await?;
+    let profile_archive = create_profile_archive(execution_context, executor_name.clone()).await?;
 
     debug!(
         "Run Environment provider detected: {:?}",
-        provider.get_run_environment()
+        execution_context.provider.get_run_environment()
     );
 
-    if provider.get_run_environment() != RunEnvironment::Local {
+    if !execution_context.is_local() {
         // If relevant, set the OIDC token for authentication
         // Note: OIDC tokens can expire quickly, so we set it just before the upload
-        provider.set_oidc_token(config).await?;
+        execution_context
+            .provider
+            .set_oidc_token(&mut execution_context.config)
+            .await?;
     }
 
-    let upload_metadata =
-        provider.get_upload_metadata(config, system_info, &profile_archive, executor_name)?;
+    let upload_metadata = execution_context.provider.get_upload_metadata(
+        &execution_context.config,
+        &execution_context.system_info,
+        &profile_archive,
+        executor_name,
+    )?;
     debug!("Upload metadata: {upload_metadata:#?}");
     info!(
         "Linked repository: {}\n",
@@ -277,7 +280,7 @@ pub async fn upload(
     }
 
     info!("Preparing upload...");
-    let upload_data = retrieve_upload_data(config, &upload_metadata).await?;
+    let upload_data = retrieve_upload_data(&execution_context.config, &upload_metadata).await?;
     debug!("runId: {}", upload_data.run_id);
 
     info!("Uploading performance data...");
@@ -299,25 +302,23 @@ mod tests {
     use url::Url;
 
     use super::*;
+    use crate::config::CodSpeedConfig;
     use std::path::PathBuf;
 
     // TODO: remove the ignore when implementing network mocking
     #[ignore]
     #[tokio::test]
     async fn test_upload() {
-        let mut config = Config {
+        let config = Config {
             command: "pytest tests/ --codspeed".into(),
             upload_url: Url::parse("change me").unwrap(),
             token: Some("change me".into()),
-            ..Config::test()
-        };
-        let run_data = RunData {
-            profile_folder: PathBuf::from(format!(
+            profile_folder: Some(PathBuf::from(format!(
                 "{}/src/uploader/samples/adrien-python-test",
                 env!("CARGO_MANIFEST_DIR")
-            )),
+            ))),
+            ..Config::test()
         };
-        let system_info = SystemInfo::test();
         async_with_vars(
             [
                 ("GITHUB_ACTIONS", Some("true")),
@@ -347,16 +348,12 @@ mod tests {
                 ("VERSION", Some("0.1.0")),
             ],
             async {
-                let provider = crate::run_environment::get_provider(&config).unwrap();
-                upload(
-                    &mut config,
-                    &system_info,
-                    &provider,
-                    &run_data,
-                    ExecutorName::Valgrind,
-                )
-                .await
-                .unwrap();
+                let codspeed_config = CodSpeedConfig::default();
+                let mut execution_context = ExecutionContext::try_from((config, &codspeed_config))
+                    .expect("Failed to create ExecutionContext for test");
+                upload(&mut execution_context, ExecutorName::Valgrind)
+                    .await
+                    .unwrap();
             },
         )
         .await;
