@@ -12,7 +12,6 @@ mod wall_time;
 use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
-use crate::run::show_banner;
 use crate::runner_mode::RunnerMode;
 use async_trait::async_trait;
 pub use config::Config;
@@ -77,24 +76,10 @@ pub trait Executor {
 /// Execute benchmarks with the given configuration
 /// This is the core execution logic shared between `run` and `exec` commands
 pub async fn execute_benchmarks(
+    executor: &Box<dyn Executor>,
     execution_context: &mut ExecutionContext,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    #[allow(deprecated)]
-    if execution_context.config.mode == RunnerMode::Instrumentation {
-        warn!(
-            "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
-                Please use 'simulation' instead."
-        );
-    }
-
-    if !execution_context.is_local() {
-        show_banner();
-    }
-    debug!("config: {:#?}", execution_context.config);
-
-    let executor = get_executor_from_mode(&execution_context.config.mode);
-
     if !execution_context.config.skip_setup {
         start_group!("Preparing the environment");
         executor
