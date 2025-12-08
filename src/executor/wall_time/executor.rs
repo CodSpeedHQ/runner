@@ -94,9 +94,9 @@ pub struct WallTimeExecutor {
 }
 
 impl WallTimeExecutor {
-    pub fn new() -> Self {
+    pub fn new(output_pipedata: bool) -> Self {
         Self {
-            perf: cfg!(target_os = "linux").then(PerfRunner::new),
+            perf: cfg!(target_os = "linux").then(|| PerfRunner::new(output_pipedata)),
         }
     }
 

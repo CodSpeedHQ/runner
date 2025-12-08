@@ -41,10 +41,13 @@ pub mod perf_map;
 pub mod unwind_data;
 
 const PERF_METADATA_CURRENT_VERSION: u64 = 1;
-const PERF_DATA_FILE_NAME: &str = "perf.pipedata";
+const PERF_DATA_FILE_NAME: &str = "perf.data";
+const PERF_PIPEDATA_FILE_NAME: &str = "perf.pipedata";
 
 pub struct PerfRunner {
     benchmark_data: OnceCell<BenchmarkData>,
+    /// Whether to output the perf data to a streamable .pipedata file
+    output_pipedata: bool,
 }
 
 impl PerfRunner {
@@ -79,8 +82,9 @@ impl PerfRunner {
         Ok(())
     }
 
-    pub fn new() -> Self {
+    pub fn new(output_pipedata: bool) -> Self {
         Self {
+            output_pipedata,
             benchmark_data: OnceCell::new(),
         }
     }
@@ -432,5 +436,5 @@ impl BenchmarkData {
 }
 
 fn get_perf_file_path<P: AsRef<Path>>(profile_folder: P) -> PathBuf {
-    profile_folder.as_ref().join(PERF_DATA_FILE_NAME)
+    profile_folder.as_ref().join(PERF_PIPEDATA_FILE_NAME)
 }

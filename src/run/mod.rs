@@ -196,8 +196,12 @@ pub async fn run(
     debug!("config: {:#?}", execution_context.config);
 
     // Execute benchmarks
-    let executor = executor::get_executor_from_mode(&execution_context.config.mode);
-    executor::execute_benchmarks(&executor, &mut execution_context, setup_cache_dir).await?;
+    let executor = executor::get_executor_from_mode(
+        &execution_context.config.mode,
+        executor::ExecutorCommand::Run,
+    );
+    executor::execute_benchmarks(executor.as_ref(), &mut execution_context, setup_cache_dir)
+        .await?;
 
     // Handle upload and polling
     if !execution_context.config.skip_upload {
@@ -211,7 +215,6 @@ pub async fn run(
         }
 
         start_group!("Uploading performance data");
-        let executor = executor::get_executor_from_mode(&execution_context.config.mode);
         let upload_result = uploader::upload(&execution_context, executor.name()).await?;
         end_group!();
 

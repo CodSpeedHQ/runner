@@ -35,18 +35,31 @@ impl Display for RunnerMode {
 
 pub const EXECUTOR_TARGET: &str = "executor";
 
-pub fn get_executor_from_mode(mode: &RunnerMode) -> Box<dyn Executor> {
+/// Whether the executor is used for a `run` or an `exec`
+/// FIXME: This should not really be a concern for the executor itself
+pub enum ExecutorCommand {
+    Run,
+    Exec,
+}
+
+pub fn get_executor_from_mode(mode: &RunnerMode, command: ExecutorCommand) -> Box<dyn Executor> {
     match mode {
         #[allow(deprecated)]
         RunnerMode::Instrumentation | RunnerMode::Simulation => Box::new(ValgrindExecutor),
-        RunnerMode::Walltime => Box::new(WallTimeExecutor::new()),
+        RunnerMode::Walltime => {
+            let output_pipedata = match command {
+                ExecutorCommand::Run => true,
+                ExecutorCommand::Exec => false,
+            };
+            Box::new(WallTimeExecutor::new(output_pipedata))
+        }
     }
 }
 
 pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     vec![
         Box::new(ValgrindExecutor),
-        Box::new(WallTimeExecutor::new()),
+        Box::new(WallTimeExecutor::new(true)),
     ]
 }
 
@@ -76,7 +89,7 @@ pub trait Executor {
 /// Execute benchmarks with the given configuration
 /// This is the core execution logic shared between `run` and `exec` commands
 pub async fn execute_benchmarks(
-    executor: &Box<dyn Executor>,
+    executor: &dyn Executor,
     execution_context: &mut ExecutionContext,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
