@@ -1,3 +1,4 @@
+use crate::exec::DEFAULT_REPOSITORY_NAME;
 use crate::instruments::Instruments;
 use crate::prelude::*;
 use crate::run::{RunArgs, UnwindingMode};
@@ -145,14 +146,21 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
             .collect::<Vec<String>>()
             .join(" ");
 
+        let repository_override = args
+            .shared
+            .repository
+            .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
+            .transpose()?
+            .unwrap_or_else(|| RepositoryOverride {
+                owner: "projects".to_string(),
+                repository: DEFAULT_REPOSITORY_NAME.to_string(),
+                repository_provider: RepositoryProvider::GitHub,
+            });
+
         Ok(Self {
             upload_url,
             token: args.shared.token,
-            repository_override: args
-                .shared
-                .repository
-                .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
-                .transpose()?,
+            repository_override: Some(repository_override),
             working_directory: args.shared.working_directory,
             mode: args.shared.mode,
             instruments: Instruments { mongodb: None }, // exec doesn't support MongoDB
