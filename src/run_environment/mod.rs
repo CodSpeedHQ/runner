@@ -21,26 +21,26 @@ mod gitlab_ci;
 mod local;
 
 pub fn get_provider(config: &Config) -> Result<Box<dyn RunEnvironmentProvider>> {
-    if BuildkiteProvider::detect() {
-        let provider = BuildkiteProvider::try_from(config)?;
-        return Ok(Box::new(provider));
-    }
+    let mut provider: Box<dyn RunEnvironmentProvider> = {
+        if BuildkiteProvider::detect() {
+            let provider = BuildkiteProvider::try_from(config)?;
+            Box::new(provider)
+        } else if GitHubActionsProvider::detect() {
+            let provider = GitHubActionsProvider::try_from(config)?;
+            Box::new(provider)
+        } else if GitLabCIProvider::detect() {
+            let provider = GitLabCIProvider::try_from(config)?;
+            Box::new(provider)
+        } else if LocalProvider::detect() {
+            let provider = LocalProvider::try_from(config)?;
+            Box::new(provider)
+        } else {
+            // By design, this should not happen as the `LocalProvider` is a fallback
+            bail!("No RunEnvironment provider detected")
+        }
+    };
 
-    if GitHubActionsProvider::detect() {
-        let provider = GitHubActionsProvider::try_from(config)?;
-        return Ok(Box::new(provider));
-    }
+    provider.check_oidc_configuration(config)?;
 
-    if GitLabCIProvider::detect() {
-        let provider = GitLabCIProvider::try_from(config)?;
-        return Ok(Box::new(provider));
-    }
-
-    if LocalProvider::detect() {
-        let provider = LocalProvider::try_from(config)?;
-        return Ok(Box::new(provider));
-    }
-
-    // By design, this should not happen as the `LocalProvider` is a fallback
-    bail!("No RunEnvironment provider detected")
+    Ok(provider)
 }
