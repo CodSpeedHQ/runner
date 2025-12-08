@@ -184,24 +184,24 @@ pub async fn run(
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    use crate::run_environment::RunEnvironment;
-
     let output_json = args.message_format == Some(MessageFormat::Json);
     let config = Config::try_from(args)?;
 
     // Create execution context
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
 
+    if !execution_context.is_local() {
+        show_banner();
+    }
+    debug!("config: {:#?}", execution_context.config);
+
     // Execute benchmarks
-    executor::execute_benchmarks(
-        &mut execution_context,
-        setup_cache_dir,
-    )
-    .await?;
+    let executor = executor::get_executor_from_mode(&execution_context.config.mode);
+    executor::execute_benchmarks(&executor, &mut execution_context, setup_cache_dir).await?;
 
     // Handle upload and polling
     if !execution_context.config.skip_upload {
-        if execution_context.provider.get_run_environment() != RunEnvironment::Local {
+        if !execution_context.is_local() {
             // If relevant, set the OIDC token for authentication
             // Note: OIDC tokens can expire quickly, so we set it just before the upload
             execution_context

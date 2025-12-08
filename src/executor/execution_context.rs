@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::run::check_system::{self, SystemInfo};
 use crate::run::logger::Logger;
 use crate::run_environment::{self, RunEnvironment};
+use crate::runner_mode::RunnerMode;
 use std::path::PathBuf;
 
 use super::create_profile_folder;
@@ -53,6 +54,14 @@ impl TryFrom<(Config, &CodSpeedConfig)> for ExecutionContext {
             }
             debug!("Using the token from the CodSpeed configuration file");
             config.set_token(codspeed_config.auth.token.clone());
+        }
+
+        #[allow(deprecated)]
+        if config.mode == RunnerMode::Instrumentation {
+            warn!(
+                "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
+                Please use 'simulation' instead."
+            );
         }
 
         Ok(ExecutionContext {
