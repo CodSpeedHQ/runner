@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use std::path::Path;
 
-use crate::executor::Config;
 use crate::executor::Executor;
-use crate::executor::{ExecutorName, RunData};
+use crate::executor::{ExecutionContext, ExecutorName};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
@@ -32,24 +31,22 @@ impl Executor for ValgrindExecutor {
 
     async fn run(
         &self,
-        config: &Config,
-        _system_info: &SystemInfo,
-        run_data: &RunData,
+        execution_context: &ExecutionContext,
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()> {
         //TODO: add valgrind version check
-        measure::measure(config, &run_data.profile_folder, mongo_tracer).await?;
+        measure::measure(
+            &execution_context.config,
+            &execution_context.profile_folder,
+            mongo_tracer,
+        )
+        .await?;
 
         Ok(())
     }
 
-    async fn teardown(
-        &self,
-        _config: &Config,
-        _system_info: &SystemInfo,
-        run_data: &RunData,
-    ) -> Result<()> {
-        harvest_perf_maps(&run_data.profile_folder).await?;
+    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()> {
+        harvest_perf_maps(&execution_context.profile_folder).await?;
 
         // No matter the command in input, at this point valgrind will have been run and have produced output files.
         //

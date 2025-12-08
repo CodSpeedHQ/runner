@@ -1,6 +1,6 @@
 use super::Config;
+use crate::executor::ExecutionContext;
 use crate::executor::Executor;
-use crate::executor::interfaces::RunData;
 use crate::executor::memory::executor::MemoryExecutor;
 use crate::executor::valgrind::executor::ValgrindExecutor;
 use crate::executor::wall_time::executor::WallTimeExecutor;
@@ -121,14 +121,38 @@ fn test_cases(#[case] cmd: &str) {}
 #[case(ENV_TESTS[7])]
 fn env_test_cases(#[case] env_case: (&str, &str)) {}
 
-async fn create_test_setup() -> (SystemInfo, RunData, TempDir) {
-    let system_info = SystemInfo::new().unwrap();
+async fn create_test_setup(config: Config) -> (ExecutionContext, TempDir) {
+    use crate::config::CodSpeedConfig;
+    use crate::executor::config::RepositoryOverride;
+    use crate::run_environment::interfaces::RepositoryProvider;
 
     let temp_dir = TempDir::new().unwrap();
-    let run_data = RunData {
-        profile_folder: temp_dir.path().to_path_buf(),
-    };
-    (system_info, run_data, temp_dir)
+
+    // Use try_from to create a proper ExecutionContext with all fields
+    let codspeed_config = CodSpeedConfig::default();
+    let mut config_with_folder = config;
+    config_with_folder.profile_folder = Some(temp_dir.path().to_path_buf());
+
+    // Provide a repository override so tests don't need a git repository
+    if config_with_folder.repository_override.is_none() {
+        config_with_folder.repository_override = Some(RepositoryOverride {
+            owner: "test-owner".to_string(),
+            repository: "test-repo".to_string(),
+            repository_provider: RepositoryProvider::GitHub,
+        });
+    }
+
+    // Provide a test token so authentication doesn't fail
+    let mut codspeed_config_with_token = codspeed_config;
+    if config_with_folder.token.is_none() {
+        codspeed_config_with_token.auth.token = Some("test-token".to_string());
+    }
+
+    let execution_context =
+        ExecutionContext::try_from((config_with_folder, &codspeed_config_with_token))
+            .expect("Failed to create ExecutionContext for test");
+
+    (execution_context, temp_dir)
 }
 
 // Uprobes set by memtrack, lead to crashes in valgrind because they work by setting breakpoints on the first
@@ -174,31 +198,32 @@ mod valgrind {
     #[apply(test_cases)]
     #[test_log::test(tokio::test)]
     async fn test_valgrind_executor(#[case] cmd: &str) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_lock, executor) = get_valgrind_executor().await;
 
         let config = valgrind_config(cmd);
-        executor
-            .run(&config, &system_info, &run_data, &None)
-            .await
-            .unwrap();
+        // Unset GITHUB_ACTIONS to force LocalProvider which supports repository_override
+        temp_env::async_with_vars(&[("GITHUB_ACTIONS", None::<&str>)], async {
+            let (execution_context, _temp_dir) = create_test_setup(config).await;
+            executor.run(&execution_context, &None).await.unwrap();
+        })
+        .await;
     }
 
     #[apply(env_test_cases)]
     #[test_log::test(tokio::test)]
     async fn test_valgrind_executor_with_env(#[case] env_case: (&str, &str)) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_lock, executor) = get_valgrind_executor().await;
 
         let (env_var, env_value) = env_case;
-        temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
-            let cmd = env_var_validation_script(env_var, env_value);
-            let config = valgrind_config(&cmd);
-            executor
-                .run(&config, &system_info, &run_data, &None)
-                .await
-                .unwrap();
-        })
+        temp_env::async_with_vars(
+            &[(env_var, Some(env_value)), ("GITHUB_ACTIONS", None)],
+            async {
+                let cmd = env_var_validation_script(env_var, env_value);
+                let config = valgrind_config(&cmd);
+                let (execution_context, _temp_dir) = create_test_setup(config).await;
+                executor.run(&execution_context, &None).await.unwrap();
+            },
+        )
         .await;
     }
 }
@@ -241,14 +266,15 @@ mod walltime {
     #[rstest::rstest]
     #[test_log::test(tokio::test)]
     async fn test_walltime_executor(#[case] cmd: &str, #[values(false, true)] enable_perf: bool) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
         let config = walltime_config(cmd, enable_perf);
-        executor
-            .run(&config, &system_info, &run_data, &None)
-            .await
-            .unwrap();
+        // Unset GITHUB_ACTIONS to force LocalProvider which supports repository_override
+        temp_env::async_with_vars(&[("GITHUB_ACTIONS", None::<&str>)], async {
+            let (execution_context, _temp_dir) = create_test_setup(config).await;
+            executor.run(&execution_context, &None).await.unwrap();
+        })
+        .await;
     }
 
     #[apply(env_test_cases)]
@@ -258,18 +284,18 @@ mod walltime {
         #[case] env_case: (&str, &str),
         #[values(false, true)] enable_perf: bool,
     ) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
         let (env_var, env_value) = env_case;
-        temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
-            let cmd = env_var_validation_script(env_var, env_value);
-            let config = walltime_config(&cmd, enable_perf);
-            executor
-                .run(&config, &system_info, &run_data, &None)
-                .await
-                .unwrap();
-        })
+        temp_env::async_with_vars(
+            &[(env_var, Some(env_value)), ("GITHUB_ACTIONS", None)],
+            async {
+                let cmd = env_var_validation_script(env_var, env_value);
+                let config = walltime_config(&cmd, enable_perf);
+                let (execution_context, _temp_dir) = create_test_setup(config).await;
+                executor.run(&execution_context, &None).await.unwrap();
+            },
+        )
         .await;
     }
 
@@ -277,7 +303,6 @@ mod walltime {
     #[rstest::rstest]
     #[test_log::test(tokio::test)]
     async fn test_walltime_executor_in_working_dir(#[values(false, true)] enable_perf: bool) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
         let cmd = r#"
@@ -298,22 +323,28 @@ fi
         );
         std::fs::create_dir_all(config.working_directory.as_ref().unwrap()).unwrap();
 
-        executor
-            .run(&config, &system_info, &run_data, &None)
-            .await
-            .unwrap();
+        // Unset GITHUB_ACTIONS to force LocalProvider which supports repository_override
+        temp_env::async_with_vars(&[("GITHUB_ACTIONS", None::<&str>)], async {
+            let (execution_context, _temp_dir) = create_test_setup(config).await;
+            executor.run(&execution_context, &None).await.unwrap();
+        })
+        .await;
     }
 
     // Ensure that commands that fail actually fail
     #[rstest::rstest]
     #[test_log::test(tokio::test)]
     async fn test_walltime_executor_fails(#[values(false, true)] enable_perf: bool) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, executor) = get_walltime_executor().await;
 
         let config = walltime_config("exit 1", enable_perf);
-        let result = executor.run(&config, &system_info, &run_data, &None).await;
-        assert!(result.is_err(), "Command should fail");
+        // Unset GITHUB_ACTIONS to force LocalProvider which supports repository_override
+        temp_env::async_with_vars(&[("GITHUB_ACTIONS", None::<&str>)], async {
+            let (execution_context, _temp_dir) = create_test_setup(config).await;
+            let result = executor.run(&execution_context, &None).await;
+            assert!(result.is_err(), "Command should fail");
+        })
+        .await;
     }
 }
 
@@ -358,31 +389,32 @@ mod memory {
     #[apply(test_cases)]
     #[test_log::test(tokio::test)]
     async fn test_memory_executor(#[case] cmd: &str) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, _lock, executor) = get_memory_executor().await;
 
-        let config = memory_config(cmd);
-        executor
-            .run(&config, &system_info, &run_data, &None)
-            .await
-            .unwrap();
+        // Unset GITHUB_ACTIONS to force LocalProvider which supports repository_override
+        temp_env::async_with_vars(&[("GITHUB_ACTIONS", None::<&str>)], async {
+            let config = memory_config(cmd);
+            let (execution_context, _temp_dir) = create_test_setup(config).await;
+            executor.run(&execution_context, &None).await.unwrap();
+        })
+        .await;
     }
 
     #[apply(env_test_cases)]
     #[test_log::test(tokio::test)]
     async fn test_memory_executor_with_env(#[case] env_case: (&str, &str)) {
-        let (system_info, run_data, _temp_dir) = create_test_setup().await;
         let (_permit, _lock, executor) = get_memory_executor().await;
 
         let (env_var, env_value) = env_case;
-        temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
-            let cmd = env_var_validation_script(env_var, env_value);
-            let config = memory_config(&cmd);
-            executor
-                .run(&config, &system_info, &run_data, &None)
-                .await
-                .unwrap();
-        })
+        temp_env::async_with_vars(
+            &[(env_var, Some(env_value)), ("GITHUB_ACTIONS", None)],
+            async {
+                let cmd = env_var_validation_script(env_var, env_value);
+                let config = memory_config(&cmd);
+                let (execution_context, _temp_dir) = create_test_setup(config).await;
+                executor.run(&execution_context, &None).await.unwrap();
+            },
+        )
         .await;
     }
 }
