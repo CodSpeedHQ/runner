@@ -17,9 +17,7 @@ static FAKE_COMMIT_REF: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 #[derive(Debug)]
 pub struct ProjectProvider {
-    repository_provider: RepositoryProvider,
-    owner: String,
-    repository: String,
+    repository_override: Option<RepositoryOverride>,
     pub ref_: String,
     pub event: RunEvent,
     pub repository_root_path: String,
@@ -30,21 +28,9 @@ impl TryFrom<&Config> for ProjectProvider {
     fn try_from(config: &Config) -> Result<Self> {
         let current_dir = std::env::current_dir()?;
 
-        // Project provider requires repository override - no git features
-        let RepositoryOverride {
-            owner,
-            repository,
-            repository_provider,
-        } = config.repository_override.clone().context(
-            "Project provider requires repository information. \
-            Please provide --repository flag in the format 'provider:owner/repository'",
-        )?;
-
         Ok(Self {
-            repository_provider,
+            repository_override: config.repository_override.clone(),
             ref_: FAKE_COMMIT_REF.to_string(),
-            owner,
-            repository,
             repository_root_path: current_dir.to_string_lossy().to_string(),
             event: RunEvent::Project,
         })
@@ -61,7 +47,12 @@ impl RunEnvironmentDetector for ProjectProvider {
 #[async_trait(?Send)]
 impl RunEnvironmentProvider for ProjectProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
-        self.repository_provider.clone()
+        // This should not be called in normal exec flow
+        // If it is called and there's no override, we return the default provider
+        self.repository_override
+            .as_ref()
+            .map(|override_| override_.repository_provider.clone())
+            .unwrap_or_default()
     }
 
     fn get_logger(&self) -> Box<dyn SharedLogger> {
@@ -73,6 +64,12 @@ impl RunEnvironmentProvider for ProjectProvider {
     }
 
     fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
+        let (owner, repository) = if let Some(override_) = &self.repository_override {
+            (override_.owner.clone(), override_.repository.clone())
+        } else {
+            bail!("Could not get repository information - no repository override provided");
+        };
+
         Ok(RunEnvironmentMetadata {
             base_ref: None,
             head_ref: None,
@@ -80,8 +77,8 @@ impl RunEnvironmentProvider for ProjectProvider {
             gh_data: None,
             gl_data: None,
             sender: None,
-            owner: self.owner.clone(),
-            repository: self.repository.clone(),
+            owner,
+            repository,
             ref_: self.ref_.clone(),
             repository_root_path: self.repository_root_path.clone(),
         })
