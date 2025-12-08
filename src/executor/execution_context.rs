@@ -27,7 +27,10 @@ pub struct ExecutionContext {
 
 impl ExecutionContext {
     pub fn is_local(&self) -> bool {
-        self.provider.get_run_environment() == RunEnvironment::Local
+        matches!(
+            self.provider.get_run_environment(),
+            RunEnvironment::Local | RunEnvironment::Project
+        )
     }
 }
 
@@ -48,7 +51,8 @@ impl TryFrom<(Config, &CodSpeedConfig)> for ExecutionContext {
             create_profile_folder()?
         };
 
-        if provider.get_run_environment() == RunEnvironment::Local {
+        let run_env = provider.get_run_environment();
+        if run_env == RunEnvironment::Local || run_env == RunEnvironment::Project {
             if codspeed_config.auth.token.is_none() {
                 bail!("You have to authenticate the CLI first. Run `codspeed auth login`.");
             }

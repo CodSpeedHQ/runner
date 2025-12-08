@@ -17,6 +17,7 @@ pub enum RunEnvironment {
     GitlabCi,
     Buildkite,
     Local,
+    Project,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -43,6 +44,7 @@ pub enum RunEvent {
     WorkflowDispatch,
     Schedule,
     Local,
+    Project,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

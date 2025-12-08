@@ -6,6 +6,7 @@ use buildkite::BuildkiteProvider;
 use github_actions::GitHubActionsProvider;
 use gitlab_ci::GitLabCIProvider;
 use local::LocalProvider;
+use project::ProjectProvider;
 use provider::RunEnvironmentDetector;
 
 use crate::executor::Config;
@@ -19,10 +20,15 @@ mod buildkite;
 mod github_actions;
 mod gitlab_ci;
 mod local;
+mod project;
 
 pub fn get_provider(config: &Config) -> Result<Box<dyn RunEnvironmentProvider>> {
     let mut provider: Box<dyn RunEnvironmentProvider> = {
-        if BuildkiteProvider::detect() {
+        if config.use_project_provider {
+            // Explicitly use ProjectProvider (for exec command)
+            let provider = ProjectProvider::try_from(config)?;
+            Box::new(provider)
+        } else if BuildkiteProvider::detect() {
             let provider = BuildkiteProvider::try_from(config)?;
             Box::new(provider)
         } else if GitHubActionsProvider::detect() {

@@ -33,6 +33,8 @@ pub struct Config {
     pub skip_setup: bool,
     /// If true, allow execution even when no benchmarks are found
     pub allow_empty: bool,
+    /// If true, use ProjectProvider instead of LocalProvider (for exec command)
+    pub use_project_provider: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -84,6 +86,7 @@ impl Config {
             skip_run: false,
             skip_setup: false,
             allow_empty: false,
+            use_project_provider: false,
         }
     }
 }
@@ -120,6 +123,7 @@ impl TryFrom<RunArgs> for Config {
             skip_run: args.shared.skip_run,
             skip_setup: args.shared.skip_setup,
             allow_empty: args.shared.allow_empty,
+            use_project_provider: false,
         })
     }
 }
@@ -164,6 +168,7 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
             skip_run: args.shared.skip_run,
             skip_setup: args.shared.skip_setup,
             allow_empty: args.shared.allow_empty,
+            use_project_provider: true,
         })
     }
 }
