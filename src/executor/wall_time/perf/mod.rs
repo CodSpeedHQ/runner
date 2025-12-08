@@ -144,14 +144,26 @@ impl PerfRunner {
                 perf_fifo.ctl_fifo_path.to_string_lossy(),
                 perf_fifo.ack_fifo_path.to_string_lossy()
             ),
-            "-o",
-            "-", // forces pipe mode
-            "--",
         ]);
+
+        if self.output_pipedata {
+            perf_wrapper_builder.args([
+                "-o", "-", // forces pipe mode
+            ]);
+        } else {
+            perf_wrapper_builder.args([
+                "-o",
+                self.get_perf_file_path(profile_folder)
+                    .to_string_lossy()
+                    .as_ref(),
+            ]);
+        }
+
+        perf_wrapper_builder.arg("--");
         cmd_builder.wrap_with(perf_wrapper_builder);
 
         // Output the perf data to the profile folder
-        let perf_data_file_path = get_perf_file_path(profile_folder);
+        let perf_data_file_path = self.get_perf_file_path(profile_folder);
 
         let raw_command = format!(
             "set -o pipefail && {} | cat > {}",
@@ -194,7 +206,8 @@ impl PerfRunner {
         harvest_perf_jit_for_pids(profile_folder, &bench_data.bench_pids).await?;
 
         // Append perf maps, unwind info and other metadata
-        if let Err(BenchmarkDataSaveError::MissingIntegration) = bench_data.save_to(profile_folder)
+        if let Err(BenchmarkDataSaveError::MissingIntegration) =
+            bench_data.save_to(profile_folder, &self.get_perf_file_path(profile_folder))
         {
             warn!(
                 "Perf is enabled, but failed to detect benchmarks. If you wish to disable this warning, set CODSPEED_PERF_ENABLED=false"
@@ -323,6 +336,14 @@ impl PerfRunner {
             markers,
         })
     }
+
+    fn get_perf_file_path<P: AsRef<Path>>(&self, profile_folder: P) -> PathBuf {
+        if self.output_pipedata {
+            profile_folder.as_ref().join(PERF_PIPEDATA_FILE_NAME)
+        } else {
+            profile_folder.as_ref().join(PERF_DATA_FILE_NAME)
+        }
+    }
 }
 
 pub struct BenchmarkData {
@@ -344,14 +365,13 @@ impl BenchmarkData {
     pub fn save_to<P: AsRef<std::path::Path>>(
         &self,
         path: P,
+        perf_file_path: P,
     ) -> Result<(), BenchmarkDataSaveError> {
         debug!("Reading perf data from file for mmap extraction");
-        let perf_file_path = get_perf_file_path(&path);
-
         let MemmapRecordsOutput {
             symbols_by_pid,
             unwind_data_by_pid,
-        } = parse_perf_file::parse_for_memmap2(&perf_file_path).map_err(|e| {
+        } = parse_perf_file::parse_for_memmap2(perf_file_path).map_err(|e| {
             error!("Failed to parse perf file: {e}");
             BenchmarkDataSaveError::FailedToParsePerfFile
         })?;
@@ -433,8 +453,4 @@ impl BenchmarkData {
 
         Ok(())
     }
-}
-
-fn get_perf_file_path<P: AsRef<Path>>(profile_folder: P) -> PathBuf {
-    profile_folder.as_ref().join(PERF_PIPEDATA_FILE_NAME)
 }

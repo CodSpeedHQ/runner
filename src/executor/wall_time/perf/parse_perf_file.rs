@@ -15,15 +15,16 @@ pub struct MemmapRecordsOutput {
     pub unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
 }
 
-pub(super) fn parse_for_memmap2(perf_file_path: &Path) -> Result<MemmapRecordsOutput> {
+pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<MemmapRecordsOutput> {
     let reader = std::fs::File::open(perf_file_path).unwrap();
     let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
     let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
 
+    // TODO: Handle pipedata here once linux_perf_data supports it upstream
     let PerfFileReader {
         mut perf_file,
         mut record_iter,
-    } = PerfFileReader::parse_pipe(reader)?;
+    } = PerfFileReader::parse_file(reader)?;
 
     const PROT_EXEC: u32 = 0x4;
 
