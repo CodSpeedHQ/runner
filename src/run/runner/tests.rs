@@ -130,23 +130,38 @@ async fn create_test_setup() -> (SystemInfo, RunData, TempDir) {
     (system_info, run_data, temp_dir)
 }
 
+// Uprobes set by memtrack, lead to crashes in valgrind because they work by setting breakpoints on the first
+// instruction. Valgrind doesn't rethrow those breakpoint exceptions, which makes the test crash.
+//
+// Therefore, we can only execute either valgrind or memtrack at any time, and not both at the same time.
+static BPF_INSTRUMENTATION_LOCK: OnceCell<Semaphore> = OnceCell::const_new();
+
+async fn acquire_bpf_instrumentation_lock() -> SemaphorePermit<'static> {
+    let semaphore = BPF_INSTRUMENTATION_LOCK
+        .get_or_init(|| async { Semaphore::new(1) })
+        .await;
+    semaphore.acquire().await.unwrap()
+}
+
 mod valgrind {
     use super::*;
 
-    async fn get_valgrind_executor() -> &'static ValgrindExecutor {
+    async fn get_valgrind_executor() -> (SemaphorePermit<'static>, &'static ValgrindExecutor) {
         static VALGRIND_EXECUTOR: OnceCell<ValgrindExecutor> = OnceCell::const_new();
 
-        VALGRIND_EXECUTOR
+        let executor = VALGRIND_EXECUTOR
             .get_or_init(|| async {
                 let executor = ValgrindExecutor;
                 let system_info = SystemInfo::new().unwrap();
                 executor.setup(&system_info, None).await.unwrap();
                 executor
             })
-            .await
+            .await;
+        let _lock = acquire_bpf_instrumentation_lock().await;
+
+        (_lock, executor)
     }
 
-    #[cfg(test)]
     fn valgrind_config(command: &str) -> Config {
         Config {
             mode: RunnerMode::Simulation,
@@ -159,7 +174,7 @@ mod valgrind {
     #[test_log::test(tokio::test)]
     async fn test_valgrind_executor(#[case] cmd: &str) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
-        let executor = get_valgrind_executor().await;
+        let (_lock, executor) = get_valgrind_executor().await;
 
         let config = valgrind_config(cmd);
         executor
@@ -172,7 +187,7 @@ mod valgrind {
     #[test_log::test(tokio::test)]
     async fn test_valgrind_executor_with_env(#[case] env_case: (&str, &str)) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
-        let executor = get_valgrind_executor().await;
+        let (_lock, executor) = get_valgrind_executor().await;
 
         let (env_var, env_value) = env_case;
         temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
@@ -304,7 +319,11 @@ fi
 mod memory {
     use super::*;
 
-    async fn get_memory_executor() -> (SemaphorePermit<'static>, MemoryExecutor) {
+    async fn get_memory_executor() -> (
+        SemaphorePermit<'static>,
+        SemaphorePermit<'static>,
+        MemoryExecutor,
+    ) {
         static MEMORY_INIT: OnceCell<()> = OnceCell::const_new();
         static MEMORY_SEMAPHORE: OnceCell<Semaphore> = OnceCell::const_new();
 
@@ -321,10 +340,12 @@ mod memory {
             .await;
         let permit = semaphore.acquire().await.unwrap();
 
-        (permit, MemoryExecutor)
+        // Memory executor uses heaptrack which uses BPF-based instrumentation, which conflicts with valgrind.
+        let _lock = acquire_bpf_instrumentation_lock().await;
+
+        (permit, _lock, MemoryExecutor)
     }
 
-    #[cfg(test)]
     fn memory_config(command: &str) -> Config {
         Config {
             mode: RunnerMode::Memory,
@@ -337,7 +358,7 @@ mod memory {
     #[test_log::test(tokio::test)]
     async fn test_memory_executor(#[case] cmd: &str) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
-        let (_permit, executor) = get_memory_executor().await;
+        let (_permit, _lock, executor) = get_memory_executor().await;
 
         let config = memory_config(cmd);
         executor
@@ -350,7 +371,7 @@ mod memory {
     #[test_log::test(tokio::test)]
     async fn test_memory_executor_with_env(#[case] env_case: (&str, &str)) {
         let (system_info, run_data, _temp_dir) = create_test_setup().await;
-        let (_permit, executor) = get_memory_executor().await;
+        let (_permit, _lock, executor) = get_memory_executor().await;
 
         let (env_var, env_value) = env_case;
         temp_env::async_with_vars(&[(env_var, Some(env_value))], async {
