@@ -6,6 +6,13 @@ use crate::runner_mode::RunnerMode;
 use std::path::PathBuf;
 use url::Url;
 
+/// Execution configuration for running benchmarks.
+///
+/// This struct contains all the configuration parameters needed to execute benchmarks,
+/// including API settings, execution mode, instrumentation options, and various flags
+/// for controlling the execution flow. It is typically constructed from command-line
+/// arguments via [`RunArgs`] and combined with [`CodSpeedConfig`] to create an
+/// [`ExecutionContext`].
 #[derive(Debug)]
 pub struct Config {
     pub upload_url: Url,
@@ -17,12 +24,14 @@ pub struct Config {
     pub mode: RunnerMode,
     pub instruments: Instruments,
     pub enable_perf: bool,
+    /// Stack unwinding mode for perf (if enabled)
     pub perf_unwinding_mode: Option<UnwindingMode>,
 
     pub profile_folder: Option<PathBuf>,
     pub skip_upload: bool,
     pub skip_run: bool,
     pub skip_setup: bool,
+    /// If true, allow execution even when no benchmarks are found
     pub allow_empty: bool,
 }
 
