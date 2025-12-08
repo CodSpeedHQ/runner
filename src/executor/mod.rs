@@ -11,13 +11,9 @@ mod tests;
 mod valgrind;
 mod wall_time;
 
-use crate::api_client::CodSpeedAPIClient;
-use crate::config::CodSpeedConfig;
 use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
-use crate::run::{poll_results, show_banner, uploader};
-use crate::run_environment::RunEnvironment;
 use crate::runner_mode::RunnerMode;
 use async_trait::async_trait;
 pub use config::Config;
@@ -85,30 +81,15 @@ pub trait Executor {
 
 /// Execute benchmarks with the given configuration
 /// This is the core execution logic shared between `run` and `exec` commands
-pub async fn execute_benchmarks(
-    config: Config,
-    api_client: &CodSpeedAPIClient,
-    codspeed_config: &CodSpeedConfig,
+pub async fn execute_benchmarks<F>(
+    executor: &dyn Executor,
+    execution_context: &mut ExecutionContext,
     setup_cache_dir: Option<&Path>,
-    output_json: bool,
-) -> Result<()> {
-    let mut execution_context = ExecutionContext::try_from((config, codspeed_config))?;
-
-    #[allow(deprecated)]
-    if execution_context.config.mode == RunnerMode::Instrumentation {
-        warn!(
-            "The 'instrumentation' runner mode is deprecated and will be removed in a future version. \
-                Please use 'simulation' instead."
-        );
-    }
-
-    if !execution_context.is_local() {
-        show_banner();
-    }
-    debug!("config: {:#?}", execution_context.config);
-
-    let executor = get_executor_from_mode(&execution_context.config.mode);
-
+    poll_results: F,
+) -> Result<()>
+where
+    F: AsyncFn(String) -> Result<()>,
+{
     if !execution_context.config.skip_setup {
         start_group!("Preparing the environment");
         executor
@@ -136,25 +117,26 @@ pub async fn execute_benchmarks(
                 None
             };
 
-        executor.run(&execution_context, &mongo_tracer).await?;
+        executor.run(execution_context, &mongo_tracer).await?;
 
         // TODO: refactor and move directly in the Instruments struct as a `stop` method
         if let Some(mut mongo_tracer) = mongo_tracer {
             mongo_tracer.stop().await?;
         }
-        executor.teardown(&execution_context).await?;
+        executor.teardown(execution_context).await?;
 
         execution_context
             .logger
-            .persist_log_to_profile_folder(&execution_context)?;
+            .persist_log_to_profile_folder(execution_context)?;
 
         end_group!();
     } else {
         debug!("Skipping the run of the benchmarks");
     };
 
+    // Handle upload and polling
     if !execution_context.config.skip_upload {
-        if execution_context.provider.get_run_environment() != RunEnvironment::Local {
+        if !execution_context.is_local() {
             // If relevant, set the OIDC token for authentication
             // Note: OIDC tokens can expire quickly, so we set it just before the upload
             execution_context
@@ -164,19 +146,15 @@ pub async fn execute_benchmarks(
         }
 
         start_group!("Uploading performance data");
-        let upload_result = uploader::upload(&mut execution_context, executor.name()).await?;
+        let upload_result =
+            crate::run::uploader::upload(execution_context, executor.name()).await?;
         end_group!();
 
         if execution_context.is_local() {
-            poll_results::poll_results(
-                api_client,
-                &execution_context.provider,
-                upload_result.run_id,
-                output_json,
-            )
-            .await?;
-            end_group!();
+            poll_results(upload_result.run_id).await?;
         }
+    } else {
+        debug!("Skipping upload of performance data");
     }
 
     Ok(())

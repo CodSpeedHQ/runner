@@ -124,6 +124,50 @@ impl TryFrom<RunArgs> for Config {
     }
 }
 
+impl TryFrom<crate::exec::ExecArgs> for Config {
+    type Error = Error;
+    fn try_from(args: crate::exec::ExecArgs) -> Result<Self> {
+        let raw_upload_url = args
+            .shared
+            .upload_url
+            .unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
+        let mut upload_url = Url::parse(&raw_upload_url)
+            .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
+
+        // For exec command, append /project to the upload URL path
+        upload_url
+            .path_segments_mut()
+            .map_err(|_| anyhow!("Cannot append to upload URL"))?
+            .push("project");
+
+        let wrapped_command = std::iter::once("exec-harness".to_string())
+            .chain(args.command)
+            .collect::<Vec<String>>()
+            .join(" ");
+
+        Ok(Self {
+            upload_url,
+            token: args.shared.token,
+            repository_override: args
+                .shared
+                .repository
+                .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
+                .transpose()?,
+            working_directory: args.shared.working_directory,
+            mode: args.shared.mode,
+            instruments: Instruments { mongodb: None }, // exec doesn't support MongoDB
+            perf_unwinding_mode: args.shared.perf_run_args.perf_unwinding_mode,
+            enable_perf: args.shared.perf_run_args.enable_perf,
+            command: wrapped_command,
+            profile_folder: args.shared.profile_folder,
+            skip_upload: args.shared.skip_upload,
+            skip_run: args.shared.skip_run,
+            skip_setup: args.shared.skip_setup,
+            allow_empty: args.shared.allow_empty,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::instruments::MongoDBConfig;
@@ -249,5 +293,71 @@ mod tests {
 
         let result = RepositoryOverride::from_arg("CodSpeedHQ_runner".to_string(), None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_try_from_exec_args_appends_project_to_url() {
+        let exec_args = crate::exec::ExecArgs {
+            shared: crate::run::ExecAndRunSharedArgs {
+                upload_url: Some("https://api.codspeed.io/upload".into()),
+                token: Some("token".into()),
+                repository: None,
+                provider: None,
+                working_directory: None,
+                mode: RunnerMode::Simulation,
+                profile_folder: None,
+                skip_upload: false,
+                skip_run: false,
+                skip_setup: false,
+                allow_empty: false,
+                perf_run_args: PerfRunArgs {
+                    enable_perf: false,
+                    perf_unwinding_mode: None,
+                },
+            },
+            name: None,
+            command: vec!["my-binary".into()],
+        };
+
+        let config = Config::try_from(exec_args).unwrap();
+
+        assert_eq!(
+            config.upload_url,
+            Url::parse("https://api.codspeed.io/upload/project").unwrap()
+        );
+        assert_eq!(config.command, "exec-harness my-binary");
+    }
+
+    #[test]
+    fn test_try_from_exec_args_default_url() {
+        let exec_args = crate::exec::ExecArgs {
+            shared: crate::run::ExecAndRunSharedArgs {
+                upload_url: None,
+                token: None,
+                repository: None,
+                provider: None,
+                working_directory: None,
+                mode: RunnerMode::Simulation,
+                profile_folder: None,
+                skip_upload: false,
+                skip_run: false,
+                skip_setup: false,
+                allow_empty: false,
+                perf_run_args: PerfRunArgs {
+                    enable_perf: false,
+                    perf_unwinding_mode: None,
+                },
+            },
+            name: None,
+            command: vec!["my-binary".into(), "arg1".into(), "arg2".into()],
+        };
+
+        let config = Config::try_from(exec_args).unwrap();
+
+        assert_eq!(
+            config.upload_url,
+            Url::parse("https://api.codspeed.io/upload/project").unwrap()
+        );
+        assert_eq!(config.command, "exec-harness my-binary arg1 arg2");
     }
 }

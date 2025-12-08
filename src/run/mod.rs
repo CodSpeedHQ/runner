@@ -186,14 +186,30 @@ pub async fn run(
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
     let config = Config::try_from(args)?;
+
+    // Create execution context
+    let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
+
+    if !execution_context.is_local() {
+        show_banner();
+    }
+
+    // Execute benchmarks
+    let executor = executor::get_executor_from_mode(&execution_context.config.mode);
+
+    let run_environment_metadata = execution_context.provider.get_run_environment_metadata()?;
+    let poll_results_fn = |run_id: String| {
+        poll_results::poll_results(api_client, &run_environment_metadata, run_id, output_json)
+    };
     executor::execute_benchmarks(
-        config,
-        api_client,
-        codspeed_config,
+        executor.as_ref(),
+        &mut execution_context,
         setup_cache_dir,
-        output_json,
+        poll_results_fn,
     )
-    .await
+    .await?;
+
+    Ok(())
 }
 
 // We have to implement this manually, because deriving the trait makes the CLI values `git-hub`
