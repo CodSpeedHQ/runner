@@ -1,6 +1,6 @@
 use super::Config;
-use crate::executor::Executor;
 use crate::executor::ExecutionContext;
+use crate::executor::Executor;
 use crate::executor::valgrind::executor::ValgrindExecutor;
 use crate::executor::wall_time::executor::WallTimeExecutor;
 use crate::run::check_system::SystemInfo;

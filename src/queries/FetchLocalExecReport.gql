@@ -1,0 +1,20 @@
+query FetchLocalRunReport($name: String!, $runId: String!) {
+  project(name: $name) {
+    run(id: $runId) {
+     id
+      status
+      url
+      headReports {
+        id
+        impact
+        conclusion
+      }
+      results {
+        time
+        benchmark {
+          name
+        }
+      }
+    }
+  }
+}
