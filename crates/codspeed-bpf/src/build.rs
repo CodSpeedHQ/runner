@@ -40,7 +40,7 @@ pub fn build_bpf(program_name: &str, source_file: &str) {
         .expect("CARGO_CFG_TARGET_ARCH must be set in build script");
 
     let output =
-        PathBuf::from(env::var("OUT_DIR").unwrap()).join(format!("{}.skel.rs", program_name));
+        PathBuf::from(env::var("OUT_DIR").unwrap()).join(format!("{program_name}.skel.rs"));
 
     // Get the path to codspeed-bpf's C headers
     let codspeed_bpf_include = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
@@ -57,7 +57,7 @@ pub fn build_bpf(program_name: &str, source_file: &str) {
             &codspeed_bpf_include.to_string_lossy(),
         ])
         .build_and_generate(&output)
-        .expect(&format!("Failed to build {}.bpf.c", program_name));
+        .unwrap_or_else(|_| panic!("Failed to build {program_name}.bpf.c"));
 }
 
 /// Generate Rust bindings for a C header file

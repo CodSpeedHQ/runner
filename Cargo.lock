@@ -667,6 +667,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "exectrack"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "codspeed-bpf",
+ "env_logger",
+ "libbpf-rs",
+ "libc",
+ "log",
+ "runner-shared",
+ "serde",
+ "serde_json",
+ "static_assertions",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
