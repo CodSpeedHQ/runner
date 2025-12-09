@@ -347,6 +347,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
+name = "codspeed-bpf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bindgen",
+ "libbpf-cargo",
+ "libbpf-rs",
+ "libc",
+ "log",
+ "paste",
+ "vmlinux",
+]
+
+[[package]]
 name = "codspeed-runner"
 version = "4.4.1"
 dependencies = [
@@ -1529,6 +1543,7 @@ dependencies = [
  "anyhow",
  "bindgen",
  "clap",
+ "codspeed-bpf",
  "env_logger",
  "ipc-channel",
  "itertools 0.14.0",

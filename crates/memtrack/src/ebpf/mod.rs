@@ -1,6 +1,5 @@
 mod events;
 mod memtrack;
-mod poller;
 mod tracker;
 
 pub use events::{Event, EventType};
