@@ -7,6 +7,14 @@ use serde::{Deserialize, Serialize};
 nest! {
     #[derive(Debug, Deserialize, Serialize)]*
     #[serde(rename_all = "kebab-case")]*
+    /// Persistent configuration for CodSpeed CLI.
+    ///
+    /// This struct represents the user's persistent configuration stored in the filesystem,
+    /// typically at `~/.config/codspeed/config.yaml`. It contains settings that persist
+    /// across multiple benchmark runs, such as authentication credentials.
+    ///
+    /// The configuration follows the XDG Base Directory Specification and can be loaded
+    /// with [`CodSpeedConfig::load_with_override`] or persisted with [`CodSpeedConfig::persist`].
     pub struct CodSpeedConfig {
         pub auth: pub struct AuthConfig {
             pub token: Option<String>,
