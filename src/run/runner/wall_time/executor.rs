@@ -99,6 +99,21 @@ impl WallTimeExecutor {
         }
     }
 
+    fn wrap_with_exectrack(
+        cmd_builder: CommandBuilder,
+        profile_folder: &Path,
+    ) -> Result<CommandBuilder> {
+        let results_dir = profile_folder.join("results");
+        std::fs::create_dir_all(&results_dir)?;
+
+        let mut exectrack_builder = CommandBuilder::new("codspeed-exectrack");
+        exectrack_builder.arg("--output");
+        exectrack_builder.arg(results_dir.to_string_lossy().to_string());
+        exectrack_builder.arg("--");
+        exectrack_builder.wrap_with(cmd_builder);
+        Ok(exectrack_builder)
+    }
+
     fn walltime_bench_cmd(
         config: &Config,
         run_data: &RunData,
@@ -189,6 +204,8 @@ impl Executor for WallTimeExecutor {
 
             let (_env_file, _script_file, cmd_builder) =
                 WallTimeExecutor::walltime_bench_cmd(config, run_data)?;
+
+            let cmd_builder = Self::wrap_with_exectrack(cmd_builder, &run_data.profile_folder)?;
             if let Some(perf) = &self.perf
                 && config.enable_perf
             {

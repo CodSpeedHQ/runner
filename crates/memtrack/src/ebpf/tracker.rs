@@ -1,7 +1,8 @@
 use crate::ebpf::{Event, MemtrackBpf};
 use anyhow::Result;
+use codspeed_bpf::ProcessTracking;
 use log::debug;
-use std::sync::mpsc::{self, Receiver};
+use std::sync::mpsc::Receiver;
 
 pub struct Tracker {
     bpf: MemtrackBpf,
@@ -16,8 +17,8 @@ impl Tracker {
     /// - Attach uprobes to all libc instances
     /// - Attach tracepoints for fork tracking
     pub fn new() -> Result<Self> {
-        // Bump memlock limits
-        Self::bump_memlock_rlimit()?;
+        // Bump memlock limits using shared utility
+        codspeed_bpf::bump_memlock_rlimit()?;
 
         // Find and attach to all libc instances
         let libc_paths = crate::libc::find_libc_paths()?;
@@ -48,7 +49,7 @@ impl Tracker {
 
         // Keep the poller alive by moving it into the channel
         // When the receiver is dropped, the poller will also be dropped
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             // Keep poller alive
             let _p = _poller;
@@ -60,20 +61,6 @@ impl Tracker {
         });
 
         Ok(rx)
-    }
-
-    fn bump_memlock_rlimit() -> Result<()> {
-        let rlimit = libc::rlimit {
-            rlim_cur: libc::RLIM_INFINITY,
-            rlim_max: libc::RLIM_INFINITY,
-        };
-
-        let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) };
-        if ret != 0 {
-            anyhow::bail!("Failed to increase rlimit");
-        }
-
-        Ok(())
     }
 
     /// Enable event tracking in the BPF program

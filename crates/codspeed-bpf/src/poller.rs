@@ -5,10 +5,8 @@ use std::sync::{Arc, mpsc};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use super::events::Event;
-
 /// A handler function for processing ring buffer events
-pub type EventHandler = Box<dyn Fn(Event) + Send>;
+pub type EventHandler<T> = Box<dyn Fn(T) + Send>;
 
 /// RingBufferPoller manages polling a BPF ring buffer in a background thread
 /// and sending events to handlers
@@ -20,19 +18,23 @@ pub struct RingBufferPoller {
 impl RingBufferPoller {
     /// Create a new RingBufferPoller for the given ring buffer map
     ///
+    /// # Type Parameters
+    /// * `T` - The event type to deserialize from the ring buffer
+    /// * `M` - The map type implementing MapCore
+    ///
     /// # Arguments
     /// * `rb_map` - The BPF ring buffer map to poll
     /// * `handler` - Callback function to handle each event
     /// * `poll_timeout_ms` - How long to wait for events in each poll iteration
-    pub fn new<M: MapCore + 'static>(
+    pub fn new<T: Copy + 'static, M: MapCore + 'static>(
         rb_map: &M,
-        handler: EventHandler,
+        handler: EventHandler<T>,
         poll_timeout_ms: u64,
     ) -> Result<Self> {
         let mut builder = RingBufferBuilder::new();
         builder.add(rb_map, move |data| {
-            if data.len() >= std::mem::size_of::<Event>() {
-                let event = unsafe { &*(data.as_ptr() as *const Event) };
+            if data.len() >= std::mem::size_of::<T>() {
+                let event = unsafe { &*(data.as_ptr() as *const T) };
                 handler(*event);
             }
             0
@@ -57,10 +59,10 @@ impl RingBufferPoller {
     /// Create a new RingBufferPoller with an mpsc channel for events
     ///
     /// Returns the RingBufferPoller and the receiver end of the channel
-    pub fn with_channel<M: MapCore + 'static>(
+    pub fn with_channel<T: Copy + Send + 'static, M: MapCore + 'static>(
         rb_map: &M,
         poll_timeout_ms: u64,
-    ) -> Result<(Self, mpsc::Receiver<Event>)> {
+    ) -> Result<(Self, mpsc::Receiver<T>)> {
         let (tx, rx) = mpsc::channel();
         let poller = Self::new(
             rb_map,

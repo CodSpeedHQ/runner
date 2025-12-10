@@ -1,138 +1,22 @@
 use anyhow::Context;
 use anyhow::Result;
+use codspeed_bpf::ProcessTracking;
+use codspeed_bpf::RingBufferPoller;
 use libbpf_rs::Link;
+use libbpf_rs::MapCore;
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
-use libbpf_rs::{MapCore, UprobeOpts};
 use log::warn;
-use paste::paste;
 use std::mem::MaybeUninit;
 use std::path::Path;
 
-use crate::ebpf::poller::RingBufferPoller;
+// Use shared macros from codspeed-bpf
+use codspeed_bpf::{attach_tracepoint, attach_uprobe, attach_uprobe_uretprobe};
 
 pub mod memtrack_skel {
     include!(concat!(env!("OUT_DIR"), "/memtrack.skel.rs"));
 }
 pub use memtrack_skel::*;
-
-/// Macro to attach a function with both entry and return probes
-macro_rules! attach_uprobe_uretprobe {
-    ($name:ident, $prog_entry:ident, $prog_return:ident, $func_str:expr) => {
-        fn $name(&mut self, libc_path: &Path) -> Result<()> {
-            let link = self
-                .skel
-                .progs
-                .$prog_entry
-                .attach_uprobe_with_opts(
-                    -1,
-                    libc_path,
-                    0,
-                    UprobeOpts {
-                        func_name: Some($func_str.to_string()),
-                        retprobe: false,
-                        ..Default::default()
-                    },
-                )
-                .context(format!(
-                    "Failed to attach {} uprobe in {}",
-                    $func_str,
-                    libc_path.display()
-                ))?;
-            self.probes.push(link);
-
-            let link = self
-                .skel
-                .progs
-                .$prog_return
-                .attach_uprobe_with_opts(
-                    -1,
-                    libc_path,
-                    0,
-                    UprobeOpts {
-                        func_name: Some($func_str.to_string()),
-                        retprobe: true,
-                        ..Default::default()
-                    },
-                )
-                .context(format!(
-                    "Failed to attach {} uretprobe in {}",
-                    $func_str,
-                    libc_path.display()
-                ))?;
-            self.probes.push(link);
-
-            Ok(())
-        }
-    };
-    ($name:ident) => {
-        paste! {
-            attach_uprobe_uretprobe!(
-                [<attach_ $name>],
-                [<uprobe_ $name>],
-                [<uretprobe_ $name>],
-                stringify!($name)
-            );
-        }
-    };
-}
-
-macro_rules! attach_uprobe {
-    ($name:ident, $prog:ident, $func_str:expr) => {
-        fn $name(&mut self, libc_path: &Path) -> Result<()> {
-            let link = self
-                .skel
-                .progs
-                .$prog
-                .attach_uprobe_with_opts(
-                    -1,
-                    libc_path,
-                    0,
-                    UprobeOpts {
-                        func_name: Some($func_str.to_string()),
-                        retprobe: false,
-                        ..Default::default()
-                    },
-                )
-                .context(format!(
-                    "Failed to attach {} uprobe in {}",
-                    $func_str,
-                    libc_path.display()
-                ))?;
-            self.probes.push(link);
-            Ok(())
-        }
-    };
-    ($name:ident) => {
-        paste! {
-            attach_uprobe!(
-                [<attach_ $name>],
-                [<uprobe_ $name>],
-                stringify!($name)
-            );
-        }
-    };
-}
-
-macro_rules! attach_tracepoint {
-    ($func:ident, $prog:ident) => {
-        fn $func(&mut self) -> Result<()> {
-            let link = self
-                .skel
-                .progs
-                .$prog
-                .attach()
-                .context(format!("Failed to attach {} tracepoint", stringify!($prog)))?;
-            self.probes.push(link);
-            Ok(())
-        }
-    };
-    ($name:ident) => {
-        paste! {
-            attach_tracepoint!([<attach_ $name>], [<tracepoint_ $name>]);
-        }
-    };
-}
 
 pub struct MemtrackBpf {
     skel: Box<MemtrackSkel<'static>>,
@@ -158,20 +42,6 @@ impl MemtrackBpf {
             skel,
             probes: Vec::new(),
         })
-    }
-
-    pub fn add_tracked_pid(&mut self, pid: i32) -> Result<()> {
-        self.skel
-            .maps
-            .tracked_pids
-            .update(
-                &pid.to_le_bytes(),
-                &1u8.to_le_bytes(),
-                libbpf_rs::MapFlags::ANY,
-            )
-            .context("Failed to add PID to uprobes tracked set")?;
-
-        Ok(())
     }
 
     /// Enable event tracking
@@ -240,6 +110,12 @@ impl MemtrackBpf {
     )> {
         // Use the syscalls skeleton's ring buffer (both programs share the same one)
         RingBufferPoller::with_channel(&self.skel.maps.events, poll_timeout_ms)
+    }
+}
+
+impl ProcessTracking for MemtrackBpf {
+    fn tracked_pids_map(&self) -> &impl MapCore {
+        &self.skel.maps.tracked_pids
     }
 }
 

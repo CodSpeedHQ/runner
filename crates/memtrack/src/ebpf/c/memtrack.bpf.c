@@ -10,79 +10,30 @@
 
 #include "event.h"
 
+// Include shared BPF utilities from codspeed-bpf
+#include "codspeed/common.h"
+#include "codspeed/process_tracking.h"
+
 char LICENSE[] SEC("license") = "GPL";
 
-/* Macros for common map definitions */
-#define BPF_HASH_MAP(name, key_type, value_type, max_ents) \
-    struct {                                               \
-        __uint(type, BPF_MAP_TYPE_HASH);                   \
-        __uint(max_entries, max_ents);                     \
-        __type(key, key_type);                             \
-        __type(value, value_type);                         \
-    } name SEC(".maps")
+/* Define process tracking maps using shared macro */
+PROCESS_TRACKING_MAPS();
 
-#define BPF_ARRAY_MAP(name, value_type, max_ents) \
-    struct {                                      \
-        __uint(type, BPF_MAP_TYPE_ARRAY);         \
-        __uint(max_entries, max_ents);            \
-        __type(key, __u32);                       \
-        __type(value, value_type);                \
-    } name SEC(".maps")
+/* Ring buffer for sending events to userspace */
+BPF_RINGBUF(events, 256 * 1024);
 
-#define BPF_RINGBUF(name, size)             \
-    struct {                                \
-        __uint(type, BPF_MAP_TYPE_RINGBUF); \
-        __uint(max_entries, size);          \
-    } name SEC(".maps")
-
-BPF_HASH_MAP(tracked_pids, __u32, __u8, 10000); /* Map to store PIDs we're tracking */
-BPF_HASH_MAP(pids_ppid, __u32, __u32, 10000);   /* Map to store parent-child relationships to detect hierarchy */
-BPF_RINGBUF(events, 256 * 1024);                /* Ring buffer for sending events to userspace */
-BPF_ARRAY_MAP(tracking_enabled, __u8, 1);       /* Map to control whether tracking is enabled (0 = disabled, 1
-                                                   = enabled) */
+/* Map to control whether tracking is enabled (0 = disabled, 1 = enabled) */
+BPF_ARRAY_MAP(tracking_enabled, __u8, 1);
 
 /* == Code that tracks process forks and execs == */
-
-/* Helper to check if a PID or any of its ancestors should be tracked */
-static __always_inline int is_tracked(__u32 pid) {
-    /* Direct check */
-    if (bpf_map_lookup_elem(&tracked_pids, &pid)) {
-        return 1;
-    }
-
-/* Check parent recursively (up to 5 levels) */
-#pragma unroll
-    for (int i = 0; i < 5; i++) {
-        __u32* ppid = bpf_map_lookup_elem(&pids_ppid, &pid);
-        if (!ppid) {
-            break;
-        }
-        pid = *ppid;
-        if (bpf_map_lookup_elem(&tracked_pids, &pid)) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
 
 SEC("tracepoint/sched/sched_process_fork")
 int tracepoint_sched_fork(struct trace_event_raw_sched_process_fork* ctx) {
     __u32 parent_pid = ctx->parent_pid;
     __u32 child_pid = ctx->child_pid;
 
-    /* Print process fork with PIDs */
-    // bpf_printk("sched_fork: parent_pid=%u child_pid=%u", parent_pid, child_pid);
-
-    /* Check if parent is being tracked */
-    if (is_tracked(parent_pid)) {
-        /* Auto-track this child */
-        __u8 marker = 1;
-        bpf_map_update_elem(&tracked_pids, &child_pid, &marker, BPF_ANY);
-        bpf_map_update_elem(&pids_ppid, &child_pid, &parent_pid, BPF_ANY);
-
-        // bpf_printk("auto-tracking child process: child_pid=%u", child_pid);
-    }
+    /* Use shared fork handler */
+    handle_fork(parent_pid, child_pid);
 
     return 0;
 }
