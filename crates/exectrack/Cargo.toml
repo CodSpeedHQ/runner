@@ -27,3 +27,6 @@ runner-shared = { path = "../runner-shared" }
 
 [build-dependencies]
 codspeed-bpf = { path = "../codspeed-bpf", features = ["build"] }
+
+[dev-dependencies]
+test-log = "0.2.19"
