@@ -2,11 +2,12 @@ use crate::prelude::*;
 use crate::run::instruments::mongo_tracer::MongoTracer;
 use crate::run::runner::executor::Executor;
 use crate::run::runner::helpers::command::CommandBuilder;
+use crate::run::runner::helpers::env::get_base_injected_env;
 use crate::run::runner::helpers::get_bench_command::get_bench_command;
 use crate::run::runner::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
 use crate::run::runner::helpers::run_with_sudo::wrap_with_sudo;
 use crate::run::runner::shared::fifo::RunnerFifo;
-use crate::run::runner::{ExecutorName, RunData};
+use crate::run::runner::{ExecutorName, RunData, RunnerMode};
 use crate::run::{check_system::SystemInfo, config::Config};
 use async_trait::async_trait;
 use ipc_channel::ipc;
@@ -15,9 +16,27 @@ use memtrack::MemtrackIpcServer;
 use runner_shared::artifacts::{ArtifactExt, ExecutionTimestamps};
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
+use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
+use tempfile::NamedTempFile;
+
+fn get_exported_system_env() -> Result<String> {
+    let output = Command::new("bash")
+        .arg("-c")
+        .arg("export")
+        .output()
+        .context("Failed to run `export`")?;
+    if !output.status.success() {
+        bail!(
+            "Failed to get system environment variables: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    String::from_utf8(output.stdout).context("Failed to parse export output as UTF-8")
+}
 
 pub struct MemoryExecutor;
 
@@ -25,25 +44,48 @@ impl MemoryExecutor {
     fn build_memtrack_command(
         config: &Config,
         run_data: &RunData,
-    ) -> Result<(MemtrackIpcServer, CommandBuilder)> {
+    ) -> Result<(MemtrackIpcServer, CommandBuilder, NamedTempFile)> {
         // FIXME: We only support native languages for now
 
         // Find memtrack binary - check env variable or use default command name
         let memtrack_path = std::env::var("CODSPEED_MEMTRACK_BINARY")
             .unwrap_or_else(|_| "codspeed-memtrack".to_string());
 
-        let mut cmd_builder = CommandBuilder::new(memtrack_path);
-        cmd_builder.arg("track");
-        cmd_builder.arg(get_bench_command(config)?);
-        cmd_builder.arg("--output");
-        cmd_builder.arg(run_data.profile_folder.join("results"));
+        // Build the memtrack command
+        let memtrack_cmd = format!(
+            "{} track {} --output {} --ipc-server {{}}",
+            memtrack_path,
+            get_bench_command(config)?,
+            run_data.profile_folder.join("results").display()
+        );
 
         // Setup memtrack IPC server
         let (ipc_server, server_name) = ipc::IpcOneShotServer::new()?;
-        cmd_builder.arg("--ipc-server");
-        cmd_builder.arg(server_name);
+        let memtrack_cmd = memtrack_cmd.replace("{}", &server_name);
 
-        Ok((ipc_server, cmd_builder))
+        // Get system environment variables
+        let system_env = get_exported_system_env()?;
+
+        // Get injected environment variables
+        let base_injected_env = get_base_injected_env(RunnerMode::Memory, &run_data.profile_folder)
+            .into_iter()
+            .map(|(k, v)| format!("export {k}={v}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Create environment file
+        let combined_env = format!("{system_env}\n{base_injected_env}");
+        let mut env_file = NamedTempFile::new()?;
+        env_file.write_all(combined_env.as_bytes())?;
+
+        // Create bash command that sources the env file and runs memtrack
+        let bash_command = format!("source {} && {}", env_file.path().display(), memtrack_cmd);
+
+        let mut cmd_builder = CommandBuilder::new("bash");
+        cmd_builder.arg("-c");
+        cmd_builder.arg(bash_command);
+
+        Ok((ipc_server, cmd_builder, env_file))
     }
 }
 
@@ -85,7 +127,7 @@ impl Executor for MemoryExecutor {
         // Create the results/ directory inside the profile folder to avoid having memtrack create it with wrong permissions
         std::fs::create_dir_all(run_data.profile_folder.join("results"))?;
 
-        let (ipc, cmd_builder) = Self::build_memtrack_command(config, run_data)?;
+        let (ipc, cmd_builder, _env_file) = Self::build_memtrack_command(config, run_data)?;
         let cmd = wrap_with_sudo(cmd_builder)?.build();
         debug!("cmd: {cmd:?}");
 
