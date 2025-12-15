@@ -33,7 +33,7 @@ jobs:
           cargo install --path crates/memtrack --locked
           echo "CODSPEED_MEMTRACK_BINARY=$(which codspeed-memtrack)" >> $GITHUB_ENV
 
-      - run: cargo test --all --exclude memtrack
+      - run: cargo test --all --exclude memtrack exectrack
 
   bpf-tests:
     runs-on: ubuntu-latest
