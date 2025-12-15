@@ -8,6 +8,7 @@ use crate::executor::helpers::get_bench_command::get_bench_command;
 use crate::executor::helpers::introspected_golang;
 use crate::executor::helpers::introspected_nodejs;
 use crate::executor::helpers::run_command_with_log_pipe::run_command_with_log_pipe;
+use crate::executor::helpers::run_with_env::wrap_with_env;
 use crate::executor::helpers::run_with_sudo::wrap_with_sudo;
 use crate::executor::{ExecutionContext, ExecutorName};
 use crate::instruments::mongo_tracer::MongoTracer;
@@ -70,25 +71,6 @@ impl Drop for HookScriptsGuard {
     }
 }
 
-/// Returns a list of exported environment variables which can be loaded with `source` in a shell.
-///
-/// Example: `declare -x outputs="out"`
-fn get_exported_system_env() -> Result<String> {
-    let output = Command::new("bash")
-        .arg("-c")
-        .arg("export")
-        .output()
-        .context("Failed to run `export`")?;
-    if !output.status.success() {
-        bail!(
-            "Failed to get system environment variables: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    String::from_utf8(output.stdout).context("Failed to parse export output as UTF-8")
-}
-
 pub struct WallTimeExecutor {
     perf: Option<PerfRunner>,
 }
@@ -110,19 +92,10 @@ impl WallTimeExecutor {
         config: &Config,
         execution_context: &ExecutionContext,
     ) -> Result<(NamedTempFile, NamedTempFile, CommandBuilder)> {
-        let bench_cmd = get_bench_command(config)?;
-
-        let system_env = get_exported_system_env()?;
-        let base_injected_env =
-            get_base_injected_env(RunnerMode::Walltime, &execution_context.profile_folder)
-                .into_iter()
-                .map(|(k, v)| format!("export {k}={v}",))
-                .collect::<Vec<_>>()
-                .join("\n");
-
+        // Build additional PATH environment variables
         let path_env = std::env::var("PATH").unwrap_or_default();
-        let path_env = format!(
-            "export PATH={}:{}:{}",
+        let path_value = format!(
+            "{}:{}:{}",
             introspected_nodejs::setup()
                 .map_err(|e| anyhow!("failed to setup NodeJS introspection. {e}"))?
                 .to_string_lossy(),
@@ -132,18 +105,18 @@ impl WallTimeExecutor {
             path_env
         );
 
-        let combined_env = format!("{system_env}\n{base_injected_env}\n{path_env}");
+        let mut extra_env =
+            get_base_injected_env(RunnerMode::Walltime, &execution_context.profile_folder);
+        extra_env.insert("PATH", path_value);
 
-        let mut env_file = NamedTempFile::new()?;
-        env_file.write_all(combined_env.as_bytes())?;
+        // We have to write the benchmark command to a script, to ensure proper formatting
+        // and to not have to manually escape everything.
+        let mut script_file = NamedTempFile::new()?;
+        script_file.write_all(get_bench_command(config)?.as_bytes())?;
 
-        let script_file = {
-            let mut file = NamedTempFile::new()?;
-            let bash_command = format!("source {} && {}", env_file.path().display(), bench_cmd);
-            debug!("Bash command: {bash_command}");
-            file.write_all(bash_command.as_bytes())?;
-            file
-        };
+        let mut bench_cmd = CommandBuilder::new("bash");
+        bench_cmd.arg(script_file.path());
+        let (mut bench_cmd, env_file) = wrap_with_env(bench_cmd, &extra_env)?;
 
         let mut cmd_builder = CommandBuilder::new("systemd-run");
         if let Some(cwd) = &config.working_directory {
@@ -164,9 +137,11 @@ impl WallTimeExecutor {
         cmd_builder.arg("--same-dir");
         cmd_builder.arg(format!("--uid={}", nix::unistd::Uid::current().as_raw()));
         cmd_builder.arg(format!("--gid={}", nix::unistd::Gid::current().as_raw()));
-        cmd_builder.args(["--", "bash"]);
-        cmd_builder.arg(script_file.path());
-        Ok((env_file, script_file, cmd_builder))
+        cmd_builder.args(["--"]);
+
+        bench_cmd.wrap_with(cmd_builder);
+
+        Ok((env_file, script_file, bench_cmd))
     }
 }
 

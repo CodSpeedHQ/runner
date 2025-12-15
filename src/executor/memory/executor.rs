@@ -1,13 +1,16 @@
 use crate::executor::ExecutorName;
 use crate::executor::helpers::command::CommandBuilder;
+use crate::executor::helpers::env::get_base_injected_env;
 use crate::executor::helpers::get_bench_command::get_bench_command;
 use crate::executor::helpers::run_command_with_log_pipe::run_command_with_log_pipe_and_callback;
+use crate::executor::helpers::run_with_env::wrap_with_env;
 use crate::executor::helpers::run_with_sudo::wrap_with_sudo;
 use crate::executor::shared::fifo::RunnerFifo;
 use crate::executor::{ExecutionContext, Executor};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
+use crate::runner_mode::RunnerMode;
 use async_trait::async_trait;
 use ipc_channel::ipc;
 use memtrack::MemtrackIpcClient;
@@ -18,31 +21,37 @@ use runner_shared::fifo::IntegrationMode;
 use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
-
+use tempfile::NamedTempFile;
 pub struct MemoryExecutor;
 
 impl MemoryExecutor {
     fn build_memtrack_command(
         execution_context: &ExecutionContext,
-    ) -> Result<(MemtrackIpcServer, CommandBuilder)> {
+    ) -> Result<(MemtrackIpcServer, CommandBuilder, NamedTempFile)> {
         // FIXME: We only support native languages for now
 
         // Find memtrack binary - check env variable or use default command name
         let memtrack_path = std::env::var("CODSPEED_MEMTRACK_BINARY")
             .unwrap_or_else(|_| "codspeed-memtrack".to_string());
 
-        let mut cmd_builder = CommandBuilder::new(memtrack_path);
-        cmd_builder.arg("track");
-        cmd_builder.arg(get_bench_command(&execution_context.config)?);
-        cmd_builder.arg("--output");
-        cmd_builder.arg(execution_context.profile_folder.join("results"));
-
         // Setup memtrack IPC server
         let (ipc_server, server_name) = ipc::IpcOneShotServer::new()?;
+
+        // Build the memtrack command
+        let mut cmd_builder = CommandBuilder::new(memtrack_path);
+        cmd_builder.arg("track");
+        cmd_builder.arg("--output");
+        cmd_builder.arg(execution_context.profile_folder.join("results"));
         cmd_builder.arg("--ipc-server");
         cmd_builder.arg(server_name);
+        cmd_builder.arg(get_bench_command(&execution_context.config)?);
 
-        Ok((ipc_server, cmd_builder))
+        // Wrap command with environment forwarding
+        let extra_env =
+            get_base_injected_env(RunnerMode::Memory, &execution_context.profile_folder);
+        let (cmd_builder, env_file) = wrap_with_env(cmd_builder, &extra_env)?;
+
+        Ok((ipc_server, cmd_builder, env_file))
     }
 }
 
@@ -82,7 +91,7 @@ impl Executor for MemoryExecutor {
         // Create the results/ directory inside the profile folder to avoid having memtrack create it with wrong permissions
         std::fs::create_dir_all(execution_context.profile_folder.join("results"))?;
 
-        let (ipc, cmd_builder) = Self::build_memtrack_command(execution_context)?;
+        let (ipc, cmd_builder, _env_file) = Self::build_memtrack_command(execution_context)?;
         let cmd = wrap_with_sudo(cmd_builder)?.build();
         debug!("cmd: {cmd:?}");
 
