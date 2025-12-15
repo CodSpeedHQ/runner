@@ -1,0 +1,21 @@
+[package]
+name = "codspeed-bpf"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/CodSpeedHQ/runner"
+
+[features]
+# Enable build utilities for BPF compilation
+build = ["dep:libbpf-cargo", "dep:vmlinux", "dep:bindgen"]
+
+[dependencies]
+anyhow = { workspace = true }
+libbpf-rs = { version = "0.25.0", features = ["vendored"] }
+libc = { workspace = true }
+log = { workspace = true }
+paste = "1.0"
+
+# Build dependencies (optional, only needed for build feature)
+libbpf-cargo = { version = "0.25.0", optional = true }
+vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52", optional = true }
+bindgen = { version = "0.71", optional = true }

@@ -1,0 +1,32 @@
+[package]
+name = "exectrack"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/CodSpeedHQ/runner"
+
+[lib]
+name = "exectrack"
+path = "src/lib.rs"
+
+[[bin]]
+name = "codspeed-exectrack"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+libc = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+static_assertions = "1.1"
+libbpf-rs = { version = "0.25.0", features = ["vendored"] }
+codspeed-bpf = { path = "../codspeed-bpf" }
+runner-shared = { path = "../runner-shared" }
+
+[build-dependencies]
+codspeed-bpf = { path = "../codspeed-bpf", features = ["build"] }
+
+[dev-dependencies]
+test-log = "0.2.19"

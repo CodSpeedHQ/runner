@@ -20,6 +20,7 @@ ebpf = [
     "dep:libbpf-rs",
     "dep:libbpf-cargo",
     "dep:vmlinux",
+    "dep:codspeed-bpf",
 ]
 
 [dependencies]
@@ -36,11 +37,13 @@ static_assertions = "1.1"
 itertools = { workspace = true }
 paste = "1.0"
 libbpf-rs = { version = "0.25.0", features = ["vendored"], optional = true }
+codspeed-bpf = { path = "../codspeed-bpf", optional = true }
 
 [build-dependencies]
 libbpf-cargo = { version = "0.25.0", optional = true }
 vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8c9d62ce8999521b24f61d9b7fc52", optional = true }
 bindgen = "0.71"
+codspeed-bpf = { path = "../codspeed-bpf", features = ["build"], optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"

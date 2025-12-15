@@ -1,7 +1,7 @@
-mod events;
-mod memtrack;
+pub mod events;
+mod exectrack;
 mod tracker;
 
 pub use events::{Event, EventType};
-pub use memtrack::MemtrackBpf;
+pub use exectrack::ExectrackBpf;
 pub use tracker::Tracker;

@@ -4,9 +4,11 @@ use serde::Serialize;
 
 mod execution_timestamps;
 mod memtrack;
+mod process_hierarchy;
 
 pub use execution_timestamps::*;
 pub use memtrack::*;
+pub use process_hierarchy::{ProcessHierarchy, ProcessMetadata};
 
 pub trait ArtifactExt
 where
