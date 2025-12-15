@@ -57,7 +57,7 @@ async fn create_profile_archive(
 ) -> Result<ProfileArchive> {
     let time_start = std::time::Instant::now();
     let profile_archive = match executor_name {
-        ExecutorName::Memory | ExecutorName::Valgrind => {
+        ExecutorName::Valgrind => {
             debug!("Creating compressed tar archive for Valgrind");
             let enc = GzipEncoder::new(Vec::new());
             let mut tar = Builder::new(enc);
@@ -68,7 +68,7 @@ async fn create_profile_archive(
             let data = gzip_encoder.into_inner();
             ProfileArchive::new_compressed_in_memory(data)
         }
-        ExecutorName::WallTime => {
+        ExecutorName::Memory | ExecutorName::WallTime => {
             // Check folder size to decide on compression
             let folder_size_bytes =
                 calculate_folder_size(&execution_context.profile_folder).await?;
