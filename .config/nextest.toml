@@ -1,0 +1,8 @@
+# Valgrind and memtrack tests must never run concurrently, even across multiple processes, else valgrind crashes.
+# We have a semaphore setup in the test code, but it's not sufficient since nextest runs tests in multiple processes.
+[test-groups]
+bpf-instrumentation = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'test(~executor::tests::valgrind) | test(~executor::tests::memory)'
+test-group = 'bpf-instrumentation'
