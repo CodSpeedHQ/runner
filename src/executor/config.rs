@@ -1,4 +1,4 @@
-use crate::exec::DEFAULT_REPOSITORY_NAME;
+use crate::exec::{DEFAULT_REPOSITORY_NAME, EXEC_HARNESS_COMMAND};
 use crate::instruments::Instruments;
 use crate::prelude::*;
 use crate::run::{RunArgs, UnwindingMode};
@@ -141,7 +141,7 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
             .map_err(|_| anyhow!("Cannot append to upload URL"))?
             .push("project");
 
-        let wrapped_command = std::iter::once("exec-harness".to_string())
+        let wrapped_command = std::iter::once(EXEC_HARNESS_COMMAND.to_owned())
             .chain(args.command)
             .collect::<Vec<String>>()
             .join(" ");

@@ -12,7 +12,10 @@ mod walltime;
 
 #[derive(Parser, Debug)]
 #[command(name = "exec-harness")]
-#[command(about = "CodSpeed exec harness - wraps commands with performance instrumentation")]
+#[command(
+    version,
+    about = "CodSpeed exec harness - wraps commands with performance instrumentation"
+)]
 struct Args {
     /// Optional benchmark name (defaults to command filename)
     #[arg(long)]
