@@ -1,0 +1,102 @@
+use crate::prelude::*;
+use crate::run::helpers::download_file;
+use semver::Version;
+use std::process::Command;
+use tempfile::NamedTempFile;
+use url::Url;
+
+mod versions;
+
+/// Ensure a binary is installed, or install it from a runner's GitHub release using the installer script.
+///
+/// This function checks if the binary is already installed with the correct version.
+/// If not, it downloads and executes an installer script from the CodSpeed runner repository.
+///
+/// # Arguments
+/// * `binary_name` - The binary command name (e.g., "codspeed-memtrack", "codspeed-exec-harness")
+/// * `version` - The version to install (e.g., "4.4.2-alpha.2")
+/// * `get_installer_url` - A closure that returns the URL to download the installer script.
+pub async fn ensure_binary_installed<F>(
+    binary_name: &str,
+    version: &str,
+    get_installer_url: F,
+) -> Result<()>
+where
+    F: FnOnce() -> String,
+{
+    if is_command_installed(
+        binary_name,
+        Version::parse(version).context("Invalid version format")?,
+    ) {
+        debug!("{binary_name} version {version} is already installed");
+        return Ok(());
+    }
+
+    let installer_url = Url::parse(&get_installer_url()).context("Invalid installer URL")?;
+
+    debug!("Downloading installer from: {installer_url}");
+
+    // Download the installer script to a temporary file
+    let temp_file = NamedTempFile::new().context("Failed to create temporary file")?;
+    download_file(&installer_url, temp_file.path()).await?;
+
+    // Execute the installer script
+    let output = Command::new("sh")
+        .arg(temp_file.path())
+        .output()
+        .context("Failed to execute installer command")?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to install {binary_name} version {version}. Installer exited with output: {output:?}",
+        );
+    }
+
+    if !is_command_installed(
+        binary_name,
+        Version::parse(version).context("Invalid version format")?,
+    ) {
+        bail!(
+            "Could not veryfy installation of {binary_name} version {version} after running installer"
+        );
+    }
+
+    info!("Successfully installed {binary_name} version {version}");
+    Ok(())
+}
+
+/// Check if the given command is installed and its version matches the expected version.
+///
+/// Expects the command to support the `--version` flag and return a version string.
+fn is_command_installed(command: &str, expected_version: Version) -> bool {
+    let is_command_installed = Command::new("which")
+        .arg(command)
+        .output()
+        .is_ok_and(|output| output.status.success());
+
+    if !is_command_installed {
+        debug!("{command} is not installed");
+        return false;
+    }
+
+    let Ok(version_output) = Command::new(command).arg("--version").output() else {
+        return false;
+    };
+
+    if !version_output.status.success() {
+        debug!(
+            "Failed to get command version. stderr: {}",
+            String::from_utf8_lossy(&version_output.stderr)
+        );
+        return false;
+    }
+
+    let version_string = String::from_utf8_lossy(&version_output.stdout);
+    let Ok(version) = versions::parse_from_output(&version_string) else {
+        return false;
+    };
+
+    debug!("Found {command} version: {version}");
+
+    versions::is_compatible(command, &version, &expected_version)
+}

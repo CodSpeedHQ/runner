@@ -1,6 +1,7 @@
 mod api_client;
 mod app;
 mod auth;
+mod binary_installer;
 mod config;
 mod exec;
 mod executor;

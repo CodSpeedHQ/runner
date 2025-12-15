@@ -1,3 +1,4 @@
+use crate::binary_installer::ensure_binary_installed;
 use crate::executor::ExecutorName;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::get_base_injected_env;
@@ -19,9 +20,12 @@ use runner_shared::artifacts::{ArtifactExt, ExecutionTimestamps};
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
 use std::path::Path;
-use std::process::Command;
 use std::rc::Rc;
 use tempfile::NamedTempFile;
+
+const MEMTRACK_COMMAND: &str = "codspeed-memtrack";
+const MEMTRACK_CODSPEED_VERSION: &str = "1.0.0";
+
 pub struct MemoryExecutor;
 
 impl MemoryExecutor {
@@ -30,15 +34,11 @@ impl MemoryExecutor {
     ) -> Result<(MemtrackIpcServer, CommandBuilder, NamedTempFile)> {
         // FIXME: We only support native languages for now
 
-        // Find memtrack binary - check env variable or use default command name
-        let memtrack_path = std::env::var("CODSPEED_MEMTRACK_BINARY")
-            .unwrap_or_else(|_| "codspeed-memtrack".to_string());
-
         // Setup memtrack IPC server
         let (ipc_server, server_name) = ipc::IpcOneShotServer::new()?;
 
         // Build the memtrack command
-        let mut cmd_builder = CommandBuilder::new(memtrack_path);
+        let mut cmd_builder = CommandBuilder::new(MEMTRACK_COMMAND);
         cmd_builder.arg("track");
         cmd_builder.arg("--output");
         cmd_builder.arg(execution_context.profile_folder.join("results"));
@@ -66,19 +66,18 @@ impl Executor for MemoryExecutor {
         _system_info: &SystemInfo,
         _setup_cache_dir: Option<&Path>,
     ) -> Result<()> {
-        // Validate that the codspeed-memtrack command is available
-        let memtrack_path = std::env::var("CODSPEED_MEMTRACK_BINARY")
-            .unwrap_or_else(|_| "codspeed-memtrack".to_string());
+        let get_memtrack_installer_url = || {
+            format!(
+                "https://github.com/CodSpeedHQ/runner/releases/download/memtrack-v{MEMTRACK_CODSPEED_VERSION}/memtrack-installer.sh"
+            )
+        };
 
-        info!("Validating memtrack binary at path: {memtrack_path}");
-        let output = Command::new(&memtrack_path).arg("--version").output()?;
-        if !output.status.success() {
-            bail!(
-                "codspeed-memtrack command is not available or failed to execute\nstdout: {}\nstderr: {}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
+        ensure_binary_installed(
+            MEMTRACK_COMMAND,
+            MEMTRACK_CODSPEED_VERSION,
+            get_memtrack_installer_url,
+        )
+        .await?;
 
         Ok(())
     }
