@@ -96,9 +96,12 @@ env_logger = "0.11.8"
 [workspace.metadata.release]
 sign-tag = true
 sign-commit = true
-shared-version = true
+shared-version = false
+consolidate-commits = false
+pre-release-commit-message = "chore: Release {{crate_name}} version {{version}} 🎉"
+
+[package.metadata.release]
 pre-release-hook = ["./scripts/pre-release.sh", "v{{version}}"]
-pre-release-commit-message = "chore: Release runner version {{version}} 🎉"
 
 [profile.dist]
 inherits = "release"
@@ -108,7 +111,7 @@ strip = true
 [package.metadata.dist]
 targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
 
-# Config for 'dist'
+# Config for 'dist' for all crates in the workspace
 [workspace.metadata.dist]
 # Whether to consider the binaries in a package for distribution (defaults true)
 dist = true
