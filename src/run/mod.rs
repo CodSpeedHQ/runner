@@ -266,15 +266,15 @@ pub async fn run(
     };
 
     if !config.skip_upload {
-        if provider.get_run_environment() != RunEnvironment::Local {
-            // If relevant, set the OIDC token for authentication
-            // Note: OIDC tokens can expire quickly, so we set it just before the upload
-            provider.set_oidc_token(&mut config).await?;
-        }
-
         start_group!("Uploading performance data");
-        let upload_result =
-            uploader::upload(&config, &system_info, &provider, &run_data, executor.name()).await?;
+        let upload_result = uploader::upload(
+            &mut config,
+            &system_info,
+            &provider,
+            &run_data,
+            executor.name(),
+        )
+        .await?;
         end_group!();
 
         if provider.get_run_environment() == RunEnvironment::Local {

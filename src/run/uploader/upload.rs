@@ -240,7 +240,7 @@ pub struct UploadResult {
 
 #[allow(clippy::borrowed_box)]
 pub async fn upload(
-    config: &Config,
+    config: &mut Config,
     system_info: &SystemInfo,
     provider: &Box<dyn RunEnvironmentProvider>,
     run_data: &RunData,
@@ -252,6 +252,12 @@ pub async fn upload(
         "Run Environment provider detected: {:?}",
         provider.get_run_environment()
     );
+
+    if provider.get_run_environment() != RunEnvironment::Local {
+        // If relevant, set the OIDC token for authentication
+        // Note: OIDC tokens can expire quickly, so we set it just before the upload
+        provider.set_oidc_token(config).await?;
+    }
 
     let upload_metadata =
         provider.get_upload_metadata(config, system_info, &profile_archive, executor_name)?;
@@ -299,7 +305,7 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_upload() {
-        let config = Config {
+        let mut config = Config {
             command: "pytest tests/ --codspeed".into(),
             upload_url: Url::parse("change me").unwrap(),
             token: Some("change me".into()),
@@ -343,7 +349,7 @@ mod tests {
             async {
                 let provider = crate::run::run_environment::get_provider(&config).unwrap();
                 upload(
-                    &config,
+                    &mut config,
                     &system_info,
                     &provider,
                     &run_data,
