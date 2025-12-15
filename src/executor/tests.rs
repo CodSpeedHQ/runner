@@ -417,4 +417,29 @@ mod memory {
         )
         .await;
     }
+
+    #[test_log::test(tokio::test)]
+    async fn test_memory_executor_forwards_path() {
+        let custom_path = "/custom/test/path";
+        let current_path = std::env::var("PATH").unwrap();
+        let modified_path = format!("{custom_path}:{current_path}");
+
+        let cmd = format!(
+            r#"
+if ! echo "$PATH" | grep -q "{custom_path}"; then
+  echo "FAIL: PATH does not contain custom path {custom_path}"
+  echo "Got PATH: $PATH"
+  exit 1
+fi
+"#
+        );
+        let config = memory_config(&cmd);
+        let (execution_context, _temp_dir) = create_test_setup(config).await;
+        let (_permit, _lock, executor) = get_memory_executor().await;
+
+        temp_env::async_with_vars(&[("PATH", Some(&modified_path))], async {
+            executor.run(&execution_context, &None).await.unwrap();
+        })
+        .await;
+    }
 }
