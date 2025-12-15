@@ -3,7 +3,7 @@ use clap::Parser;
 use ipc_channel::ipc::{self};
 use log::{debug, info};
 use memtrack::{Event, MemtrackIpcMessage, Tracker, handle_ipc_message};
-use runner_shared::artifacts::{ArtifactExt, MemtrackArtifact};
+use runner_shared::artifacts::{ArtifactExt, MemtrackArtifact, MemtrackEvent};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -53,9 +53,7 @@ fn main() -> Result<()> {
 
             let (root_pid, events, status) =
                 track_command(&command, ipc_server).context("Failed to track command")?;
-            let result = MemtrackArtifact {
-                events: events.into_iter().map(|event| event.into()).collect(),
-            };
+            let result = MemtrackArtifact { events };
             result.save_with_pid_to(&out_dir, root_pid as libc::pid_t)?;
 
             std::process::exit(status.code().unwrap_or(1));
@@ -66,7 +64,7 @@ fn main() -> Result<()> {
 fn track_command(
     cmd_string: &str,
     ipc_server_name: Option<String>,
-) -> anyhow::Result<(u32, Vec<Event>, std::process::ExitStatus)> {
+) -> anyhow::Result<(u32, Vec<MemtrackEvent>, std::process::ExitStatus)> {
     let events = Arc::new(Mutex::new(Vec::new()));
     let tracker = Tracker::new()?;
 
@@ -116,7 +114,7 @@ fn track_command(
                 continue;
             };
 
-            e.push(event);
+            e.push(event.into());
         }
     });
 
