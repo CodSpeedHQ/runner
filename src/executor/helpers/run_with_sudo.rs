@@ -37,7 +37,7 @@ fn validate_sudo_access() -> Result<()> {
 
     if needs_password {
         suspend_progress_bar(|| {
-            info!("Sudo privileges are required to continue. Please enter your password.");
+            info!("Sudo privileges are required to continue.");
 
             // Validate and cache sudo credentials
             let auth_status = Command::new("sudo")
