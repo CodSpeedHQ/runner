@@ -1,6 +1,6 @@
 [package]
 name = "memtrack"
-version = "4.4.1"
+version = "4.4.2-beta.1"
 edition = "2024"
 repository = "https://github.com/CodSpeedHQ/runner"
 publish = false
@@ -16,11 +16,7 @@ required-features = ["ebpf"]
 
 [features]
 default = ["ebpf"]
-ebpf = [
-    "dep:libbpf-rs",
-    "dep:libbpf-cargo",
-    "dep:vmlinux",
-]
+ebpf = ["dep:libbpf-rs", "dep:libbpf-cargo", "dep:vmlinux"]
 
 [dependencies]
 anyhow = { workspace = true }

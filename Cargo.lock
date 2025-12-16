@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "exec-harness"
-version = "4.4.1"
+version = "4.4.2-beta.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1572,7 +1572,7 @@ dependencies = [
 
 [[package]]
 name = "memtrack"
-version = "4.4.1"
+version = "4.4.2-beta.1"
 dependencies = [
  "anyhow",
  "bindgen",
