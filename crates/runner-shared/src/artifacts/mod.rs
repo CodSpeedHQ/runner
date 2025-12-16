@@ -17,14 +17,20 @@ where
         std::any::type_name::<Self>().rsplit("::").next().unwrap()
     }
 
+    fn encode_to_writer<W: std::io::Write>(&self, mut writer: W) -> anyhow::Result<()> {
+        let encoded = rmp_serde::to_vec_named(self)?;
+        writer.write_all(&encoded)?;
+        Ok(())
+    }
+
     fn save_file_to<P: AsRef<std::path::Path>>(
         &self,
         folder: P,
         filename: &str,
     ) -> anyhow::Result<()> {
         std::fs::create_dir_all(folder.as_ref())?;
-        let data = rmp_serde::to_vec_named(self)?;
-        std::fs::write(folder.as_ref().join(filename), data)?;
+        let file = std::fs::File::create(folder.as_ref().join(filename))?;
+        self.encode_to_writer(file)?;
 
         debug!("Saved {} result to {:?}", Self::name(), folder.as_ref());
         Ok(())
