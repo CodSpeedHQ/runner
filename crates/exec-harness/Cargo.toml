@@ -1,6 +1,6 @@
 [package]
 name = "exec-harness"
-version = "4.4.2-beta.1"
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
