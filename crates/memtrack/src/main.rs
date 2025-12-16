@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 use ipc_channel::ipc::{self};
 use log::{debug, info};
-use memtrack::{Event, MemtrackIpcMessage, Tracker, handle_ipc_message};
+use memtrack::{MemtrackIpcMessage, Tracker, handle_ipc_message};
 use runner_shared::artifacts::{ArtifactExt, MemtrackArtifact, MemtrackEvent};
 use std::path::PathBuf;
 use std::process::Command;
@@ -65,7 +65,6 @@ fn track_command(
     cmd_string: &str,
     ipc_server_name: Option<String>,
 ) -> anyhow::Result<(u32, Vec<MemtrackEvent>, std::process::ExitStatus)> {
-    let events = Arc::new(Mutex::new(Vec::new()));
     let tracker = Tracker::new()?;
 
     let tracker_arc = Arc::new(Mutex::new(tracker));
@@ -97,10 +96,10 @@ fn track_command(
     info!("Spawned child with pid {root_pid}");
 
     // Spawn event processing thread
-    let events_clone = events.clone();
     let process_events = Arc::new(AtomicBool::new(true));
     let process_events_clone = process_events.clone();
     let processing_thread = thread::spawn(move || {
+        let mut events = Vec::new();
         loop {
             if !process_events_clone.load(Ordering::Relaxed) {
                 break;
@@ -110,12 +109,9 @@ fn track_command(
                 continue;
             };
 
-            let Ok(mut e) = events_clone.lock() else {
-                continue;
-            };
-
-            e.push(event.into());
+            events.push(event.into());
         }
+        events
     });
 
     // Wait for the command to complete
@@ -124,14 +120,12 @@ fn track_command(
 
     info!("Waiting for the event processing thread to finish");
     process_events.store(false, Ordering::Relaxed);
-    processing_thread
+    let events = processing_thread
         .join()
         .map_err(|_| anyhow::anyhow!("Failed to join event thread"))?;
 
     // IPC thread will exit when channel closes
     drop(ipc_handle);
 
-    info!("Unwrapping and returning events");
-    let events = Arc::try_unwrap(events).map_err(|_| anyhow::anyhow!("Failed to unwrap events"))?;
-    Ok((root_pid as u32, events.into_inner()?, status))
+    Ok((root_pid as u32, events, status))
 }
