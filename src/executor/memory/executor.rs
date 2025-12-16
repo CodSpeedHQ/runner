@@ -22,6 +22,7 @@ use runner_shared::fifo::IntegrationMode;
 use std::path::Path;
 use std::rc::Rc;
 use tempfile::NamedTempFile;
+use tokio::time::{Duration, timeout};
 
 const MEMTRACK_COMMAND: &str = "codspeed-memtrack";
 const MEMTRACK_CODSPEED_VERSION: &str = "1.0.0";
@@ -130,7 +131,16 @@ impl MemoryExecutor {
         debug!("handle_fifo called with PID {pid}");
 
         // Accept the IPC connection from memtrack and get the sender it sends us
-        let (_, memtrack_sender) = ipc.accept()?;
+        // Use a timeout to prevent hanging if the process doesn't start properly
+        // https://github.com/servo/ipc-channel/issues/261
+        let (_, memtrack_sender) = timeout(Duration::from_secs(5), async move {
+            tokio::task::spawn_blocking(move || ipc.accept())
+                .await
+                .context("Failed to spawn blocking task")?
+                .context("Failed to accept IPC connection")
+        })
+        .await
+        .context("Timeout waiting for IPC connection from memtrack process")??;
         let ipc_client = Rc::new(MemtrackIpcClient::from_accepted(memtrack_sender));
 
         let ipc_client_health = Rc::clone(&ipc_client);
