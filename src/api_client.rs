@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::prelude::*;
+use crate::run_environment::RepositoryProvider;
 use crate::{app::Cli, config::CodSpeedConfig};
 use console::style;
 use gql_client::{Client as GQLClient, ClientConfig};
@@ -184,6 +185,24 @@ pub struct FetchLocalExecReportResponse {
     pub run: FetchLocalRunReportRun,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetOrCreateProjectRepositoryVars {
+    pub name: String,
+}
+
+nest! {
+    #[derive(Debug, Deserialize, Serialize)]*
+    #[serde(rename_all = "camelCase")]*
+    struct GetOrCreateProjectRepositoryData {
+        get_or_create_project_repository: pub struct GetOrCreateProjectRepositoryPayload {
+            pub provider: RepositoryProvider,
+            pub owner: String,
+            pub name: String,
+        }
+    }
+}
+
 impl CodSpeedAPIClient {
     pub async fn create_login_session(&self) -> Result<CreateLoginSessionPayload> {
         let response = self
@@ -257,6 +276,29 @@ impl CodSpeedAPIClient {
                 bail!("Your session has expired, please login again using `codspeed auth login`")
             }
             Err(err) => bail!("Failed to fetch local run report: {err}"),
+        }
+    }
+
+    pub async fn get_or_create_project_repository(
+        &self,
+        vars: GetOrCreateProjectRepositoryVars,
+    ) -> Result<GetOrCreateProjectRepositoryPayload> {
+        let response = self
+            .gql_client
+            .query_with_vars_unwrap::<
+                GetOrCreateProjectRepositoryData,
+                GetOrCreateProjectRepositoryVars,
+            >(
+                include_str!("queries/GetOrCreateProjectRepository.gql"),
+                vars.clone(),
+            )
+            .await;
+        match response {
+            Ok(response) => Ok(response.get_or_create_project_repository),
+            Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
+                bail!("Your session has expired, please login again using `codspeed auth login`")
+            }
+            Err(err) => bail!("Failed to get or create project repository: {err}"),
         }
     }
 }

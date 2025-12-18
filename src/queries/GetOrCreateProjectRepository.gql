@@ -1,0 +1,7 @@
+mutation Mutation($name: String!) {
+  getOrCreateProjectRepository(name: $name) {
+    provider
+    owner
+    name
+  }
+}
