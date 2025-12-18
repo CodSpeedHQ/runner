@@ -100,8 +100,16 @@ impl ModuleSymbols {
             }
         }
 
-        // Filter out any symbols that still have zero size
-        symbols.retain(|symbol| symbol.size > 0);
+        // Filter out any symbols that still have zero size or an empty name
+        symbols.retain(|symbol| {
+            let should_keep = symbol.size > 0 && !symbol.name.is_empty();
+
+            if !should_keep {
+                trace!("Filtering out symbol: {symbol:?}");
+            }
+
+            should_keep
+        });
 
         if symbols.is_empty() {
             return Err(anyhow::anyhow!("No symbols found"));
