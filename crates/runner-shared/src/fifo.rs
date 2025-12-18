@@ -3,7 +3,17 @@
 pub const RUNNER_CTL_FIFO: &str = "/tmp/runner.ctl.fifo";
 pub const RUNNER_ACK_FIFO: &str = "/tmp/runner.ack.fifo";
 
+/// Be very careful when changing this, as this will break support for integrations built with versions stricly lower than this.
+/// Any change of this should be planned ahead of time, with deprecation warnings, and the release
+/// of integrations supporting the new protocol version a significant amount of time before
+/// releasing the runner.
+pub const MINIMAL_SUPPORTED_PROTOCOL_VERSION: u64 = 1;
 pub const CURRENT_PROTOCOL_VERSION: u64 = 2;
+
+const _: () = assert!(
+    MINIMAL_SUPPORTED_PROTOCOL_VERSION <= CURRENT_PROTOCOL_VERSION,
+    "MINIMAL_SUPPORTED_PROTOCOL_VERSION must be less than or equal to CURRENT_PROTOCOL_VERSION"
+);
 
 /// The different markers that can be set in the perf.data.
 ///

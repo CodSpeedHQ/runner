@@ -193,11 +193,20 @@ impl RunnerFifo {
                 }
                 FifoCommand::SetVersion(protocol_version) => {
                     match protocol_version.cmp(&runner_shared::fifo::CURRENT_PROTOCOL_VERSION) {
-                        Ordering::Less => panic!(
-                            "Integration is using an incompatible protocol version ({protocol_version} < {}). Please update the integration to the latest version.",
-                            runner_shared::fifo::CURRENT_PROTOCOL_VERSION
-                        ),
-                        Ordering::Greater => panic!(
+                        Ordering::Less => {
+                            if *protocol_version
+                                < runner_shared::fifo::MINIMAL_SUPPORTED_PROTOCOL_VERSION
+                            {
+                                bail!(
+                                    "Integration is using a version of the protocol that is smaller than the minimal supported protocol version ({protocol_version} < {}). \
+                                    Please update the integration to a supported version.",
+                                    runner_shared::fifo::MINIMAL_SUPPORTED_PROTOCOL_VERSION
+                                );
+                            }
+                            self.send_cmd(FifoCommand::Ack).await?;
+                            continue;
+                        }
+                        Ordering::Greater => bail!(
                             "Runner is using an incompatible protocol version ({} < {protocol_version}). Please update the runner to the latest version.",
                             runner_shared::fifo::CURRENT_PROTOCOL_VERSION
                         ),
