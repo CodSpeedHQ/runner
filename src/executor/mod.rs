@@ -11,9 +11,11 @@ mod tests;
 mod valgrind;
 mod wall_time;
 
+use crate::api_client::CodSpeedAPIClient;
 use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
+use crate::run::uploader::UploadResult;
 use crate::runner_mode::RunnerMode;
 use async_trait::async_trait;
 pub use config::Config;
@@ -99,10 +101,10 @@ pub async fn execute_benchmarks<F>(
     execution_context: &mut ExecutionContext,
     setup_cache_dir: Option<&Path>,
     poll_results: F,
-    api_client: &crate::api_client::CodSpeedAPIClient,
+    api_client: &CodSpeedAPIClient,
 ) -> Result<()>
 where
-    F: AsyncFn(String) -> Result<()>,
+    F: AsyncFn(&UploadResult) -> Result<()>,
 {
     if !execution_context.config.skip_setup {
         start_group!("Preparing the environment");
@@ -165,7 +167,7 @@ where
         end_group!();
 
         if execution_context.is_local() {
-            poll_results(upload_result.run_id).await?;
+            poll_results(&upload_result).await?;
         }
     } else {
         debug!("Skipping upload of performance data");

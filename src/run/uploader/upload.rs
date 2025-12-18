@@ -235,8 +235,11 @@ async fn upload_profile_archive(
     Ok(())
 }
 
+#[derive(Clone)]
 pub struct UploadResult {
     pub run_id: String,
+    pub owner: String,
+    pub repository: String,
 }
 
 pub async fn upload(
@@ -299,6 +302,8 @@ pub async fn upload(
 
     Ok(UploadResult {
         run_id: upload_data.run_id,
+        owner: upload_metadata.run_environment_metadata.owner.clone(),
+        repository: upload_metadata.run_environment_metadata.repository.clone(),
     })
 }
 

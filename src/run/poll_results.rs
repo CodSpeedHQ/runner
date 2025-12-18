@@ -8,22 +8,19 @@ use crate::prelude::*;
 use crate::run::helpers::poll_results::{
     POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
 };
-use crate::run_environment::RunEnvironmentMetadata;
+use crate::run::uploader::UploadResult;
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
     api_client: &CodSpeedAPIClient,
-    run_environment_metadata: &RunEnvironmentMetadata,
-    run_id: String,
+    upload_result: &UploadResult,
     output_json: bool,
 ) -> Result<()> {
     let start = Instant::now();
-    let owner = run_environment_metadata.owner.as_str();
-    let name = run_environment_metadata.repository.as_str();
     let fetch_local_run_report_vars = FetchLocalRunReportVars {
-        owner: owner.to_owned(),
-        name: name.to_owned(),
-        run_id: run_id.to_owned(),
+        owner: upload_result.owner.clone(),
+        name: upload_result.repository.clone(),
+        run_id: upload_result.run_id.clone(),
     };
 
     start_group!("Fetching the results");
@@ -88,7 +85,7 @@ pub async fn poll_results(
         // We could make use of structured logging for this https://docs.rs/log/latest/log/#structured-logging
         log_json!(format!(
             "{{\"event\": \"run_finished\", \"run_id\": \"{}\"}}",
-            run_id
+            upload_result.run_id
         ));
     }
 

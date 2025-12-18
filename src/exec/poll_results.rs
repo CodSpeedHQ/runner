@@ -2,21 +2,24 @@ use console::style;
 use tokio::time::{Instant, sleep};
 
 use crate::api_client::{
-    CodSpeedAPIClient, FetchLocalExecReportResponse, FetchLocalExecReportVars, RunStatus,
+    CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
 };
-use crate::exec::DEFAULT_REPOSITORY_NAME;
 use crate::prelude::*;
 use crate::run::helpers::poll_results::{
     POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
 };
+use crate::run::uploader::UploadResult;
 
 #[allow(clippy::borrowed_box)]
-pub async fn poll_results(api_client: &CodSpeedAPIClient, run_id: String) -> Result<()> {
+pub async fn poll_results(
+    api_client: &CodSpeedAPIClient,
+    upload_result: &UploadResult,
+) -> Result<()> {
     let start = Instant::now();
-    let fetch_local_exec_report_vars = FetchLocalExecReportVars {
-        // TODO: Set this dynamically based on the upload endpoint return value
-        name: DEFAULT_REPOSITORY_NAME.to_owned(),
-        run_id: run_id.clone(),
+    let fetch_local_run_report_vars = FetchLocalRunReportVars {
+        owner: upload_result.owner.clone(),
+        name: upload_result.repository.clone(),
+        run_id: upload_result.run_id.clone(),
     };
 
     start_group!("Fetching the results");
@@ -27,11 +30,11 @@ pub async fn poll_results(api_client: &CodSpeedAPIClient, run_id: String) -> Res
         }
 
         let fetch_result = api_client
-            .fetch_local_exec_report(fetch_local_exec_report_vars.clone())
+            .fetch_local_run_report(fetch_local_run_report_vars.clone())
             .await?;
 
         match fetch_result {
-            FetchLocalExecReportResponse { run, .. }
+            FetchLocalRunReportResponse { run, .. }
                 if run.status == RunStatus::Pending || run.status == RunStatus::Processing =>
             {
                 sleep(POLLING_INTERVAL).await;

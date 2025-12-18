@@ -3,6 +3,7 @@ use crate::binary_installer::ensure_binary_installed;
 use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::prelude::*;
+use crate::run::uploader::UploadResult;
 use clap::Args;
 use std::path::Path;
 
@@ -55,7 +56,9 @@ pub async fn run(
     )
     .await?;
 
-    let poll_results_fn = |run_id: String| poll_results::poll_results(api_client, run_id);
+    let poll_results_fn = async |upload_result: &UploadResult| {
+        poll_results::poll_results(api_client, upload_result).await
+    };
 
     executor::execute_benchmarks(
         executor.as_ref(),

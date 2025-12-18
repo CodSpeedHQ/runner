@@ -86,12 +86,6 @@ pub struct FetchLocalRunReportVars {
     pub run_id: String,
 }
 
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct FetchLocalExecReportVars {
-    pub name: String,
-    pub run_id: String,
-}
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub enum ReportConclusion {
     AcknowledgedFailure,
@@ -181,10 +175,6 @@ pub struct FetchLocalRunReportResponse {
     pub run: FetchLocalRunReportRun,
 }
 
-pub struct FetchLocalExecReportResponse {
-    pub run: FetchLocalRunReportRun,
-}
-
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GetOrCreateProjectRepositoryVars {
@@ -249,28 +239,6 @@ impl CodSpeedAPIClient {
             Ok(response) => Ok(FetchLocalRunReportResponse {
                 allowed_regression: response.repository.settings.allowed_regression,
                 run: response.repository.run,
-            }),
-            Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
-                bail!("Your session has expired, please login again using `codspeed auth login`")
-            }
-            Err(err) => bail!("Failed to fetch local run report: {err}"),
-        }
-    }
-
-    pub async fn fetch_local_exec_report(
-        &self,
-        vars: FetchLocalExecReportVars,
-    ) -> Result<FetchLocalExecReportResponse> {
-        let response = self
-            .gql_client
-            .query_with_vars_unwrap::<FetchLocalExecReportData, FetchLocalExecReportVars>(
-                include_str!("queries/FetchLocalExecReport.gql"),
-                vars.clone(),
-            )
-            .await;
-        match response {
-            Ok(response) => Ok(FetchLocalExecReportResponse {
-                run: response.project.run,
             }),
             Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
                 bail!("Your session has expired, please login again using `codspeed auth login`")

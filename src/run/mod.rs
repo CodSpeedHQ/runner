@@ -4,6 +4,7 @@ use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::executor::Config;
 use crate::prelude::*;
+use crate::run::uploader::UploadResult;
 use crate::run_environment::interfaces::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
 use clap::{Args, ValueEnum};
@@ -201,9 +202,8 @@ pub async fn run(
         executor::ExecutorCommand::Run,
     );
 
-    let run_environment_metadata = execution_context.provider.get_run_environment_metadata()?;
-    let poll_results_fn = |run_id: String| {
-        poll_results::poll_results(api_client, &run_environment_metadata, run_id, output_json)
+    let poll_results_fn = async |upload_result: &UploadResult| {
+        poll_results::poll_results(api_client, upload_result, output_json).await
     };
     executor::execute_benchmarks(
         executor.as_ref(),
