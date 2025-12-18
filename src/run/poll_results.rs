@@ -6,7 +6,7 @@ use crate::api_client::{
 };
 use crate::prelude::*;
 use crate::run::helpers::poll_results::{
-    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table, retry_on_timeout,
+    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
 };
 use crate::run_environment::RunEnvironmentMetadata;
 
@@ -33,12 +33,9 @@ pub async fn poll_results(
             bail!("Polling results timed out");
         }
 
-        let fetch_result = retry_on_timeout(|| async {
-            api_client
-                .fetch_local_run_report(fetch_local_run_report_vars.clone())
-                .await
-        })
-        .await?;
+        let fetch_result = api_client
+            .fetch_local_run_report(fetch_local_run_report_vars.clone())
+            .await?;
 
         match fetch_result {
             FetchLocalRunReportResponse { run, .. }

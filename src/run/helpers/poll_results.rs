@@ -1,17 +1,10 @@
-use std::future::Future;
+use crate::run::helpers;
 use std::time::Duration;
-
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
-use tokio::time::sleep;
-
-use crate::prelude::*;
-use crate::run::helpers;
 
 pub const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
 pub const POLLING_INTERVAL: Duration = Duration::from_secs(1);
-pub const MAX_FETCH_RETRIES: u32 = 3;
-pub const FETCH_RETRY_DELAY: Duration = Duration::from_secs(5);
 
 #[derive(Tabled)]
 struct BenchmarkRow {
@@ -33,36 +26,6 @@ pub fn build_benchmark_table(
         .collect();
 
     Table::new(&table_rows).with(Style::modern()).to_string()
-}
-
-/// Retry logic for API calls that may timeout due to cold start in dev environments
-pub async fn retry_on_timeout<F, Fut, T>(fetch_fn: F) -> Result<T>
-where
-    F: Fn() -> Fut,
-    Fut: Future<Output = Result<T>>,
-{
-    let mut fetch_attempt = 0;
-    loop {
-        fetch_attempt += 1;
-        match fetch_fn().await {
-            Ok(result) => return Ok(result),
-            Err(err) => {
-                let error_message = err.to_string();
-                let is_timeout =
-                    error_message.contains("timed out") || error_message.contains("timeout");
-
-                if is_timeout && fetch_attempt < MAX_FETCH_RETRIES {
-                    debug!(
-                        "Fetch request timed out (attempt {fetch_attempt}/{MAX_FETCH_RETRIES}), retrying in {FETCH_RETRY_DELAY:?}..."
-                    );
-                    sleep(FETCH_RETRY_DELAY).await;
-                    continue;
-                }
-
-                return Err(err);
-            }
-        }
-    }
 }
 
 #[cfg(test)]

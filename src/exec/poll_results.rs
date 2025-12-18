@@ -7,7 +7,7 @@ use crate::api_client::{
 use crate::exec::DEFAULT_REPOSITORY_NAME;
 use crate::prelude::*;
 use crate::run::helpers::poll_results::{
-    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table, retry_on_timeout,
+    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
 };
 
 #[allow(clippy::borrowed_box)]
@@ -26,12 +26,9 @@ pub async fn poll_results(api_client: &CodSpeedAPIClient, run_id: String) -> Res
             bail!("Polling results timed out");
         }
 
-        let fetch_result = retry_on_timeout(|| async {
-            api_client
-                .fetch_local_exec_report(fetch_local_exec_report_vars.clone())
-                .await
-        })
-        .await?;
+        let fetch_result = api_client
+            .fetch_local_exec_report(fetch_local_exec_report_vars.clone())
+            .await?;
 
         match fetch_result {
             FetchLocalExecReportResponse { run, .. }

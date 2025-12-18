@@ -44,7 +44,8 @@ fn build_gql_api_client(
 
     GQLClient::new_with_config(ClientConfig {
         endpoint: api_url,
-        timeout: Some(10),
+        // Slightly high to account for cold starts
+        timeout: Some(20),
         headers: Some(headers),
         proxy: None,
     })
