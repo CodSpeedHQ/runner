@@ -62,6 +62,7 @@ pub async fn run(
         &mut execution_context,
         setup_cache_dir,
         poll_results_fn,
+        api_client,
     )
     .await?;
 

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use git2::Repository;
 use simplelog::SharedLogger;
 
+use crate::api_client::CodSpeedAPIClient;
 use crate::executor::{Config, ExecutorName};
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
@@ -81,14 +82,15 @@ pub trait RunEnvironmentProvider {
     /// let provider = MyCIProvider::new();
     /// let config = Config::new();
     /// let instruments = Instruments::new();
-    /// let metadata = provider.get_upload_metadata(&config, "abc123").unwrap();
+    /// let metadata = provider.get_upload_metadata(&config, "abc123").await.unwrap();
     /// ```
-    fn get_upload_metadata(
+    async fn get_upload_metadata(
         &self,
         config: &Config,
         system_info: &SystemInfo,
         profile_archive: &ProfileArchive,
         executor_name: ExecutorName,
+        _api_client: &CodSpeedAPIClient,
     ) -> Result<UploadMetadata> {
         let run_environment_metadata = self.get_run_environment_metadata()?;
 

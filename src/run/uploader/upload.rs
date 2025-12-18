@@ -1,3 +1,4 @@
+use crate::api_client::CodSpeedAPIClient;
 use crate::executor::Config;
 use crate::run::{
     executor::{ExecutionContext, ExecutorName},
@@ -241,6 +242,7 @@ pub struct UploadResult {
 pub async fn upload(
     execution_context: &mut ExecutionContext,
     executor_name: ExecutorName,
+    api_client: &CodSpeedAPIClient,
 ) -> Result<UploadResult> {
     let profile_archive = create_profile_archive(execution_context, executor_name.clone()).await?;
 
@@ -258,12 +260,16 @@ pub async fn upload(
             .await?;
     }
 
-    let upload_metadata = execution_context.provider.get_upload_metadata(
-        &execution_context.config,
-        &execution_context.system_info,
-        &profile_archive,
-        executor_name,
-    )?;
+    let upload_metadata = execution_context
+        .provider
+        .get_upload_metadata(
+            &execution_context.config,
+            &execution_context.system_info,
+            &profile_archive,
+            executor_name,
+            api_client,
+        )
+        .await?;
     debug!("Upload metadata: {upload_metadata:#?}");
     info!(
         "Linked repository: {}\n",
@@ -349,9 +355,10 @@ mod tests {
             ],
             async {
                 let codspeed_config = CodSpeedConfig::default();
+                let api_client = CodSpeedAPIClient::create_test_client();
                 let mut execution_context = ExecutionContext::try_from((config, &codspeed_config))
                     .expect("Failed to create ExecutionContext for test");
-                upload(&mut execution_context, ExecutorName::Valgrind)
+                upload(&mut execution_context, ExecutorName::Valgrind, &api_client)
                     .await
                     .unwrap();
             },

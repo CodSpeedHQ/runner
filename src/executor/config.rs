@@ -1,4 +1,4 @@
-use crate::exec::{DEFAULT_REPOSITORY_NAME, EXEC_HARNESS_COMMAND};
+use crate::exec::EXEC_HARNESS_COMMAND;
 use crate::instruments::Instruments;
 use crate::prelude::*;
 use crate::run::{RunArgs, UnwindingMode};
@@ -132,35 +132,22 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
             .shared
             .upload_url
             .unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
-        let mut upload_url = Url::parse(&raw_upload_url)
+        let upload_url = Url::parse(&raw_upload_url)
             .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
-
-        // For exec command, append /project to the upload URL path
-        upload_url
-            .path_segments_mut()
-            .map_err(|_| anyhow!("Cannot append to upload URL"))?
-            .push("project");
 
         let wrapped_command = std::iter::once(EXEC_HARNESS_COMMAND.to_owned())
             .chain(args.command)
             .collect::<Vec<String>>()
             .join(" ");
 
-        let repository_override = args
-            .shared
-            .repository
-            .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
-            .transpose()?
-            .unwrap_or_else(|| RepositoryOverride {
-                owner: "projects".to_string(),
-                repository: DEFAULT_REPOSITORY_NAME.to_string(),
-                repository_provider: RepositoryProvider::GitHub,
-            });
-
         Ok(Self {
             upload_url,
             token: args.shared.token,
-            repository_override: Some(repository_override),
+            repository_override: args
+                .shared
+                .repository
+                .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
+                .transpose()?,
             working_directory: args.shared.working_directory,
             mode: args.shared.mode,
             instruments: Instruments { mongodb: None }, // exec doesn't support MongoDB
@@ -304,39 +291,6 @@ mod tests {
     }
 
     #[test]
-    fn test_try_from_exec_args_appends_project_to_url() {
-        let exec_args = crate::exec::ExecArgs {
-            shared: crate::run::ExecAndRunSharedArgs {
-                upload_url: Some("https://api.codspeed.io/upload".into()),
-                token: Some("token".into()),
-                repository: None,
-                provider: None,
-                working_directory: None,
-                mode: RunnerMode::Simulation,
-                profile_folder: None,
-                skip_upload: false,
-                skip_run: false,
-                skip_setup: false,
-                allow_empty: false,
-                perf_run_args: PerfRunArgs {
-                    enable_perf: false,
-                    perf_unwinding_mode: None,
-                },
-            },
-            name: None,
-            command: vec!["my-binary".into()],
-        };
-
-        let config = Config::try_from(exec_args).unwrap();
-
-        assert_eq!(
-            config.upload_url,
-            Url::parse("https://api.codspeed.io/upload/project").unwrap()
-        );
-        assert_eq!(config.command, "exec-harness my-binary");
-    }
-
-    #[test]
     fn test_try_from_exec_args_default_url() {
         let exec_args = crate::exec::ExecArgs {
             shared: crate::run::ExecAndRunSharedArgs {
@@ -364,7 +318,7 @@ mod tests {
 
         assert_eq!(
             config.upload_url,
-            Url::parse("https://api.codspeed.io/upload/project").unwrap()
+            Url::parse("https://api.codspeed.io/upload").unwrap()
         );
         assert_eq!(config.command, "exec-harness my-binary arg1 arg2");
     }

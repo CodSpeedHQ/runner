@@ -102,3 +102,17 @@ pub async fn run() -> Result<()> {
     }
     Ok(())
 }
+
+impl Cli {
+    /// Create a test CLI instance with a custom API URL for use in tests
+    #[cfg(test)]
+    pub fn test_with_url(api_url: String) -> Self {
+        Self {
+            api_url,
+            oauth_token: None,
+            config_name: None,
+            setup_cache_dir: None,
+            command: Commands::Setup,
+        }
+    }
+}

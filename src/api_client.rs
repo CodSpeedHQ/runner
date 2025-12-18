@@ -302,3 +302,18 @@ impl CodSpeedAPIClient {
         }
     }
 }
+
+impl CodSpeedAPIClient {
+    /// Create a test API client for use in tests
+    #[cfg(test)]
+    pub fn create_test_client() -> Self {
+        Self::create_test_client_with_url("http://localhost:8000/graphql".to_owned())
+    }
+
+    /// Create a test API client with a custom URL for use in tests
+    #[cfg(test)]
+    pub fn create_test_client_with_url(api_url: String) -> Self {
+        let codspeed_config = CodSpeedConfig::default();
+        Self::try_from((&Cli::test_with_url(api_url), &codspeed_config)).unwrap()
+    }
+}

@@ -99,6 +99,7 @@ pub async fn execute_benchmarks<F>(
     execution_context: &mut ExecutionContext,
     setup_cache_dir: Option<&Path>,
     poll_results: F,
+    api_client: &crate::api_client::CodSpeedAPIClient,
 ) -> Result<()>
 where
     F: AsyncFn(String) -> Result<()>,
@@ -160,7 +161,7 @@ where
 
         start_group!("Uploading performance data");
         let upload_result =
-            crate::run::uploader::upload(execution_context, executor.name()).await?;
+            crate::run::uploader::upload(execution_context, executor.name(), api_client).await?;
         end_group!();
 
         if execution_context.is_local() {
