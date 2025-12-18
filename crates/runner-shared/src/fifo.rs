@@ -3,7 +3,7 @@
 pub const RUNNER_CTL_FIFO: &str = "/tmp/runner.ctl.fifo";
 pub const RUNNER_ACK_FIFO: &str = "/tmp/runner.ack.fifo";
 
-pub const CURRENT_PROTOCOL_VERSION: u64 = 1;
+pub const CURRENT_PROTOCOL_VERSION: u64 = 2;
 
 /// The different markers that can be set in the perf.data.
 ///
