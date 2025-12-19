@@ -111,3 +111,5 @@ filter_commits = false
 topo_order = false
 # sort the commits inside sections by oldest/newest order
 sort_commits = "newest"
+# ignore tags containing "exec-harness", "memtrack", "alpha" or "beta"
+ignore_tags = "exec-harness|memtrack|alpha|beta"
