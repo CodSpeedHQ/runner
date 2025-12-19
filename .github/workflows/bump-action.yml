@@ -27,5 +27,9 @@ jobs:
             exit 0
           fi
           NEW_VERSION=$(echo ${PLAN} | jq '.releases[] | select(.app_name == "codspeed-runner") | .app_version')
+          if [ -z "${NEW_VERSION}" ] || [ "${NEW_VERSION}" == "null" ]; then
+            echo "No codspeed-runner release found in plan, skipping action version bump"
+            exit 0
+          fi
           # Trigger the bump-runner-version workflow in the CodSpeedHQ/actions repository
           gh workflow run bump-runner-version.yml -R CodSpeedHQ/action -f version=${NEW_VERSION}
