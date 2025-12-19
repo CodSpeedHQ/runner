@@ -5,6 +5,64 @@
 
 
 
+## [4.5.0] - 2025-12-19
+
+### <!-- 0 -->🚀 Features
+- Remove projects query from the exec polling by @GuillaumeLagrange in [#173](https://github.com/CodSpeedHQ/runner/pull/173)
+- Fetch project from API when running outside of git repo by @GuillaumeLagrange
+- Add get or create project repository query by @GuillaumeLagrange
+- Automatically install exec-harness for exec subcommand by @GuillaumeLagrange
+- Auto install codspeed-memtrack during executor setup by @GuillaumeLagrange
+- Serialize events serially to allow streamed decoding by @not-matthias in [#172](https://github.com/CodSpeedHQ/runner/pull/172)
+- Parse perf file for memmap events instead of relying on /proc/pid/maps by @GuillaumeLagrange
+- Use the projects upload enpdoint in exec command by @GuillaumeLagrange
+- Add exec subcommand and refactor run subcommand by @GuillaumeLagrange
+- Add exec-harness binary by @GuillaumeLagrange
+- Add memory executor by @not-matthias
+- Add memtrack crate by @not-matthias
+- Add artifact types by @not-matthias
+- Add shared fifo by @not-matthias
+- Add new fifo commands by @not-matthias
+- Support simulation for free-threaded python by @adriencaccia in [#167](https://github.com/CodSpeedHQ/runner/pull/167)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Filter out empty named symbols when building perf-map by @GuillaumeLagrange in [#176](https://github.com/CodSpeedHQ/runner/pull/176)
+- Do not break support for no reason when changing integration hooks protocol version by @GuillaumeLagrange in [#175](https://github.com/CodSpeedHQ/runner/pull/175)
+- Remove dirty retry on timeout and simply increase timeout for GQL client by @GuillaumeLagrange
+- Stop hanging indefinitely if process fails to start in memory executor by @GuillaumeLagrange in [#171](https://github.com/CodSpeedHQ/runner/pull/171)
+- Remove the password prompt from the run_with_sudo dialog by @GuillaumeLagrange
+- Collect events in thread to avoid mutex overhead by @not-matthias
+- Convert events in thread to avoid blocking at the end by @not-matthias
+- Compress only when size exceeds threshold by @not-matthias
+- Forward environment in memory executor by @not-matthias
+- Fix plan test in CI by @GuillaumeLagrange in [#165](https://github.com/CodSpeedHQ/runner/pull/165)
+- Prevent nextest from running valgrind and memcheck concurrently by @GuillaumeLagrange
+- Stop ignoring samples by @GuillaumeLagrange
+- Use correct name for unwind_data trait declaration by @GuillaumeLagrange
+- Stop filtering out zero sized symbol by @GuillaumeLagrange
+- Request OIDC token after creating profile archive by @fargito in [#170](https://github.com/CodSpeedHQ/runner/pull/170)
+- Remove snapshots that were not part of lfs by @not-matthias in [#166](https://github.com/CodSpeedHQ/runner/pull/166)
+- Always print memory mapping logs by @not-matthias
+
+### <!-- 2 -->🏗️ Refactor
+- Create a dedicated execution_context that holds runtime information by @GuillaumeLagrange
+- Move executor and instruments modules out of `run` module by @GuillaumeLagrange
+
+### <!-- 7 -->⚙️ Internals
+- Ignore some tags in the changelog
+- Bump protocol version by @not-matthias in [#174](https://github.com/CodSpeedHQ/runner/pull/174)
+- Add CONTRIBUTING.md by @GuillaumeLagrange
+- Add cargo-dist arguments for release by @GuillaumeLagrange
+- Reset exec-harness and memtrack crate versions to 1.0.0 ahead of first release by @GuillaumeLagrange
+- Switch to pr run mode plan only for pr by @GuillaumeLagrange
+- Add test to ensure path is properly forwarded by @not-matthias in [#169](https://github.com/CodSpeedHQ/runner/pull/169)
+- Make the exec command work outside of git repos by @GuillaumeLagrange
+- Do not publish memtrack to crates.io by @adriencaccia
+- Dont run valgrind and memory tests at the same time by @not-matthias in [#164](https://github.com/CodSpeedHQ/runner/pull/164)
+- Add test-log to see output on failures by @not-matthias
+- Add workspace dependencies by @not-matthias
+
+
 ## [4.4.1] - 2025-11-21
 
 ### <!-- 0 -->🚀 Features
@@ -610,6 +668,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.5.0]: https://github.com/CodSpeedHQ/runner/compare/v4.4.1..v4.5.0
 [4.4.1]: https://github.com/CodSpeedHQ/runner/compare/v4.4.0..v4.4.1
 [4.4.0]: https://github.com/CodSpeedHQ/runner/compare/v4.3.4..v4.4.0
 [4.3.4]: https://github.com/CodSpeedHQ/runner/compare/v4.3.3..v4.3.4
