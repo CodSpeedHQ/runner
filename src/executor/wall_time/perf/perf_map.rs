@@ -79,6 +79,27 @@ impl ModuleSymbols {
             }));
         }
 
+        // Filter out
+        //  - ARM ELF "mapping symbols" (https://github.com/torvalds/linux/blob/9448598b22c50c8a5bb77a9103e2d49f134c9578/tools/perf/util/symbol-elf.c#L1591C1-L1598C4)
+        //  - symbols that have en empty name
+        symbols.retain(|symbol| {
+            if symbol.name.is_empty() {
+                trace!("Filtering out symbol with empty name: {symbol:?}");
+                return false;
+            }
+
+            // Reject ARM ELF "mapping symbols" as does perf
+            let name = symbol.name.as_str();
+            if let [b'$', b'a' | b'd' | b't' | b'x', rest @ ..] = name.as_bytes() {
+                if rest.is_empty() || rest.starts_with(b".") {
+                    trace!("Filtering out ARM ELF mapping symbol: {symbol:?}");
+                    return false;
+                }
+            }
+
+            true
+        });
+
         // Update zero-sized symbols to cover the range until the next symbol
         // This is what perf does
         // https://github.com/torvalds/linux/blob/e538109ac71d801d26776af5f3c54f548296c29c/tools/perf/util/symbol.c#L256
@@ -100,16 +121,8 @@ impl ModuleSymbols {
             }
         }
 
-        // Filter out any symbols that still have zero size or an empty name
-        symbols.retain(|symbol| {
-            let should_keep = symbol.size > 0 && !symbol.name.is_empty();
-
-            if !should_keep {
-                trace!("Filtering out symbol: {symbol:?}");
-            }
-
-            should_keep
-        });
+        // Filter out any symbols are still zero-sized
+        symbols.retain(|symbol| symbol.size > 0);
 
         if symbols.is_empty() {
             return Err(anyhow::anyhow!("No symbols found"));
