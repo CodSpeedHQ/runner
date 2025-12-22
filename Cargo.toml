@@ -110,29 +110,3 @@ strip = true
 
 [package.metadata.dist]
 targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
-
-# Config for 'dist' for all crates in the workspace
-[workspace.metadata.dist]
-# Whether to consider the binaries in a package for distribution (defaults true)
-dist = true
-# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
-cargo-dist-version = "0.28.4"
-# CI backends to support
-ci = "github"
-# The installers to generate for each app
-installers = ["shell"]
-# The archive format to use for non-windows builds (defaults .tar.xz)
-unix-archive = ".tar.gz"
-# Which actions to run on pull requests
-pr-run-mode = "plan"
-# Post-announce jobs to run in CI
-post-announce-jobs = ["./bump-action"]
-# Path that installers should place binaries in
-install-path = "CARGO_HOME"
-# Whether to install an updater program
-install-updater = false
-# Build only the required packages, and individually
-precise-builds = true
-
-[workspace.metadata.dist.github-custom-runners]
-aarch64-unknown-linux-musl = "buildjet-2vcpu-ubuntu-2204-arm"
