@@ -5,6 +5,12 @@
 
 
 
+## [4.5.1] - 2025-12-22
+
+### <!-- 1 -->🐛 Bug Fixes
+- Filter out arm debugging symbols by @GuillaumeLagrange in [#179](https://github.com/CodSpeedHQ/runner/pull/179)
+
+
 ## [4.5.0] - 2025-12-19
 
 ### <!-- 0 -->🚀 Features
@@ -49,7 +55,7 @@
 - Move executor and instruments modules out of `run` module by @GuillaumeLagrange
 
 ### <!-- 7 -->⚙️ Internals
-- Ignore some tags in the changelog
+- Ignore some tags in the changelog by @adriencaccia
 - Bump protocol version by @not-matthias in [#174](https://github.com/CodSpeedHQ/runner/pull/174)
 - Add CONTRIBUTING.md by @GuillaumeLagrange
 - Add cargo-dist arguments for release by @GuillaumeLagrange
@@ -668,6 +674,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.5.1]: https://github.com/CodSpeedHQ/runner/compare/v4.5.0..v4.5.1
 [4.5.0]: https://github.com/CodSpeedHQ/runner/compare/v4.4.1..v4.5.0
 [4.4.1]: https://github.com/CodSpeedHQ/runner/compare/v4.4.0..v4.4.1
 [4.4.0]: https://github.com/CodSpeedHQ/runner/compare/v4.3.4..v4.4.0
