@@ -26,6 +26,7 @@
 - 💬 **PR comments & status checks** showing performance impact directly in your workflow.
 - 🛡️ **Merge protection** to block PRs that degrade performance beyond your threshold.
 - 🐍 **Multi-language support** for Python, Rust, Node.js, Go, and C/C++.
+- 🏠 **Run locally or in CI** - works on your machine and integrates with GitHub Actions, GitLab CI, and more.
 - 🔌 **Plug your existing benchmarks** in less than 5 minutes - works with pytest, vitest, criterion, and more.
 
 ## Installation
