@@ -146,12 +146,20 @@ async fn retrieve_upload_data(
                     .map(|body| body.error)
                     .unwrap_or(text);
                 if status == StatusCode::UNAUTHORIZED {
-                    let additional_message =
-                        if upload_metadata.run_environment == RunEnvironment::Local {
-                            "Run `codspeed auth login` to authenticate the CLI"
-                        } else {
+                    let additional_message = match upload_metadata.run_environment {
+                        RunEnvironment::GithubActions => {
+                            "Check that the workflow is correctly authenticated. View more at https://codspeed.io/docs/integrations/ci/github-actions/configuration#authentication"
+                        }
+                        RunEnvironment::GitlabCi => {
+                            "Check that the CI job is correctly authenticated. View more at https://codspeed.io/docs/integrations/ci/gitlab-ci/configuration#authentication"
+                        }
+                        RunEnvironment::Buildkite => {
                             "Check that CODSPEED_TOKEN is set and has the correct value"
-                        };
+                        }
+                        RunEnvironment::Local => {
+                            "Run `codspeed auth login` to authenticate the CLI"
+                        }
+                    };
                     error_message.push_str(&format!("\n\n{additional_message}"));
                 }
 
