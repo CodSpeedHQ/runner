@@ -375,7 +375,7 @@ dependencies = [
 
 [[package]]
 name = "codspeed-runner"
-version = "4.5.1"
+version = "4.5.2"
 dependencies = [
  "addr2line",
  "anyhow",

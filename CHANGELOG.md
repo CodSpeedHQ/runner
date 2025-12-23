@@ -5,6 +5,16 @@
 
 
 
+## [4.5.2] - 2025-12-23
+
+### <!-- 0 -->🚀 Features
+- Update release flow to make sure only runner releases are marked as latest (#180) by @GuillaumeLagrange in [#180](https://github.com/CodSpeedHQ/runner/pull/180)
+- Improve `UNAUTHENTICATED` error message by @fargito in [#181](https://github.com/CodSpeedHQ/runner/pull/181)
+
+### <!-- 7 -->⚙️ Internals
+- Bump cargo dist to 0.30.3 by @art049
+
+
 ## [4.5.1] - 2025-12-22
 
 ### <!-- 1 -->🐛 Bug Fixes
@@ -674,6 +684,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.5.2]: https://github.com/CodSpeedHQ/runner/compare/v4.5.1..v4.5.2
 [4.5.1]: https://github.com/CodSpeedHQ/runner/compare/v4.5.0..v4.5.1
 [4.5.0]: https://github.com/CodSpeedHQ/runner/compare/v4.4.1..v4.5.0
 [4.4.1]: https://github.com/CodSpeedHQ/runner/compare/v4.4.0..v4.4.1
