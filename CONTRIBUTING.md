@@ -80,6 +80,19 @@ cargo release --execute patch
 cargo release --execute beta
 ```
 
+### Release Flow Details
+
+When you run `cargo release --execute <version>`, the following happens:
+
+1. **cargo-release** bumps the version, creates a commit and a git tag, then pushes them to GitHub
+2. **GitHub Actions release workflow** triggers on the tag:
+   - Custom `cargo-dist` job creates a draft GitHub release
+   - `cargo-dist` builds artifacts for all platforms, uploads them to the draft release, and then publishes it
+3. Only if it is a runner release:
+   - Custom post announce job marks it as "latest" and triggers action repo workflow
+
+This ensures only stable runner releases are marked as "latest" in GitHub.
+
 ## Known issue
 
-If one of the crates is currenlty in beta version, for example the runner is in beta version 4.4.2-beta.1, any alpha release will fail for the any crate, saying that only minor, major or patch releases is supported.
+- If one of the crates is currenlty in beta version, for example the runner is in beta version 4.4.2-beta.1, any alpha release will fail for the any crate, saying that only minor, major or patch releases is supported.
