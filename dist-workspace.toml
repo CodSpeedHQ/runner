@@ -16,13 +16,17 @@ unix-archive = ".tar.gz"
 # Which actions to run on pull requests
 pr-run-mode = "plan"
 # Post-announce jobs to run in CI
-post-announce-jobs = ["./bump-action"]
+post-announce-jobs = ["./post-announce"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
 # Build only the required packages, and individually
 precise-builds = true
+# Don't create GitHub releases, we handle that manually to manually control which release is marked as latest
+create-release = false
+# Use the stage just after plan because we need its output to create the draft release
+local-artifacts-jobs = ["./create-draft-release"]
 
 [dist.github-custom-runners]
 aarch64-unknown-linux-musl = "buildjet-2vcpu-ubuntu-2204-arm"
