@@ -139,13 +139,13 @@ impl PerfRunner {
             perf_wrapper_builder.arg("--quiet");
         }
         // Add compression if available
-        if let Some(compression_flags) = get_compression_flags(&working_perf_executable)? {
-            perf_wrapper_builder.arg(compression_flags);
-            // Add events flag if all required events are available
-            if let Some(events_flag) = get_event_flags(&working_perf_executable)? {
-                perf_wrapper_builder.arg(events_flag);
-            }
+        // if let Some(compression_flags) = get_compression_flags(&working_perf_executable)? {
+        // perf_wrapper_builder.arg(compression_flags);
+        // Add events flag if all required events are available
+        if let Some(events_flag) = get_event_flags(&working_perf_executable)? {
+            perf_wrapper_builder.arg(events_flag);
         }
+        // }
 
         perf_wrapper_builder.args([
             "--timestamp",
