@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use std::path::Path;
 
 use std::{ffi::OsString, process::Command};
 
@@ -107,7 +108,7 @@ pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<Stri
         .collect();
 
     if !missing_events.is_empty() {
-        debug!(
+        warn!(
             "Not all required perf events available. Missing: [{}], using default events",
             missing_events.join(", ")
         );
@@ -119,4 +120,30 @@ pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<Stri
         perf_events.join(", ")
     );
     Ok(Some(format!("-e {{{}}}", perf_events.join(","))))
+}
+
+pub fn get_compression_flags<S: AsRef<Path>>(perf_executable: S) -> Result<Option<String>> {
+    let output = Command::new(perf_executable.as_ref())
+        .arg("version")
+        .arg("--build-options")
+        .output()
+        .context("Failed to run perf version --build-options")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    debug!("Perf version build options:\n{stdout}");
+
+    // Look for zstd compression support in the build options
+    // Expected format: "                  zstd: [ on  ]  # HAVE_ZSTD_SUPPORT"
+    let has_zstd = stdout
+        .lines()
+        .any(|line| line.to_lowercase().contains("zstd: [ on"));
+
+    if has_zstd {
+        debug!("perf supports zstd compression");
+        // 3 is a widely adopted default level (AWS Athena, Python, ...)
+        Ok(Some("--compression-level=3".to_string()))
+    } else {
+        warn!("perf does not support zstd compression");
+        Ok(None)
+    }
 }

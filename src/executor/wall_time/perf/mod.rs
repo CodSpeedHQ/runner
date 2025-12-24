@@ -18,6 +18,7 @@ use crate::run::UnwindingMode;
 use anyhow::Context;
 use fifo::PerfFifo;
 use libc::pid_t;
+use perf_executable::get_compression_flags;
 use perf_executable::get_event_flags;
 use perf_map::ProcessSymbols;
 use runner_shared::artifacts::ArtifactExt;
@@ -137,10 +138,15 @@ impl PerfRunner {
         if !is_codspeed_debug_enabled() {
             perf_wrapper_builder.arg("--quiet");
         }
-        // Add events flag if all required events are available
-        if let Some(events_flag) = get_event_flags(&working_perf_executable)? {
-            perf_wrapper_builder.arg(events_flag);
+        // Add compression if available
+        if let Some(compression_flags) = get_compression_flags(&working_perf_executable)? {
+            perf_wrapper_builder.arg(compression_flags);
+            // Add events flag if all required events are available
+            if let Some(events_flag) = get_event_flags(&working_perf_executable)? {
+                perf_wrapper_builder.arg(events_flag);
+            }
         }
+
         perf_wrapper_builder.args([
             "--timestamp",
             // Required for matching the markers and URIs to the samples.
@@ -149,7 +155,6 @@ impl PerfRunner {
             "--freq=997", // Use a prime number to avoid synchronization with periodic tasks
             "--delay=-1",
             "-g",
-            "--compression-level=3", // 3 is a widely adopted default level (AWS Athena, Python, ...)
             "--user-callchains",
             &format!("--call-graph={cg_mode}"),
             &format!(
