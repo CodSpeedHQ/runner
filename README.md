@@ -12,7 +12,7 @@
 <br/>
 
 <p align="center">
-  <a href="https://github.com/CodSpeedHQ/runner/releases/latest"><img src="https://img.shields.io/github/v/release/CodSpeedHQ/runner?label=version" alt="Latest Release"></a>
+  <a href="https://github.com/CodSpeedHQ/runner/releases/latest"><img src="https://img.shields.io/github/v/release/CodSpeedHQ/runner" alt="Latest Release"></a>
   <a href="https://github.com/CodSpeedHQ/runner/releases"><img src="https://img.shields.io/github/downloads/CodSpeedHQ/runner/total?logo=github" alt="Downloads"></a>
   <a href="https://github.com/CodSpeedHQ/runner/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/CodSpeedHQ/runner/ci.yml?branch=main&logo=github&label=CI" alt="CI Status"></a>
   <a href="https://github.com/CodSpeedHQ/runner/blob/main/LICENSE-APACHE"><img src="https://img.shields.io/github/license/CodSpeedHQ/runner" alt="License"></a>
