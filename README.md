@@ -6,7 +6,7 @@
   </picture>
 </p>
 
-<h3 align="center">The toolkit to optimize your code and avoid performance regressions.</h3>
+<h3 align="center">The toolkit to optimize code and avoid performance regressions.</h3>
 <p align="center"><a href="https://codspeed.io/login?flow=get-started&utm_source=github-readme">Get Started</a> · <a href="https://codspeed.io/docs?utm_source=github-readme">Documentation</a></p>
 
 <br/>
