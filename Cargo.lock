@@ -696,6 +696,8 @@ dependencies = [
  "anyhow",
  "clap",
  "codspeed",
+ "env_logger",
+ "log",
  "serde",
  "serde_json",
 ]
