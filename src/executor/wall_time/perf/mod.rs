@@ -19,6 +19,7 @@ use anyhow::Context;
 use fifo::PerfFifo;
 use libc::pid_t;
 use perf_map::ProcessSymbols;
+use rayon::prelude::*;
 use runner_shared::artifacts::ArtifactExt;
 use runner_shared::artifacts::ExecutionTimestamps;
 use runner_shared::debug_info::ModuleDebugInfo;
@@ -362,24 +363,22 @@ impl BenchmarkData {
                 (&self.symbols_by_pid, &self.unwind_data_by_pid)
             };
 
-        for proc_sym in symbols_by_pid.values() {
-            proc_sym.save_to(&path).unwrap();
-        }
+        let path_ref = path.as_ref();
+        symbols_by_pid.par_iter().for_each(|(_, proc_sym)| {
+            proc_sym.save_to(path_ref).unwrap();
+        });
 
         // Collect debug info for each process by looking up file/line for symbols
-        let mut debug_info_by_pid = HashMap::<i32, Vec<ModuleDebugInfo>>::new();
-        for (pid, proc_sym) in symbols_by_pid {
-            debug_info_by_pid
-                .entry(*pid)
-                .or_default()
-                .extend(ProcessDebugInfo::new(proc_sym).modules());
-        }
+        let debug_info_by_pid: HashMap<i32, Vec<ModuleDebugInfo>> = symbols_by_pid
+            .par_iter()
+            .map(|(pid, proc_sym)| (*pid, ProcessDebugInfo::new(proc_sym).modules()))
+            .collect();
 
-        for (pid, modules) in unwind_data_by_pid {
-            for module in modules {
-                module.save_to(&path, *pid).unwrap();
-            }
-        }
+        unwind_data_by_pid.par_iter().for_each(|(pid, modules)| {
+            modules.iter().for_each(|module| {
+                module.save_to(path_ref, *pid).unwrap();
+            });
+        });
 
         #[allow(deprecated)]
         let metadata = PerfMetadata {
