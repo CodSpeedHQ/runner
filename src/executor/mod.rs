@@ -139,6 +139,8 @@ where
         if let Some(mut mongo_tracer) = mongo_tracer {
             mongo_tracer.stop().await?;
         }
+        end_group!();
+        start_opened_group!("Tearing down environment");
         executor.teardown(execution_context).await?;
 
         execution_context

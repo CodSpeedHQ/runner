@@ -450,6 +450,7 @@ dependencies = [
  "open",
  "procfs",
  "rand",
+ "rayon",
  "regex",
  "reqwest",
  "reqwest-middleware",
