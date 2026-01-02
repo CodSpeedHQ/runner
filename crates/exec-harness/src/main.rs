@@ -1,13 +1,11 @@
+use crate::prelude::*;
 use crate::walltime::WalltimeResults;
-use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
 use clap::Parser;
 use codspeed::instrument_hooks::InstrumentHooks;
-use codspeed::walltime_results::WalltimeBenchmark;
+use runner_shared::walltime_results::WalltimeBenchmark;
 use std::path::PathBuf;
-use std::process;
 
+mod prelude;
 mod walltime;
 
 #[derive(Parser, Debug)]
@@ -21,11 +19,19 @@ struct Args {
     #[arg(long)]
     name: Option<String>,
 
+    #[command(flatten)]
+    execution_args: walltime::WalltimeExecutionArgs,
+
     /// The command and arguments to execute
     command: Vec<String>,
 }
 
 fn main() -> Result<()> {
+    env_logger::builder()
+        .parse_env(env_logger::Env::new().filter_or("CODSPEED_LOG", "info"))
+        .format_timestamp(None)
+        .init();
+
     let args = Args::parse();
 
     if args.command.is_empty() {
@@ -49,46 +55,18 @@ fn main() -> Result<()> {
         .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
         .unwrap();
 
-    const NUM_ITERATIONS: usize = 1;
-    let mut times_per_round_ns = Vec::with_capacity(NUM_ITERATIONS);
+    // Build execution options from CLI args
+    let execution_options: walltime::ExecutionOptions = args.execution_args.try_into()?;
 
-    hooks.start_benchmark().unwrap();
-    for _ in 0..NUM_ITERATIONS {
-        // Spawn the command
-        let mut child = process::Command::new(&args.command[0])
-            .args(&args.command[1..])
-            .spawn()
-            .context("Failed to spawn command")?;
-
-        // Start monotonic timer for this iteration
-        let bench_start = InstrumentHooks::current_timestamp();
-
-        // Wait for the process to complete
-        let status = child.wait().context("Failed to wait for command")?;
-
-        // Measure elapsed time
-        let bench_end = InstrumentHooks::current_timestamp();
-        hooks.add_benchmark_timestamps(bench_start, bench_end);
-
-        // Exit immediately if any iteration fails
-        if !status.success() {
-            bail!("Command failed with exit code: {:?}", status.code());
-        }
-
-        // Calculate and store the elapsed time in nanoseconds
-        let elapsed_ns = (bench_end - bench_start) as u128;
-        times_per_round_ns.push(elapsed_ns);
-    }
-
-    hooks.stop_benchmark().unwrap();
-    hooks.set_executed_benchmark(&bench_uri).unwrap();
+    let times_per_round_ns =
+        walltime::perform(bench_uri.clone(), args.command, &execution_options)?;
 
     // Collect walltime results
     let max_time_ns = times_per_round_ns.iter().copied().max();
     let walltime_benchmark = WalltimeBenchmark::from_runtime_data(
         bench_name.clone(),
         bench_uri.clone(),
-        vec![1; NUM_ITERATIONS],
+        vec![1; times_per_round_ns.len()],
         times_per_round_ns,
         max_time_ns,
     );

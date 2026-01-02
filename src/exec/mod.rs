@@ -20,6 +20,9 @@ pub struct ExecArgs {
     #[command(flatten)]
     pub shared: crate::run::ExecAndRunSharedArgs,
 
+    #[command(flatten)]
+    pub walltime_args: exec_harness::walltime::WalltimeExecutionArgs,
+
     /// Optional benchmark name (defaults to command filename)
     #[arg(long)]
     pub name: Option<String>,
