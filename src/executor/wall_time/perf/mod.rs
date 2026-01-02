@@ -172,11 +172,16 @@ impl PerfRunner {
         // Output the perf data to the profile folder
         let perf_data_file_path = self.get_perf_file_path(profile_folder);
 
-        let raw_command = format!(
-            "set -o pipefail && {} | cat > {}",
-            &cmd_builder.as_command_line(),
-            perf_data_file_path.to_string_lossy()
-        );
+        let raw_command = if self.output_pipedata {
+            format!(
+                "set -o pipefail && {} | cat > {}",
+                &cmd_builder.as_command_line(),
+                perf_data_file_path.to_string_lossy()
+            )
+        } else {
+            cmd_builder.as_command_line()
+        };
+
         let mut wrapped_builder = CommandBuilder::new("bash");
         wrapped_builder.args(["-c", &raw_command]);
 
