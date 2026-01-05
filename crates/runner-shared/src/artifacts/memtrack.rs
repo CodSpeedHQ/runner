@@ -1,6 +1,6 @@
 use libc::pid_t;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
+use std::io::{BufWriter, Read, Write};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemtrackArtifact {
@@ -8,20 +8,22 @@ pub struct MemtrackArtifact {
 }
 impl super::ArtifactExt for MemtrackArtifact {
     fn encode_to_writer<W: Write>(&self, writer: W) -> anyhow::Result<()> {
-        // This is required for `decode_streamed`: We can't stream the deserialization of
-        // the whole artifact, so we have to encode them one by one.
-        let mut serializer = rmp_serde::Serializer::new(writer);
+        let mut writer = MemtrackWriter::new(writer)?;
         for event in &self.events {
-            event.serialize(&mut serializer)?;
+            writer.write_event(event)?;
         }
+        writer.finish()?;
         Ok(())
     }
 }
 
 impl MemtrackArtifact {
-    pub fn decode_streamed<R: std::io::Read>(reader: R) -> anyhow::Result<MemtrackEventStream<R>> {
+    pub fn decode_streamed<R: std::io::Read>(
+        reader: R,
+    ) -> anyhow::Result<MemtrackEventStream<zstd::Decoder<'static, std::io::BufReader<R>>>> {
+        let decoder = zstd::Decoder::new(reader)?;
         Ok(MemtrackEventStream {
-            deserializer: rmp_serde::Deserializer::new(reader),
+            deserializer: rmp_serde::Deserializer::new(decoder),
         })
     }
 }
@@ -58,6 +60,43 @@ impl<R: Read> Iterator for MemtrackEventStream<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         MemtrackEvent::deserialize(&mut self.deserializer).ok()
+    }
+}
+
+/// Streaming writer for memtrack events with compression
+pub struct MemtrackWriter<W: Write> {
+    serializer: rmp_serde::Serializer<zstd::Encoder<'static, BufWriter<W>>>,
+}
+
+impl<W: Write> MemtrackWriter<W> {
+    pub fn new(writer: W) -> anyhow::Result<Self> {
+        // We're dealing with a lot of events, so we want to compress as much as possible
+        // while not taking too much time to compress.
+        const COMPRESSION_LEVEL: i32 = 1;
+        const BUFFER_SIZE: usize = 256 * 1024 /* 256 KB */;
+
+        let writer = BufWriter::with_capacity(BUFFER_SIZE, writer);
+        let encoder = zstd::Encoder::new(writer, COMPRESSION_LEVEL)?;
+        Ok(Self {
+            serializer: rmp_serde::Serializer::new(encoder),
+        })
+    }
+
+    /// Write a single event to the stream
+    pub fn write_event(&mut self, event: &MemtrackEvent) -> anyhow::Result<()> {
+        event.serialize(&mut self.serializer)?;
+        Ok(())
+    }
+
+    /// Finish writing and flush the compression stream
+    pub fn finish(self) -> anyhow::Result<()> {
+        let encoder = self.serializer.into_inner();
+        let mut writer = encoder.finish()?;
+
+        // Flush the writer to ensure all data is written to the underlying writer
+        writer.flush()?;
+
+        Ok(())
     }
 }
 

@@ -17,6 +17,14 @@ where
         std::any::type_name::<Self>().rsplit("::").next().unwrap()
     }
 
+    fn file_name(pid: Option<pid_t>) -> String {
+        if let Some(pid) = pid {
+            format!("{pid}.{}.msgpack", Self::name())
+        } else {
+            format!("{}.msgpack", Self::name())
+        }
+    }
+
     fn encode_to_writer<W: std::io::Write>(&self, mut writer: W) -> anyhow::Result<()> {
         let encoded = rmp_serde::to_vec_named(self)?;
         writer.write_all(&encoded)?;
@@ -37,7 +45,7 @@ where
     }
 
     fn save_to<P: AsRef<std::path::Path>>(&self, folder: P) -> anyhow::Result<()> {
-        self.save_file_to(folder, &format!("{}.msgpack", Self::name()))
+        self.save_file_to(folder, &Self::file_name(None))
     }
 
     fn save_with_pid_to<P: AsRef<std::path::Path>>(
@@ -45,6 +53,6 @@ where
         folder: P,
         pid: pid_t,
     ) -> anyhow::Result<()> {
-        self.save_file_to(folder, &format!("{pid}.{}.msgpack", Self::name()))
+        self.save_file_to(folder, &Self::file_name(Some(pid)))
     }
 }
