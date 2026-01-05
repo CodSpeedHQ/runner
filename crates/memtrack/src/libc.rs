@@ -2,36 +2,22 @@
 pub fn find_libc_paths() -> anyhow::Result<Vec<std::path::PathBuf>> {
     use itertools::Itertools;
 
-    let mut paths = vec![
-        "/lib/x86_64-linux-gnu/libc.so.6".into(),
-        "/usr/lib/x86_64-linux-gnu/libc.so.6".into(),
-        "/lib64/libc.so.6".into(),
-        "/usr/lib64/libc.so.6".into(),
+    let patterns = [
+        // Debian, Ubuntu: Standard Linux multiarch paths
+        "/lib/*-linux-gnu/libc.so.6",
+        "/usr/lib/*-linux-gnu/libc.so.6",
+        // RHEL, Fedora, CentOS, Arch:
+        "/lib*/libc.so.6",
+        "/usr/lib*/libc.so.6",
+        // NixOS: find all glibc versions in the Nix store
+        "/nix/store/*glibc*/lib/libc.so.6",
     ];
 
-    // On NixOS, try to find all glibc versions in the Nix store
-    if let Ok(entries) = std::fs::read_dir("/nix/store") {
-        let nix_paths: Vec<_> = entries
-            .filter_map(|entry| {
-                let Ok(entry) = entry else { return None };
-
-                let path = entry.path();
-                let file_name = path.file_name()?;
-                let name = file_name.to_string_lossy();
-
-                // Look for glibc directories
-                if name.contains("glibc") && !name.contains("locales") && !name.contains("iconv") {
-                    return Some(path.join("lib").join("libc.so.6"));
-                }
-                None
-            })
-            .collect();
-
-        paths.extend(nix_paths);
-    }
-
-    let existing_paths = paths
-        .into_iter()
+    let existing_paths = patterns
+        .iter()
+        .flat_map(|pattern| glob::glob(pattern).ok())
+        .flatten()
+        .filter_map(|p| p.ok())
         .filter_map(|p| p.canonicalize().ok())
         .filter(|path| {
             let Ok(metadata) = std::fs::metadata(path) else {
