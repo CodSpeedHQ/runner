@@ -107,14 +107,30 @@ fn track_command(
     static DRAIN_EVENTS: AtomicBool = AtomicBool::new(true);
     let write_tx_clone = write_tx.clone();
     let drain_thread = thread::spawn(move || {
-        loop {
-            if !DRAIN_EVENTS.load(Ordering::Relaxed) {
-                break;
-            }
+        // Regular draining loop
+        while DRAIN_EVENTS.load(Ordering::Relaxed) {
             let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) else {
                 continue;
             };
             let _ = write_tx_clone.send(event.into());
+        }
+
+        // Final aggressive drain - keep trying until truly empty
+        loop {
+            match event_rx.try_recv() {
+                Ok(event) => {
+                    let _ = write_tx_clone.send(event.into());
+                }
+                Err(_) => {
+                    // Sleep briefly and try once more to catch late arrivals
+                    thread::sleep(Duration::from_millis(50));
+                    if let Ok(event) = event_rx.try_recv() {
+                        let _ = write_tx_clone.send(event.into());
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
     });
 
