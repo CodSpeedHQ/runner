@@ -285,7 +285,19 @@ jobs:
           # If we're editing a release in place, we need to upload things ahead of time
           gh release upload "${{ needs.plan.outputs.tag }}" artifacts/*
 
-          gh release edit "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --draft=false
+          # ⚠️ MANUAL EDIT
+          # Replacement for the generated line
+          # gh release edit "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --draft=false
+          #
+          # Customize gh release edit call to prevent gh release edit --draft=false from marking the release as latest
+          # https://github.com/axodotdev/cargo-dist/issues/2244
+          export RELEASE_ID=$(gh api repos/{owner}/{repo}/releases --jq '.[] | select(.tag_name == "${{ needs.plan.outputs.tag }}") | .id')
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Error: Could not find release ID for tag"
+            exit 1
+          fi
+          gh api repos/{owner}/{repo}/releases/$RELEASE_ID --method PATCH -f draft=false
+          # ⚠️ END OF MANUAL EDIT
 
   announce:
     needs:

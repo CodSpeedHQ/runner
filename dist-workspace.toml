@@ -27,6 +27,11 @@ precise-builds = true
 create-release = false
 # Use the stage just after plan because we need its output to create the draft release
 local-artifacts-jobs = ["./create-draft-release"]
+# Uncomment this to rerun `dist generate`
+# ⚠️ This will overwrite any manual changes to generated files, make sure to re-apply them if they're still relevant
+# We need this to prevent gh release edit from marking any release as latest, but cargo-dist does not support that customizing this yet
+# https://github.com/axodotdev/cargo-dist/issues/2244
+allow-dirty = ["ci"]
 
 [dist.github-custom-runners]
 aarch64-unknown-linux-musl = "buildjet-2vcpu-ubuntu-2204-arm"
