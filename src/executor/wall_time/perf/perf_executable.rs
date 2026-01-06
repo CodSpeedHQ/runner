@@ -1,3 +1,5 @@
+use runner_shared::perf_event::PerfEvent;
+
 use crate::prelude::*;
 use std::path::Path;
 
@@ -67,15 +69,7 @@ pub fn get_working_perf_executable() -> Option<OsString> {
 /// Detects if the required perf events are available on this system.
 /// Returns the flags to pass to perf record command if they are available, otherwise returns None.
 pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<String>> {
-    const CYCLES_EVENT_NAME: &str = "cycles";
-    const CACHE_REFERENCES_EVENT_NAME: &str = "cache-references";
-    const CACHE_MISSES_EVENT_NAME: &str = "cache-misses";
-
-    let perf_events = [
-        CYCLES_EVENT_NAME,
-        CACHE_REFERENCES_EVENT_NAME,
-        CACHE_MISSES_EVENT_NAME,
-    ];
+    let perf_events = PerfEvent::all_events();
 
     let output = Command::new(perf_executable)
         .arg("list")
@@ -97,12 +91,13 @@ pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<Stri
     //  cpu-cycles OR cycles                               [Hardware event]
     //  instructions                                       [Hardware event]
     //  ref-cycles                                         [Hardware event]
-    let missing_events: Vec<&str> = perf_events
+    let missing_events: Vec<PerfEvent> = perf_events
         .iter()
         .filter(|&&event| {
-            !stdout
-                .lines()
-                .any(|line| line.split_whitespace().any(|word| word == event))
+            !stdout.lines().any(|line| {
+                line.split_whitespace()
+                    .any(|word| word == event.to_perf_string())
+            })
         })
         .copied()
         .collect();
@@ -110,16 +105,14 @@ pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<Stri
     if !missing_events.is_empty() {
         warn!(
             "Not all required perf events available. Missing: [{}], using default events",
-            missing_events.join(", ")
+            missing_events.into_iter().join(", ")
         );
         return Ok(None);
     }
 
-    debug!(
-        "All required perf events available: {}",
-        perf_events.join(", ")
-    );
-    Ok(Some(format!("-e {{{}}}", perf_events.join(","))))
+    let events_string = perf_events.into_iter().join(",");
+    debug!("All required perf events available: {events_string}",);
+    Ok(Some(format!("-e {{{events_string}}}")))
 }
 
 pub fn get_compression_flags<S: AsRef<Path>>(perf_executable: S) -> Result<Option<String>> {
