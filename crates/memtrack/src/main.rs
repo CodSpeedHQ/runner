@@ -66,16 +66,25 @@ fn track_command(
     ipc_server_name: Option<String>,
     out_dir: &Path,
 ) -> anyhow::Result<std::process::ExitStatus> {
-    let tracker = Tracker::new()?;
-
-    let tracker_arc = Arc::new(Mutex::new(tracker));
-    let ipc_handle = if let Some(server_name) = ipc_server_name {
+    // First, establish IPC connection if needed to avoid timeouts on the runner because
+    // creating the Tracker instance takes some time.
+    let ipc_channel = if let Some(server_name) = ipc_server_name {
         debug!("Connecting to IPC server: {server_name}");
 
         let (tx, rx) = ipc::channel::<MemtrackIpcMessage>()?;
         let sender = ipc::IpcSender::connect(server_name)?;
         sender.send(tx)?;
 
+        Some(rx)
+    } else {
+        None
+    };
+
+    let tracker = Tracker::new()?;
+    let tracker_arc = Arc::new(Mutex::new(tracker));
+
+    // Spawn IPC handler thread with the now-available tracker
+    let ipc_handle = if let Some(rx) = ipc_channel {
         let tracker_clone = tracker_arc.clone();
         Some(thread::spawn(move || {
             while let Ok(msg) = rx.recv() {
