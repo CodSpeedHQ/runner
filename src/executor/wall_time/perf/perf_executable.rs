@@ -104,7 +104,7 @@ pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<Stri
 
     if !missing_events.is_empty() {
         warn!(
-            "Not all required perf events available. Missing: [{}], using default events",
+            "Not all required perf events available. Missing: [{}], disabling detailed event sampling.",
             missing_events.into_iter().join(", ")
         );
         return Ok(None);

@@ -2,7 +2,8 @@
 #[derive(Debug, Clone, Copy)]
 pub enum PerfEvent {
     CpuCycles,
-    CacheReferences,
+    L1DCache,
+    L2DCache,
     CacheMisses,
     Instructions,
 }
@@ -11,26 +12,18 @@ impl PerfEvent {
     pub fn to_perf_string(&self) -> &'static str {
         match self {
             PerfEvent::CpuCycles => "cpu-cycles",
-            PerfEvent::CacheReferences => "cache-references",
-            PerfEvent::CacheMisses => "cache-misses",
+            PerfEvent::L1DCache => "l1d_cache",
+            PerfEvent::L2DCache => "l2d_cache",
+            PerfEvent::CacheMisses => "l2d_cache_refill",
             PerfEvent::Instructions => "instructions",
-        }
-    }
-
-    pub fn from_perf_string(event: &str) -> Option<PerfEvent> {
-        match event {
-            "cpu-cycles" => Some(PerfEvent::CpuCycles),
-            "cache-references" => Some(PerfEvent::CacheReferences),
-            "cache-misses" => Some(PerfEvent::CacheMisses),
-            "instructions" => Some(PerfEvent::Instructions),
-            _ => None,
         }
     }
 
     pub fn all_events() -> Vec<PerfEvent> {
         vec![
             PerfEvent::CpuCycles,
-            PerfEvent::CacheReferences,
+            PerfEvent::L1DCache,
+            PerfEvent::L2DCache,
             PerfEvent::CacheMisses,
             PerfEvent::Instructions,
         ]
