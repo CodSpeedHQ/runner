@@ -5,6 +5,26 @@
 
 
 
+## [4.6.0] - 2026-01-07
+
+### <!-- 0 -->🚀 Features
+- Check for perf compression and enable multi-events conditionally by @GuillaumeLagrange
+- Enable perf data compression by @art049
+- Add more events to perf monitoring by @GuillaumeLagrange
+- Add zstd compression support by @not-matthias
+
+### <!-- 1 -->🐛 Bug Fixes
+- Do not cat stdout from command to pipe.data by @GuillaumeLagrange in [#182](https://github.com/CodSpeedHQ/runner/pull/182)
+- Drain events arriving after process terminated by @not-matthias
+- Support non-x86 libc paths by @not-matthias in [#183](https://github.com/CodSpeedHQ/runner/pull/183)
+
+### <!-- 7 -->⚙️ Internals
+- Add instructions event, and use runner_shared for monitored events by @GuillaumeLagrange in [#154](https://github.com/CodSpeedHQ/runner/pull/154)
+- Bump memtrack version by @not-matthias in [#187](https://github.com/CodSpeedHQ/runner/pull/187)
+- Prevent gh release edit from automatically setting release as latest by @GuillaumeLagrange in [#186](https://github.com/CodSpeedHQ/runner/pull/186)
+- Add memtrack serialization benchmark by @not-matthias in [#184](https://github.com/CodSpeedHQ/runner/pull/184)
+
+
 ## [4.5.2] - 2025-12-23
 
 ### <!-- 0 -->🚀 Features
@@ -684,6 +704,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.6.0]: https://github.com/CodSpeedHQ/runner/compare/v4.5.2..v4.6.0
 [4.5.2]: https://github.com/CodSpeedHQ/runner/compare/v4.5.1..v4.5.2
 [4.5.1]: https://github.com/CodSpeedHQ/runner/compare/v4.5.0..v4.5.1
 [4.5.0]: https://github.com/CodSpeedHQ/runner/compare/v4.4.1..v4.5.0
