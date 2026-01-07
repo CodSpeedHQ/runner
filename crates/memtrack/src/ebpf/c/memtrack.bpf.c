@@ -192,6 +192,55 @@ UPROBE_WITH_ARGS(realloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLO
 /* aligned_alloc: allocates with alignment and size */
 UPROBE_WITH_ARGS(aligned_alloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
 
+/* memalign: allocates with alignment and size (legacy interface) */
+UPROBE_WITH_ARGS(memalign, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+
+/* ============================================================================
+ * jemalloc support
+ *
+ * jemalloc can be used in two modes:
+ * 1. Drop-in replacement: exports standard malloc/free/etc (already covered above)
+ * 2. Prefixed mode: exports je_malloc, je_free, etc.
+ *
+ * We also support jemalloc's extended API: mallocx, rallocx, dallocx
+ * ============================================================================ */
+
+/* jemalloc prefixed standard API */
+UPROBE_WITH_ARGS(je_malloc, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_MALLOC)
+UPROBE_ADDR_ONLY(je_free, PT_REGS_PARM1(ctx), EVENT_TYPE_FREE)
+UPROBE_WITH_ARGS(je_calloc, PT_REGS_PARM1(ctx) * PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_CALLOC)
+UPROBE_WITH_ARGS(je_realloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLOC)
+UPROBE_WITH_ARGS(je_aligned_alloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+UPROBE_WITH_ARGS(je_memalign, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+
+/* jemalloc extended API */
+UPROBE_WITH_ARGS(mallocx, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_MALLOC)
+UPROBE_WITH_ARGS(rallocx, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLOC)
+UPROBE_ADDR_ONLY(dallocx, PT_REGS_PARM1(ctx), EVENT_TYPE_FREE)
+
+/* ============================================================================
+ * mimalloc support
+ *
+ * mimalloc is typically used through its prefixed API (mi_*).
+ * It can also be built as a drop-in replacement (already covered above).
+ * ============================================================================ */
+
+/* mimalloc prefixed API */
+UPROBE_WITH_ARGS(mi_malloc, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_MALLOC)
+UPROBE_ADDR_ONLY(mi_free, PT_REGS_PARM1(ctx), EVENT_TYPE_FREE)
+UPROBE_WITH_ARGS(mi_calloc, PT_REGS_PARM1(ctx) * PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_CALLOC)
+UPROBE_WITH_ARGS(mi_realloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLOC)
+UPROBE_WITH_ARGS(mi_aligned_alloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+UPROBE_WITH_ARGS(mi_memalign, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+
+/* mimalloc zero-initialized allocation (treat like calloc) */
+UPROBE_WITH_ARGS(mi_zalloc, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_CALLOC)
+
+/* mimalloc aligned variants */
+UPROBE_WITH_ARGS(mi_malloc_aligned, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+UPROBE_WITH_ARGS(mi_zalloc_aligned, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_CALLOC)
+UPROBE_WITH_ARGS(mi_realloc_aligned, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLOC)
+
 SEC("tracepoint/syscalls/sys_enter_execve")
 int tracepoint_sys_execve(struct trace_event_raw_sys_enter* ctx) { return submit_event(0, 0, EVENT_TYPE_EXECVE); }
 

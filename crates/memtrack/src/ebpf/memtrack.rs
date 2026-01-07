@@ -4,11 +4,12 @@ use libbpf_rs::Link;
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::{MapCore, UprobeOpts};
-use log::warn;
+use log::{debug, warn};
 use paste::paste;
 use std::mem::MaybeUninit;
 use std::path::Path;
 
+use crate::allocators::AllocatorKind;
 use crate::ebpf::poller::RingBufferPoller;
 
 pub mod memtrack_skel {
@@ -16,17 +17,18 @@ pub mod memtrack_skel {
 }
 pub use memtrack_skel::*;
 
-/// Macro to attach a function with both entry and return probes
+/// Macro to attach a function with both entry and return probes.
+/// Also generates a `try_attach_*` variant that logs errors instead of returning them.
 macro_rules! attach_uprobe_uretprobe {
     ($name:ident, $prog_entry:ident, $prog_return:ident, $func_str:expr) => {
-        fn $name(&mut self, libc_path: &Path) -> Result<()> {
+        fn $name(&mut self, lib_path: &Path) -> Result<()> {
             let link = self
                 .skel
                 .progs
                 .$prog_entry
                 .attach_uprobe_with_opts(
                     -1,
-                    libc_path,
+                    lib_path,
                     0,
                     UprobeOpts {
                         func_name: Some($func_str.to_string()),
@@ -37,7 +39,7 @@ macro_rules! attach_uprobe_uretprobe {
                 .context(format!(
                     "Failed to attach {} uprobe in {}",
                     $func_str,
-                    libc_path.display()
+                    lib_path.display()
                 ))?;
             self.probes.push(link);
 
@@ -47,7 +49,7 @@ macro_rules! attach_uprobe_uretprobe {
                 .$prog_return
                 .attach_uprobe_with_opts(
                     -1,
-                    libc_path,
+                    lib_path,
                     0,
                     UprobeOpts {
                         func_name: Some($func_str.to_string()),
@@ -58,7 +60,7 @@ macro_rules! attach_uprobe_uretprobe {
                 .context(format!(
                     "Failed to attach {} uretprobe in {}",
                     $func_str,
-                    libc_path.display()
+                    lib_path.display()
                 ))?;
             self.probes.push(link);
 
@@ -73,20 +75,29 @@ macro_rules! attach_uprobe_uretprobe {
                 [<uretprobe_ $name>],
                 stringify!($name)
             );
+
+            #[allow(dead_code)]
+            fn [<try_attach_ $name>](&mut self, lib_path: &Path) {
+                if let Err(e) = self.[<attach_ $name>](lib_path) {
+                    debug!("{} not found in {}: {}", stringify!($name), lib_path.display(), e);
+                }
+            }
         }
     };
 }
 
+/// Macro to attach a function with only an entry probe (no return probe).
+/// Also generates a `try_attach_*` variant that logs errors instead of returning them.
 macro_rules! attach_uprobe {
     ($name:ident, $prog:ident, $func_str:expr) => {
-        fn $name(&mut self, libc_path: &Path) -> Result<()> {
+        fn $name(&mut self, lib_path: &Path) -> Result<()> {
             let link = self
                 .skel
                 .progs
                 .$prog
                 .attach_uprobe_with_opts(
                     -1,
-                    libc_path,
+                    lib_path,
                     0,
                     UprobeOpts {
                         func_name: Some($func_str.to_string()),
@@ -97,7 +108,7 @@ macro_rules! attach_uprobe {
                 .context(format!(
                     "Failed to attach {} uprobe in {}",
                     $func_str,
-                    libc_path.display()
+                    lib_path.display()
                 ))?;
             self.probes.push(link);
             Ok(())
@@ -110,6 +121,13 @@ macro_rules! attach_uprobe {
                 [<uprobe_ $name>],
                 stringify!($name)
             );
+
+            #[allow(dead_code)]
+            fn [<try_attach_ $name>](&mut self, lib_path: &Path) {
+                if let Err(e) = self.[<attach_ $name>](lib_path) {
+                    debug!("{} not found in {}: {}", stringify!($name), lib_path.display(), e);
+                }
+            }
         }
     };
 }
@@ -206,21 +224,127 @@ impl MemtrackBpf {
         Ok(())
     }
 
+    // =========================================================================
+    // Standard libc allocation functions
+    // =========================================================================
     attach_uprobe_uretprobe!(malloc);
     attach_uprobe_uretprobe!(calloc);
     attach_uprobe_uretprobe!(realloc);
     attach_uprobe_uretprobe!(aligned_alloc);
+    attach_uprobe_uretprobe!(memalign);
     attach_uprobe!(free);
 
-    pub fn attach_probes(&mut self, libc_path: &Path) -> Result<()> {
-        self.attach_malloc(libc_path)?;
-        self.attach_free(libc_path)?;
-        self.attach_calloc(libc_path)?;
-        self.attach_realloc(libc_path)?;
-        self.attach_aligned_alloc(libc_path)?;
+    // =========================================================================
+    // jemalloc prefixed API
+    // =========================================================================
+    attach_uprobe_uretprobe!(je_malloc);
+    attach_uprobe_uretprobe!(je_calloc);
+    attach_uprobe_uretprobe!(je_realloc);
+    attach_uprobe_uretprobe!(je_aligned_alloc);
+    attach_uprobe_uretprobe!(je_memalign);
+    attach_uprobe!(je_free);
+
+    // jemalloc extended API
+    attach_uprobe_uretprobe!(mallocx);
+    attach_uprobe_uretprobe!(rallocx);
+    attach_uprobe!(dallocx);
+
+    // =========================================================================
+    // mimalloc prefixed API
+    // =========================================================================
+    attach_uprobe_uretprobe!(mi_malloc);
+    attach_uprobe_uretprobe!(mi_calloc);
+    attach_uprobe_uretprobe!(mi_realloc);
+    attach_uprobe_uretprobe!(mi_aligned_alloc);
+    attach_uprobe_uretprobe!(mi_memalign);
+    attach_uprobe!(mi_free);
+
+    // mimalloc zero-initialized and aligned variants
+    attach_uprobe_uretprobe!(mi_zalloc);
+    attach_uprobe_uretprobe!(mi_malloc_aligned);
+    attach_uprobe_uretprobe!(mi_zalloc_aligned);
+    attach_uprobe_uretprobe!(mi_realloc_aligned);
+
+    // =========================================================================
+    // Attach methods grouped by allocator
+    // =========================================================================
+
+    /// Attach standard allocation probes (libc-style: malloc, free, calloc, etc.)
+    /// This works for libc and allocators that export standard symbol names.
+    pub fn attach_standard_probes(&mut self, lib_path: &Path) -> Result<()> {
+        self.attach_malloc(lib_path)?;
+        self.attach_free(lib_path)?;
+        self.attach_calloc(lib_path)?;
+        self.attach_realloc(lib_path)?;
+        self.attach_aligned_alloc(lib_path)?;
+        self.try_attach_memalign(lib_path);
         Ok(())
     }
 
+    /// Attach probes for a specific allocator kind.
+    /// This attaches both standard probes (if the allocator exports them) and
+    /// allocator-specific prefixed probes.
+    pub fn attach_allocator_probes(&mut self, kind: AllocatorKind, lib_path: &Path) -> Result<()> {
+        debug!(
+            "Attaching {} probes to: {}",
+            kind.name(),
+            lib_path.display()
+        );
+
+        match kind {
+            AllocatorKind::Libc => {
+                // Libc only has standard probes, and they must succeed
+                self.attach_standard_probes(lib_path)
+            }
+            AllocatorKind::Jemalloc => {
+                // Try standard names (jemalloc may export these as drop-in replacements)
+                let _ = self.attach_standard_probes(lib_path);
+                self.attach_jemalloc_probes(lib_path)
+            }
+            AllocatorKind::Mimalloc => {
+                // Try standard names (mimalloc may export these as drop-in replacements)
+                let _ = self.attach_standard_probes(lib_path);
+                self.attach_mimalloc_probes(lib_path)
+            }
+        }
+    }
+
+    /// Attach jemalloc-specific probes (prefixed and extended API).
+    fn attach_jemalloc_probes(&mut self, lib_path: &Path) -> Result<()> {
+        // Prefixed standard API
+        self.try_attach_je_malloc(lib_path);
+        self.try_attach_je_free(lib_path);
+        self.try_attach_je_calloc(lib_path);
+        self.try_attach_je_realloc(lib_path);
+        self.try_attach_je_aligned_alloc(lib_path);
+        self.try_attach_je_memalign(lib_path);
+
+        // Extended API
+        self.try_attach_mallocx(lib_path);
+        self.try_attach_rallocx(lib_path);
+        self.try_attach_dallocx(lib_path);
+
+        Ok(())
+    }
+
+    /// Attach mimalloc-specific probes (mi_* API).
+    fn attach_mimalloc_probes(&mut self, lib_path: &Path) -> Result<()> {
+        // Core API
+        self.try_attach_mi_malloc(lib_path);
+        self.try_attach_mi_free(lib_path);
+        self.try_attach_mi_calloc(lib_path);
+        self.try_attach_mi_realloc(lib_path);
+        self.try_attach_mi_aligned_alloc(lib_path);
+        self.try_attach_mi_memalign(lib_path);
+
+        // Zero-initialized and aligned variants
+        self.try_attach_mi_zalloc(lib_path);
+        self.try_attach_mi_malloc_aligned(lib_path);
+        self.try_attach_mi_zalloc_aligned(lib_path);
+        self.try_attach_mi_realloc_aligned(lib_path);
+
+        Ok(())
+    }
     attach_tracepoint!(sched_fork);
     attach_tracepoint!(sys_execve);
 

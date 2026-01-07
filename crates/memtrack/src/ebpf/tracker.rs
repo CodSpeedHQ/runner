@@ -1,3 +1,4 @@
+use crate::allocators::AllocatorLib;
 use crate::ebpf::{Event, MemtrackBpf};
 use anyhow::Result;
 use log::debug;
@@ -13,22 +14,37 @@ impl Tracker {
     /// This will:
     /// - Initialize the BPF subsystem
     /// - Bump memlock limits
-    /// - Attach uprobes to all libc instances
+    /// - Attach uprobes to all discovered allocator libraries (libc, jemalloc, mimalloc, etc.)
     /// - Attach tracepoints for fork tracking
     pub fn new() -> Result<Self> {
         // Bump memlock limits
         Self::bump_memlock_rlimit()?;
 
-        // Find and attach to all libc instances
-        let libc_paths = crate::libc::find_libc_paths()?;
-        debug!("Found {} libc instance(s)", libc_paths.len());
+        // Find all allocator libraries (libc is required, others are optional)
+        let allocator_libs = AllocatorLib::find_all()?;
+        debug!("Found {} allocator library(ies)", allocator_libs.len());
 
         let mut bpf = MemtrackBpf::new()?;
         bpf.attach_tracepoints()?;
 
-        for libc_path in &libc_paths {
-            debug!("Attaching uprobes to: {}", libc_path.display());
-            bpf.attach_probes(libc_path)?;
+        // Attach probes to all allocator libraries
+        for lib in &allocator_libs {
+            debug!(
+                "Attaching {} probes to: {}",
+                lib.kind.name(),
+                lib.path.display()
+            );
+            if let Err(e) = bpf.attach_allocator_probes(lib.kind, &lib.path) {
+                if lib.kind.is_required() {
+                    return Err(e);
+                }
+                debug!(
+                    "Failed to attach some probes to {} ({}): {}",
+                    lib.path.display(),
+                    lib.kind.name(),
+                    e
+                );
+            }
         }
 
         Ok(Self { bpf })
