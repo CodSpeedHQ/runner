@@ -31,9 +31,16 @@ jobs:
       - name: Install memtrack
         run: |
           cargo install --path crates/memtrack --locked
-          echo "CODSPEED_MEMTRACK_BINARY=$(which codspeed-memtrack)" >> $GITHUB_ENV
 
-      - run: cargo test --all --exclude memtrack
+      - run: cargo test --all --exclude memtrack --exclude exec-harness
+
+  exec-harness-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: moonrepo/setup-rust@v1
+      - name: Run tests
+        run: cargo test -p exec-harness
 
   bpf-tests:
     runs-on: ubuntu-latest

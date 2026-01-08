@@ -136,6 +136,8 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
             .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
 
         let wrapped_command = std::iter::once(EXEC_HARNESS_COMMAND.to_owned())
+            // Forward exec-harness arguments
+            .chain(args.walltime_args.to_cli_args())
             .chain(args.command)
             .collect::<Vec<String>>()
             .join(" ");
@@ -310,6 +312,7 @@ mod tests {
                     perf_unwinding_mode: None,
                 },
             },
+            walltime_args: Default::default(),
             name: None,
             command: vec!["my-binary".into(), "arg1".into(), "arg2".into()],
         };

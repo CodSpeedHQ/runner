@@ -40,7 +40,7 @@ vmlinux = { git = "https://github.com/libbpf/vmlinux.h.git", rev = "991dd4b8dfd8
 bindgen = "0.71"
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = { workspace = true }
 rstest = "0.21"
 test-log = "0.2"
 
