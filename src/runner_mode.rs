@@ -1,7 +1,7 @@
 use clap::ValueEnum;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(ValueEnum, Clone, Debug, Serialize, PartialEq)]
+#[derive(ValueEnum, Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RunnerMode {
     #[deprecated(note = "Use `RunnerMode::Simulation` instead")]

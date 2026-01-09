@@ -9,6 +9,7 @@ mod instruments;
 mod local_logger;
 mod logger;
 mod prelude;
+mod project_config;
 mod request_client;
 mod run;
 mod run_environment;

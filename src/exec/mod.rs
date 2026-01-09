@@ -35,9 +35,30 @@ pub async fn run(
     args: ExecArgs,
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
+    project_config: Option<&crate::project_config::ProjectConfigDiscovery>,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    let config = crate::executor::Config::try_from(args)?;
+    use crate::project_config::merger::ConfigMerger;
+
+    // Merge CLI args with project config if available
+    let merged_args = if let Some(project_config) = project_config {
+        let mut args = args;
+        // Merge shared args
+        args.shared = ConfigMerger::merge_shared_args(
+            &args.shared,
+            project_config.config.options.as_ref()
+        );
+        // Merge walltime args
+        args.walltime_args = ConfigMerger::merge_walltime_options(
+            &args.walltime_args,
+            project_config.config.options.as_ref().and_then(|o| o.walltime.as_ref())
+        );
+        args
+    } else {
+        args
+    };
+
+    let config = crate::executor::Config::try_from(merged_args)?;
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
     debug!("config: {:#?}", execution_context.config);
     let executor = executor::get_executor_from_mode(

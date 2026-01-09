@@ -183,10 +183,27 @@ pub async fn run(
     args: RunArgs,
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
+    project_config: Option<&crate::project_config::ProjectConfigDiscovery>,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
+    use crate::project_config::merger::ConfigMerger;
+
     let output_json = args.message_format == Some(MessageFormat::Json);
-    let config = Config::try_from(args)?;
+
+    // Merge CLI args with project config if available
+    let merged_args = if let Some(project_config) = project_config {
+        let mut args = args;
+        // Merge shared args
+        args.shared = ConfigMerger::merge_shared_args(
+            &args.shared,
+            project_config.config.options.as_ref()
+        );
+        args
+    } else {
+        args
+    };
+
+    let config = Config::try_from(merged_args)?;
 
     // Create execution context
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
