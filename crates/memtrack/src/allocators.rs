@@ -91,8 +91,26 @@ pub struct AllocatorLib {
 }
 
 impl AllocatorLib {
-    /// Find all allocator libraries installed on the system.
+    /// Find all allocator libraries (both dynamic and statically linked).
     pub fn find_all() -> anyhow::Result<Vec<Self>> {
+        use std::collections::HashSet;
+
+        let mut results = Self::find_all_dynamic()?;
+        let static_bins = Self::find_all_static();
+
+        let mut seen_paths: HashSet<PathBuf> = results.iter().map(|lib| lib.path.clone()).collect();
+        for lib in static_bins {
+            if seen_paths.insert(lib.path.clone()) {
+                results.push(lib);
+            }
+        }
+
+        results.sort_by_key(|lib| (lib.kind as u8, lib.path.clone()));
+        Ok(results)
+    }
+
+    /// Find dynamically linked allocator libraries on the system.
+    fn find_all_dynamic() -> anyhow::Result<Vec<Self>> {
         use std::collections::HashSet;
 
         let mut results = Vec::new();
@@ -128,10 +146,13 @@ impl AllocatorLib {
             }
         }
 
-        // Sort by kind for consistent ordering
         results.sort_by_key(|lib| (lib.kind as u8, lib.path.clone()));
-
         Ok(results)
+    }
+
+    /// Find statically linked allocators in binaries under `target/analysis`.
+    fn find_all_static() -> Vec<Self> {
+        crate::allocators_static::scan_analysis_for_allocators()
     }
 }
 

@@ -1,4 +1,5 @@
 mod allocators;
+mod allocators_static;
 #[cfg(feature = "ebpf")]
 mod ebpf;
 mod ipc;
