@@ -5,6 +5,12 @@
 
 
 
+## [4.7.0] - 2026-01-12
+
+### <!-- 0 -->🚀 Features
+- Add l2d cache events to perf command by @GuillaumeLagrange in [#188](https://github.com/CodSpeedHQ/runner/pull/188)
+
+
 ## [4.6.0] - 2026-01-07
 
 ### <!-- 0 -->🚀 Features
@@ -704,6 +710,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.7.0]: https://github.com/CodSpeedHQ/runner/compare/v4.6.0..v4.7.0
 [4.6.0]: https://github.com/CodSpeedHQ/runner/compare/v4.5.2..v4.6.0
 [4.5.2]: https://github.com/CodSpeedHQ/runner/compare/v4.5.1..v4.5.2
 [4.5.1]: https://github.com/CodSpeedHQ/runner/compare/v4.5.0..v4.5.1
