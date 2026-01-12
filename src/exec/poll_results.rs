@@ -6,7 +6,7 @@ use crate::api_client::{
 };
 use crate::prelude::*;
 use crate::run::helpers::poll_results::{
-    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
+    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table, build_detailed_summary,
 };
 use crate::run::uploader::UploadResult;
 
@@ -59,8 +59,13 @@ pub async fn poll_results(
     if !response.run.results.is_empty() {
         start_group!("Benchmark results");
 
-        let table = build_benchmark_table(&response.run.results);
-        info!("\n{table}");
+        if response.run.results.len() == 1 {
+            let summary = build_detailed_summary(&response.run.results[0]);
+            info!("\n{summary}");
+        } else {
+            let table = build_benchmark_table(&response.run.results);
+            info!("\n{table}");
+        }
 
         end_group!();
     }

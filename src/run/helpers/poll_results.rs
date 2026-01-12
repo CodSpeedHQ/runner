@@ -28,6 +28,14 @@ pub fn build_benchmark_table(
     Table::new(&table_rows).with(Style::modern()).to_string()
 }
 
+pub fn build_detailed_summary(result: &crate::api_client::FetchLocalRunBenchmarkResult) -> String {
+    format!(
+        "{}: {}",
+        result.benchmark.name,
+        helpers::format_duration(result.value, Some(2))
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,5 +77,19 @@ mod tests {
         │ benchmark_medium │ 567.00 µs │
         └──────────────────┴───────────┘
         "###);
+    }
+
+    #[test]
+    fn test_detailed_summary_formatting() {
+        let result = FetchLocalRunBenchmarkResult {
+            benchmark: FetchLocalRunBenchmark {
+                name: "benchmark_fast".to_string(),
+            },
+            value: 0.001234, // 1.23 ms
+        };
+
+        let summary = build_detailed_summary(&result);
+
+        insta::assert_snapshot!(summary, @"benchmark_fast: 1.23 ms");
     }
 }
