@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use crate::executor::ExecutorName;
 use crate::prelude::*;
 use crate::run_environment::RepositoryProvider;
 use crate::{app::Cli, config::CodSpeedConfig};
@@ -145,6 +146,7 @@ pub struct FetchLocalRunBenchmarkResult {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FetchLocalRunBenchmark {
     pub name: String,
+    pub executor: ExecutorName,
 }
 
 nest! {

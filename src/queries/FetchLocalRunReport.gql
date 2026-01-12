@@ -16,6 +16,7 @@ query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
         value
         benchmark {
           name
+          executor
         }
       }
     }
