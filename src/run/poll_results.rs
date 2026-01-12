@@ -101,7 +101,7 @@ pub async fn poll_results(
             for result in response.run.results {
                 log_json!(format!(
                     "{{\"event\": \"benchmark_ran\", \"name\": \"{}\", \"time\": \"{}\"}}",
-                    result.benchmark.name, result.time,
+                    result.benchmark.name, result.value
                 ));
             }
         }

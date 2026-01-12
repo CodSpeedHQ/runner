@@ -138,7 +138,7 @@ pub struct FetchLocalRunReportHeadReport {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FetchLocalRunBenchmarkResult {
-    pub time: f64,
+    pub value: f64,
     pub benchmark: FetchLocalRunBenchmark,
 }
 

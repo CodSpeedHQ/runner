@@ -21,7 +21,7 @@ pub fn build_benchmark_table(
         .iter()
         .map(|result| BenchmarkRow {
             name: result.benchmark.name.clone(),
-            time: helpers::format_duration(result.time, Some(2)),
+            time: helpers::format_duration(result.value, Some(2)),
         })
         .collect();
 
@@ -40,19 +40,19 @@ mod tests {
                 benchmark: FetchLocalRunBenchmark {
                     name: "benchmark_fast".to_string(),
                 },
-                time: 0.001234, // 1.23 ms
+                value: 0.001234, // 1.23 ms
             },
             FetchLocalRunBenchmarkResult {
                 benchmark: FetchLocalRunBenchmark {
                     name: "benchmark_slow".to_string(),
                 },
-                time: 1.5678, // 1.57 s
+                value: 1.5678, // 1.57 s
             },
             FetchLocalRunBenchmarkResult {
                 benchmark: FetchLocalRunBenchmark {
                     name: "benchmark_medium".to_string(),
                 },
-                time: 0.000567, // 567 µs
+                value: 0.000567, // 567 µs
             },
         ];
 

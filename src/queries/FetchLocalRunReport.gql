@@ -4,7 +4,7 @@ query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
       allowedRegression
     }
     run(id: $runId) {
-     id
+      id
       status
       url
       headReports {
@@ -13,7 +13,7 @@ query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
         conclusion
       }
       results {
-        time
+        value
         benchmark {
           name
         }
