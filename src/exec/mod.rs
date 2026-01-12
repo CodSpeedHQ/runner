@@ -3,6 +3,8 @@ use crate::binary_installer::ensure_binary_installed;
 use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::prelude::*;
+use crate::project_config::ProjectConfig;
+use crate::project_config::merger::ConfigMerger;
 use crate::run::uploader::UploadResult;
 use clap::Args;
 use std::path::Path;
@@ -31,13 +33,38 @@ pub struct ExecArgs {
     pub command: Vec<String>,
 }
 
+impl ExecArgs {
+    /// Merge CLI args with project config if available
+    ///
+    /// CLI arguments take precedence over config values.
+    pub fn merge_with_project_config(mut self, project_config: Option<&ProjectConfig>) -> Self {
+        if let Some(project_config) = project_config {
+            // Merge shared args
+            self.shared =
+                ConfigMerger::merge_shared_args(&self.shared, project_config.options.as_ref());
+            // Merge walltime args
+            self.walltime_args = ConfigMerger::merge_walltime_options(
+                &self.walltime_args,
+                project_config
+                    .options
+                    .as_ref()
+                    .and_then(|o| o.walltime.as_ref()),
+            );
+        }
+        self
+    }
+}
+
 pub async fn run(
     args: ExecArgs,
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
+    project_config: Option<&ProjectConfig>,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    let config = crate::executor::Config::try_from(args)?;
+    let merged_args = args.merge_with_project_config(project_config);
+
+    let config = crate::executor::Config::try_from(merged_args)?;
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
     debug!("config: {:#?}", execution_context.config);
     let executor = executor::get_executor_from_mode(

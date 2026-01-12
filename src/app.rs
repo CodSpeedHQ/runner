@@ -7,6 +7,7 @@ use crate::{
     exec,
     local_logger::{CODSPEED_U8_COLOR_CODE, init_local_logger},
     prelude::*,
+    project_config::ProjectConfig,
     run, setup,
 };
 use clap::{
@@ -47,6 +48,12 @@ pub struct Cli {
     #[arg(long, env = "CODSPEED_CONFIG_NAME", global = true)]
     pub config_name: Option<String>,
 
+    /// Path to project configuration file (codspeed.yaml)
+    /// If provided, loads config from this path. Otherwise, searches for config files
+    /// in the current directory and upward to the git root.
+    #[arg(long, global = true)]
+    pub config: Option<PathBuf>,
+
     /// The directory to use for caching installed tools
     /// The runner will restore cached tools from this directory before installing them.
     /// After successful installation, the runner will cache the installed tools to this directory.
@@ -76,6 +83,11 @@ pub async fn run() -> Result<()> {
     let codspeed_config =
         CodSpeedConfig::load_with_override(cli.config_name.as_deref(), cli.oauth_token.as_deref())?;
     let api_client = CodSpeedAPIClient::try_from((&cli, &codspeed_config))?;
+
+    // Discover project configuration file (this may change the working directory)
+    let project_config =
+        ProjectConfig::discover_and_load(cli.config.as_deref(), &std::env::current_dir()?)?;
+
     // In the context of the CI, it is likely that a ~ made its way here without being expanded by the shell
     let setup_cache_dir = cli
         .setup_cache_dir
@@ -92,10 +104,24 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Commands::Run(args) => {
-            run::run(*args, &api_client, &codspeed_config, setup_cache_dir).await?
+            run::run(
+                *args,
+                &api_client,
+                &codspeed_config,
+                project_config.as_ref(),
+                setup_cache_dir,
+            )
+            .await?
         }
         Commands::Exec(args) => {
-            exec::run(*args, &api_client, &codspeed_config, setup_cache_dir).await?
+            exec::run(
+                *args,
+                &api_client,
+                &codspeed_config,
+                project_config.as_ref(),
+                setup_cache_dir,
+            )
+            .await?
         }
         Commands::Auth(args) => auth::run(args, &api_client, cli.config_name.as_deref()).await?,
         Commands::Setup => setup::setup(setup_cache_dir).await?,
@@ -111,6 +137,7 @@ impl Cli {
             api_url,
             oauth_token: None,
             config_name: None,
+            config: None,
             setup_cache_dir: None,
             command: Commands::Setup,
         }

@@ -4,6 +4,8 @@ use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::executor::Config;
 use crate::prelude::*;
+use crate::project_config::ProjectConfig;
+use crate::project_config::merger::ConfigMerger;
 use crate::run::uploader::UploadResult;
 use crate::run_environment::interfaces::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
@@ -144,6 +146,19 @@ pub struct RunArgs {
     pub command: Vec<String>,
 }
 
+impl RunArgs {
+    /// Merge CLI args with project config if available
+    ///
+    /// CLI arguments take precedence over config values.
+    pub fn merge_with_project_config(mut self, project_config: Option<&ProjectConfig>) -> Self {
+        if let Some(project_config) = project_config {
+            self.shared =
+                ConfigMerger::merge_shared_args(&self.shared, project_config.options.as_ref());
+        }
+        self
+    }
+}
+
 #[derive(ValueEnum, Clone, Debug, PartialEq)]
 pub enum MessageFormat {
     Json,
@@ -183,10 +198,14 @@ pub async fn run(
     args: RunArgs,
     api_client: &CodSpeedAPIClient,
     codspeed_config: &CodSpeedConfig,
+    project_config: Option<&ProjectConfig>,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
-    let config = Config::try_from(args)?;
+
+    let merged_args = args.merge_with_project_config(project_config);
+
+    let config = Config::try_from(merged_args)?;
 
     // Create execution context
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
