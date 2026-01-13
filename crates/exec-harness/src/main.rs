@@ -50,7 +50,7 @@ fn main() -> Result<()> {
 
     let hooks = InstrumentHooks::instance();
 
-    // TODO: Stop impersonating codspeed-rust 🥸
+    // TODO(COD-1736): Stop impersonating codspeed-rust 🥸
     hooks
         .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
         .unwrap();
