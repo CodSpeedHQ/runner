@@ -147,15 +147,20 @@ fn track_command(
     let writer_thread = thread::spawn(move || -> anyhow::Result<()> {
         let mut writer = MemtrackWriter::new(out_file)?;
 
+        let mut i = 0;
         while let Ok(first) = write_rx.recv() {
             writer.write_event(&first)?;
+            i += 1;
 
             // Drain any backlog in a tight loop (batching)
             while let Ok(ev) = write_rx.try_recv() {
                 writer.write_event(&ev)?;
+                i += 1;
             }
         }
         writer.finish()?;
+
+        info!("Wrote {i} memtrack events to disk");
 
         Ok(())
     });
