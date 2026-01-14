@@ -23,7 +23,11 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
-      - uses: moonrepo/setup-rust@v1
+
+      - name: 'Install rust-toolchain.toml'
+        run: rustup toolchain install
+      # We use Swatinem/rust-cache to cache cargo registry, index and target in this job
+      - uses: Swatinem/rust-cache@v2
 
       # Install memtrack for the memory integration tests
       - name: Install dependencies required for libbpf-sys (vendored feature)
