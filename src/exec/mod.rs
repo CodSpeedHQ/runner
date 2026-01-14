@@ -14,8 +14,23 @@ mod poll_results;
 /// We temporarily force this name for all exec runs
 pub const DEFAULT_REPOSITORY_NAME: &str = "local-runs";
 
-pub const EXEC_HARNESS_COMMAND: &str = "exec-harness";
+const EXEC_HARNESS_COMMAND: &str = "exec-harness";
 const EXEC_HARNESS_VERSION: &str = "1.0.0";
+
+/// Wraps a command with exec-harness and the given walltime arguments.
+///
+/// This produces a shell command string like:
+/// `exec-harness --warmup-time 1s --max-rounds 10 sleep 0.1`
+pub fn wrap_with_exec_harness(
+    walltime_args: &exec_harness::walltime::WalltimeExecutionArgs,
+    command: &[String],
+) -> String {
+    shell_words::join(
+        std::iter::once(EXEC_HARNESS_COMMAND)
+            .chain(walltime_args.to_cli_args().iter().map(|s| s.as_str()))
+            .chain(command.iter().map(|s| s.as_str())),
+    )
+}
 
 #[derive(Args, Debug)]
 pub struct ExecArgs {

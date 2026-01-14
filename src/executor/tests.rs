@@ -109,6 +109,16 @@ const ENV_TESTS: [(&str, &str); 8] = [
 #[case(TESTS[5])]
 fn test_cases(#[case] cmd: &str) {}
 
+// Exec-harness currently does not support the inline multi command scripts
+#[template]
+#[rstest::rstest]
+#[case(TESTS[0])]
+#[case(TESTS[1])]
+#[case(TESTS[2])]
+fn exec_harness_test_cases() -> Vec<&'static str> {
+    EXEC_HARNESS_COMMANDS.to_vec()
+}
+
 #[template]
 #[rstest::rstest]
 #[case(ENV_TESTS[0])]
@@ -343,6 +353,37 @@ fi
             let (execution_context, _temp_dir) = create_test_setup(config).await;
             let result = executor.run(&execution_context, &None).await;
             assert!(result.is_err(), "Command should fail");
+        })
+        .await;
+    }
+
+    // Ensure that the walltime executor works with the exec-harness
+    #[apply(exec_harness_test_cases)]
+    #[rstest::rstest]
+    #[test_log::test(tokio::test)]
+    async fn test_exec_harness(#[case] cmd: &str) {
+        use crate::exec::wrap_with_exec_harness;
+        use exec_harness::walltime::WalltimeExecutionArgs;
+
+        let (_permit, executor) = get_walltime_executor().await;
+
+        let walltime_args = WalltimeExecutionArgs {
+            warmup_time: Some("0s".to_string()),
+            max_time: None,
+            min_time: None,
+            max_rounds: Some(3),
+            min_rounds: None,
+        };
+
+        let cmd = cmd.split(" ").map(|s| s.to_owned()).collect::<Vec<_>>();
+        let wrapped_command = wrap_with_exec_harness(&walltime_args, &cmd);
+
+        // Unset GITHUB_ACTIONS to force LocalProvider which supports repository_override
+        temp_env::async_with_vars(&[("GITHUB_ACTIONS", None::<&str>)], async {
+            let config = walltime_config(&wrapped_command, true);
+            dbg!(&config);
+            let (execution_context, _temp_dir) = create_test_setup(config).await;
+            executor.run(&execution_context, &None).await.unwrap();
         })
         .await;
     }

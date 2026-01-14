@@ -1,4 +1,4 @@
-use crate::exec::EXEC_HARNESS_COMMAND;
+use crate::exec::wrap_with_exec_harness;
 use crate::instruments::Instruments;
 use crate::prelude::*;
 use crate::run::{RunArgs, UnwindingMode};
@@ -135,12 +135,7 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
         let upload_url = Url::parse(&raw_upload_url)
             .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
 
-        let wrapped_command = std::iter::once(EXEC_HARNESS_COMMAND.to_owned())
-            // Forward exec-harness arguments
-            .chain(args.walltime_args.to_cli_args())
-            .chain(args.command)
-            .collect::<Vec<String>>()
-            .join(" ");
+        let wrapped_command = wrap_with_exec_harness(&args.walltime_args, &args.command);
 
         Ok(Self {
             upload_url,

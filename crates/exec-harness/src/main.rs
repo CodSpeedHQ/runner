@@ -6,6 +6,7 @@ use runner_shared::walltime_results::WalltimeBenchmark;
 use std::path::PathBuf;
 
 mod prelude;
+mod uri;
 mod walltime;
 
 #[derive(Parser, Debug)]
@@ -15,7 +16,7 @@ mod walltime;
     about = "CodSpeed exec harness - wraps commands with performance instrumentation"
 )]
 struct Args {
-    /// Optional benchmark name (defaults to command filename)
+    /// Optional benchmark name, else the command will be used as the name
     #[arg(long)]
     name: Option<String>,
 
@@ -23,6 +24,7 @@ struct Args {
     execution_args: walltime::WalltimeExecutionArgs,
 
     /// The command and arguments to execute
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     command: Vec<String>,
 }
 
@@ -38,15 +40,10 @@ fn main() -> Result<()> {
         bail!("Error: No command provided");
     }
 
-    // Derive benchmark name from command if not provided
-    let bench_name = args.name.unwrap_or_else(|| {
-        // Extract filename from command path
-        let cmd = &args.command[0];
-        std::path::Path::new(cmd).to_string_lossy().into_owned()
-    });
-
-    // TODO: Better URI generation
-    let bench_uri = format!("standalone_run::{bench_name}");
+    let uri::NameAndUri {
+        name: bench_name,
+        uri: bench_uri,
+    } = uri::generate_name_and_uri(&args.name, &args.command);
 
     let hooks = InstrumentHooks::instance();
 
