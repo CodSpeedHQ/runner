@@ -321,3 +321,126 @@ fn test_single_long_execution() -> Result<()> {
 
     Ok(())
 }
+
+/// Test that a command with shell operators (&&) works correctly when passed as a single argument
+#[test]
+fn test_command_with_shell_operators() -> Result<()> {
+    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
+        exec_harness::walltime::WalltimeExecutionArgs {
+            warmup_time: Some("0s".to_string()),
+            max_time: None,
+            min_time: None,
+            max_rounds: Some(1),
+            min_rounds: None,
+        },
+    )?;
+
+    let tmpdir = TempDir::new()?;
+    let marker_file = tmpdir.path().join("marker.txt");
+
+    // This simulates: bash -c "echo first && echo second > marker.txt"
+    // The entire "echo first && echo second > marker.txt" should be passed as one argument to -c
+    let cmd = format!("echo first && echo second > {}", marker_file.display());
+
+    let times = exec_harness::walltime::perform(
+        "test::shell_operators".to_string(),
+        vec!["bash".to_string(), "-c".to_string(), cmd],
+        &exec_opts,
+    )?;
+
+    assert_eq!(times.len(), 1, "Expected exactly 1 iteration");
+
+    // Verify that the second command (after &&) was executed
+    assert!(
+        marker_file.exists(),
+        "Marker file should exist - the second part of && was not executed"
+    );
+
+    let content = std::fs::read_to_string(&marker_file)?;
+    assert_eq!(
+        content.trim(),
+        "second",
+        "Marker file should contain 'second'"
+    );
+
+    Ok(())
+}
+
+/// Test that a command with pipes works correctly
+#[test]
+fn test_command_with_pipes() -> Result<()> {
+    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
+        exec_harness::walltime::WalltimeExecutionArgs {
+            warmup_time: Some("0s".to_string()),
+            max_time: None,
+            min_time: None,
+            max_rounds: Some(1),
+            min_rounds: None,
+        },
+    )?;
+
+    let tmpdir = TempDir::new()?;
+    let output_file = tmpdir.path().join("output.txt");
+
+    // This simulates: bash -c "echo 'hello world' | tr 'a-z' 'A-Z' > output.txt"
+    let cmd = format!(
+        "echo 'hello world' | tr 'a-z' 'A-Z' > {}",
+        output_file.display()
+    );
+
+    let times = exec_harness::walltime::perform(
+        "test::pipes".to_string(),
+        vec!["bash".to_string(), "-c".to_string(), cmd],
+        &exec_opts,
+    )?;
+
+    assert_eq!(times.len(), 1, "Expected exactly 1 iteration");
+
+    // Verify that the pipe worked correctly
+    let content = std::fs::read_to_string(&output_file)?;
+    assert_eq!(
+        content.trim(),
+        "HELLO WORLD",
+        "Pipe should have transformed text to uppercase"
+    );
+
+    Ok(())
+}
+
+/// Test that a command with quotes in the argument works correctly
+#[test]
+fn test_command_with_embedded_quotes() -> Result<()> {
+    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
+        exec_harness::walltime::WalltimeExecutionArgs {
+            warmup_time: Some("0s".to_string()),
+            max_time: None,
+            min_time: None,
+            max_rounds: Some(1),
+            min_rounds: None,
+        },
+    )?;
+
+    let tmpdir = TempDir::new()?;
+    let output_file = tmpdir.path().join("output.txt");
+
+    // This simulates: bash -c "echo 'hello world' > output.txt"
+    let cmd = format!("echo 'hello world' > {}", output_file.display());
+
+    let times = exec_harness::walltime::perform(
+        "test::embedded_quotes".to_string(),
+        vec!["bash".to_string(), "-c".to_string(), cmd],
+        &exec_opts,
+    )?;
+
+    assert_eq!(times.len(), 1, "Expected exactly 1 iteration");
+
+    // Verify that the quoted string was preserved
+    let content = std::fs::read_to_string(&output_file)?;
+    assert_eq!(
+        content.trim(),
+        "hello world",
+        "Quoted string should be preserved"
+    );
+
+    Ok(())
+}
