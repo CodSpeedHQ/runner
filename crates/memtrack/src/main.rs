@@ -3,6 +3,7 @@ use ipc_channel::ipc;
 use memtrack::prelude::*;
 use memtrack::{MemtrackIpcMessage, Tracker, handle_ipc_message};
 use runner_shared::artifacts::{ArtifactExt, MemtrackArtifact, MemtrackEvent, MemtrackWriter};
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -34,6 +35,14 @@ enum Commands {
         #[arg(long)]
         ipc_server: Option<String>,
     },
+}
+
+/// Get the original user's UID and GID when running under sudo.
+/// Returns None if not running under sudo or if the environment variables are not set.
+fn get_user_uid_gid() -> Option<(u32, u32)> {
+    let uid = std::env::var("SUDO_UID").ok()?.parse().ok()?;
+    let gid = std::env::var("SUDO_GID").ok()?.parse().ok()?;
+    Some((uid, gid))
 }
 
 fn main() -> Result<()> {
@@ -95,9 +104,18 @@ fn track_command(
     };
 
     // Start the target command using bash to handle shell syntax
-    let mut child = Command::new("bash")
-        .arg("-c")
-        .arg(cmd_string)
+    let mut cmd = Command::new("bash");
+    cmd.arg("-c").arg(cmd_string);
+
+    // Drop privileges if running under sudo. This is required to avoid permission issues
+    // when the target command tries to access files or directories that the current user
+    // does not have permission to access.
+    if let Some((uid, gid)) = get_user_uid_gid() {
+        debug!("Running under sudo, dropping privileges to uid={uid}, gid={gid}");
+        cmd.uid(uid).gid(gid);
+    }
+
+    let mut child = cmd
         .spawn()
         .map_err(|e| anyhow!("Failed to spawn child process: {e}"))?;
     let root_pid = child.id() as i32;
