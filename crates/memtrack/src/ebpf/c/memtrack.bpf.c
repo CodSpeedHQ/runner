@@ -192,6 +192,9 @@ UPROBE_WITH_ARGS(realloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLO
 /* aligned_alloc: allocates with alignment and size */
 UPROBE_WITH_ARGS(aligned_alloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
 
+/* memalign: allocates with alignment and size (legacy interface) */
+UPROBE_WITH_ARGS(memalign, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+
 SEC("tracepoint/syscalls/sys_enter_execve")
 int tracepoint_sys_execve(struct trace_event_raw_sys_enter* ctx) { return submit_event(0, 0, EVENT_TYPE_EXECVE); }
 
