@@ -1658,6 +1658,7 @@ dependencies = [
  "libbpf-rs",
  "libc",
  "log",
+ "object 0.36.7",
  "paste",
  "rstest 0.21.0",
  "runner-shared",

@@ -33,6 +33,7 @@ itertools = { workspace = true }
 paste = "1.0"
 libbpf-rs = { version = "0.25.0", features = ["vendored"], optional = true }
 glob = "0.3.3"
+object = { version = "0.36", default-features = false, features = ["read_core", "elf"] }
 
 [build-dependencies]
 libbpf-cargo = { version = "0.25.0", optional = true }

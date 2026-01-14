@@ -1,14 +1,16 @@
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use libbpf_rs::Link;
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::{MapCore, UprobeOpts};
-use log::warn;
+use log::{debug, warn};
 use paste::paste;
 use std::mem::MaybeUninit;
 use std::path::Path;
 
+use crate::allocators::AllocatorKind;
 use crate::ebpf::poller::RingBufferPoller;
 
 pub mod memtrack_skel {
@@ -16,100 +18,139 @@ pub mod memtrack_skel {
 }
 pub use memtrack_skel::*;
 
-/// Macro to attach a function with both entry and return probes
+/// Resolve symbol offset from .symtab to ensure that libbpf can find it. Otherwise
+/// it will print a warning at runtime.
+fn ensure_symbol_exists(lib_path: &Path, symbol_name: &str) -> Result<()> {
+    use object::{Object, ObjectSymbol};
+
+    let data = std::fs::read(lib_path)?;
+    let file = object::File::parse(&*data)?;
+
+    // Check both regular and dynamic symbols
+    for symbol in file.symbols().chain(file.dynamic_symbols()) {
+        if !symbol.is_definition() {
+            continue;
+        }
+
+        let Ok(name) = symbol.name() else {
+            continue;
+        };
+
+        if name == symbol_name {
+            let addr = symbol.address();
+            if addr != 0 {
+                return Ok(());
+            }
+        }
+    }
+
+    bail!("Symbol {symbol_name} not found in {}", lib_path.display())
+}
+
+/// Macro to attach a function with both entry and return probes.
+/// Also generates a `try_attach_*` variant that logs errors instead of returning them.
+///
+/// Uses offset-based attachment by resolving symbols from .symtab.
+/// Fails if the symbol is not found.
 macro_rules! attach_uprobe_uretprobe {
-    ($name:ident, $prog_entry:ident, $prog_return:ident, $func_str:expr) => {
-        fn $name(&mut self, libc_path: &Path) -> Result<()> {
+    ($name:ident, $prog_entry:ident, $prog_return:ident) => {
+        fn $name(&mut self, lib_path: &Path, symbol: &str) -> Result<()> {
+            ensure_symbol_exists(lib_path, symbol)?;
+
+            // Attach entry probe at function entry via func_name
             let link = self
                 .skel
                 .progs
                 .$prog_entry
                 .attach_uprobe_with_opts(
                     -1,
-                    libc_path,
+                    lib_path,
                     0,
                     UprobeOpts {
-                        func_name: Some($func_str.to_string()),
                         retprobe: false,
+                        func_name: Some(symbol.to_owned()),
                         ..Default::default()
                     },
                 )
                 .context(format!(
                     "Failed to attach {} uprobe in {}",
-                    $func_str,
-                    libc_path.display()
+                    symbol,
+                    lib_path.display()
                 ))?;
             self.probes.push(link);
 
+            // Attach return probe at function entry via func_name
             let link = self
                 .skel
                 .progs
                 .$prog_return
                 .attach_uprobe_with_opts(
                     -1,
-                    libc_path,
+                    lib_path,
                     0,
                     UprobeOpts {
-                        func_name: Some($func_str.to_string()),
                         retprobe: true,
+                        func_name: Some(symbol.to_owned()),
                         ..Default::default()
                     },
                 )
                 .context(format!(
                     "Failed to attach {} uretprobe in {}",
-                    $func_str,
-                    libc_path.display()
+                    symbol,
+                    lib_path.display()
                 ))?;
             self.probes.push(link);
 
             Ok(())
         }
-    };
-    ($name:ident) => {
+
         paste! {
-            attach_uprobe_uretprobe!(
-                [<attach_ $name>],
-                [<uprobe_ $name>],
-                [<uretprobe_ $name>],
-                stringify!($name)
-            );
+            fn [<try_ $name>](&mut self, lib_path: &Path, symbol: &str) {
+                let result = self.$name(lib_path, symbol);
+                log::trace!("{} uprobe attach result: {:?}", symbol, result);
+            }
         }
     };
 }
 
+/// Macro to attach a function with only an entry probe (no return probe).
+/// Also generates a `try_attach_*` variant that logs errors instead of returning them.
+///
+/// Uses offset-based attachment by resolving symbols from .symtab.
+/// Fails if the symbol is not found.
 macro_rules! attach_uprobe {
-    ($name:ident, $prog:ident, $func_str:expr) => {
-        fn $name(&mut self, libc_path: &Path) -> Result<()> {
+    ($name:ident, $prog:ident) => {
+        fn $name(&mut self, lib_path: &Path, symbol: &str) -> Result<()> {
+            ensure_symbol_exists(lib_path, symbol)?;
+
             let link = self
                 .skel
                 .progs
                 .$prog
                 .attach_uprobe_with_opts(
                     -1,
-                    libc_path,
+                    lib_path,
                     0,
                     UprobeOpts {
-                        func_name: Some($func_str.to_string()),
                         retprobe: false,
+                        func_name: Some(symbol.to_owned()),
                         ..Default::default()
                     },
                 )
                 .context(format!(
                     "Failed to attach {} uprobe in {}",
-                    $func_str,
-                    libc_path.display()
+                    symbol,
+                    lib_path.display()
                 ))?;
             self.probes.push(link);
             Ok(())
         }
-    };
-    ($name:ident) => {
+
         paste! {
-            attach_uprobe!(
-                [<attach_ $name>],
-                [<uprobe_ $name>],
-                stringify!($name)
-            );
+            fn [<try_ $name>](&mut self, lib_path: &Path, symbol: &str) {
+                let result = self.$name(lib_path, symbol);
+                log::trace!("{} uprobe attach result: {:?}", symbol, result);
+            }
         }
     };
 }
@@ -206,21 +247,111 @@ impl MemtrackBpf {
         Ok(())
     }
 
-    attach_uprobe_uretprobe!(malloc);
-    attach_uprobe_uretprobe!(calloc);
-    attach_uprobe_uretprobe!(realloc);
-    attach_uprobe_uretprobe!(aligned_alloc);
-    attach_uprobe!(free);
+    // =========================================================================
+    // Allocation probe functions (symbol passed at call time)
+    // =========================================================================
+    attach_uprobe_uretprobe!(attach_malloc, uprobe_malloc, uretprobe_malloc);
+    attach_uprobe_uretprobe!(attach_calloc, uprobe_calloc, uretprobe_calloc);
+    attach_uprobe_uretprobe!(attach_realloc, uprobe_realloc, uretprobe_realloc);
+    attach_uprobe_uretprobe!(
+        attach_aligned_alloc,
+        uprobe_aligned_alloc,
+        uretprobe_aligned_alloc
+    );
+    attach_uprobe_uretprobe!(attach_memalign, uprobe_memalign, uretprobe_memalign);
+    attach_uprobe!(attach_free, uprobe_free);
 
-    pub fn attach_probes(&mut self, libc_path: &Path) -> Result<()> {
-        self.attach_malloc(libc_path)?;
-        self.attach_free(libc_path)?;
-        self.attach_calloc(libc_path)?;
-        self.attach_realloc(libc_path)?;
-        self.attach_aligned_alloc(libc_path)?;
+    // =========================================================================
+    // Attach methods grouped by allocator
+    // =========================================================================
+
+    /// Attach standard library allocation probes (libc-style: malloc, free, calloc, etc.)
+    /// This works for libc and allocators that export standard symbol names.
+    /// For non-libc allocators, standard names are optional - just try them silently.
+    pub fn attach_libc_probes(&mut self, lib_path: &Path) -> Result<()> {
+        self.try_attach_malloc(lib_path, "malloc");
+        self.try_attach_calloc(lib_path, "calloc");
+        self.try_attach_realloc(lib_path, "realloc");
+        self.try_attach_free(lib_path, "free");
+        self.try_attach_aligned_alloc(lib_path, "aligned_alloc");
+        self.try_attach_memalign(lib_path, "memalign");
         Ok(())
     }
 
+    /// Attach probes for a specific allocator kind.
+    /// This attaches both standard probes (if the allocator exports them) and
+    /// allocator-specific prefixed probes.
+    pub fn attach_allocator_probes(&mut self, kind: AllocatorKind, lib_path: &Path) -> Result<()> {
+        debug!(
+            "Attaching {} probes to: {}",
+            kind.name(),
+            lib_path.display()
+        );
+
+        match kind {
+            AllocatorKind::Libc => {
+                // Libc only has standard probes, and they must succeed
+                self.attach_libc_probes(lib_path)
+            }
+            AllocatorKind::Jemalloc => {
+                // Try standard names (jemalloc may export these as drop-in replacements)
+                let _ = self.attach_libc_probes(lib_path);
+                self.attach_jemalloc_probes(lib_path)
+            }
+            AllocatorKind::Mimalloc => {
+                // Try standard names (mimalloc may export these as drop-in replacements)
+                let _ = self.attach_libc_probes(lib_path);
+                self.attach_mimalloc_probes(lib_path)
+            }
+        }
+    }
+
+    /// Attach jemalloc-specific probes (prefixed and extended API).
+    fn attach_jemalloc_probes(&mut self, lib_path: &Path) -> Result<()> {
+        // The following functions are used in Rust when setting a global allocator:
+        // - rust_alloc: _rjem_malloc and _rjem_mallocx
+        // - rust_alloc_zeroed: _rjem_mallocx / _rjem_calloc
+        // - rust_dealloc: _rjem_sdallocx
+        // - rust_realloc: _rjem_realloc / _rjem_rallocx
+
+        // Prefixed standard API
+        self.try_attach_malloc(lib_path, "_rjem_malloc");
+        self.try_attach_malloc(lib_path, "_rjem_mallocx"); // Also used for `calloc`
+        self.try_attach_calloc(lib_path, "_rjem_calloc");
+        self.try_attach_realloc(lib_path, "_rjem_realloc");
+        self.try_attach_realloc(lib_path, "_rjem_rallocx");
+        self.try_attach_aligned_alloc(lib_path, "_rjem_aligned_alloc");
+        self.try_attach_memalign(lib_path, "_rjem_memalign");
+        self.try_attach_free(lib_path, "_rjem_free");
+        self.try_attach_free(lib_path, "_rjem_sdallocx");
+
+        Ok(())
+    }
+
+    /// Attach mimalloc-specific probes (mi_* API).
+    fn attach_mimalloc_probes(&mut self, lib_path: &Path) -> Result<()> {
+        // The following functions are used in Rust when setting a global allocator:
+        // - mi_malloc_aligned
+        // - mi_free
+        // - mi_realloc_aligned
+        // - mi_zalloc_aligned
+
+        // Core API
+        self.try_attach_malloc(lib_path, "mi_malloc");
+        self.try_attach_malloc(lib_path, "mi_malloc_aligned");
+        self.try_attach_calloc(lib_path, "mi_calloc");
+        self.try_attach_realloc(lib_path, "mi_realloc");
+        self.try_attach_aligned_alloc(lib_path, "mi_aligned_alloc");
+        self.try_attach_memalign(lib_path, "mi_memalign");
+        self.try_attach_free(lib_path, "mi_free");
+
+        // Zero-initialized and aligned variants
+        self.try_attach_calloc(lib_path, "mi_zalloc");
+        self.try_attach_calloc(lib_path, "mi_zalloc_aligned");
+        self.try_attach_realloc(lib_path, "mi_realloc_aligned");
+
+        Ok(())
+    }
     attach_tracepoint!(sched_fork);
     attach_tracepoint!(sys_execve);
 

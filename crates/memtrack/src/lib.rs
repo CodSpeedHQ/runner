@@ -1,7 +1,9 @@
+mod allocators;
 #[cfg(feature = "ebpf")]
 mod ebpf;
 mod ipc;
-mod libc;
+
+pub use allocators::{AllocatorKind, AllocatorLib};
 pub use ipc::{
     IpcCommand as MemtrackIpcCommand, IpcMessage as MemtrackIpcMessage,
     IpcResponse as MemtrackIpcResponse, MemtrackIpcClient, MemtrackIpcServer,

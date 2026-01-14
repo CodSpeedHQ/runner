@@ -1,4 +1,7 @@
-use crate::ebpf::{Event, MemtrackBpf};
+use crate::{
+    AllocatorLib,
+    ebpf::{Event, MemtrackBpf},
+};
 use anyhow::Result;
 use log::debug;
 use std::sync::mpsc::{self, Receiver};
@@ -19,16 +22,16 @@ impl Tracker {
         // Bump memlock limits
         Self::bump_memlock_rlimit()?;
 
-        // Find and attach to all libc instances
-        let libc_paths = crate::libc::find_libc_paths()?;
-        debug!("Found {} libc instance(s)", libc_paths.len());
-
         let mut bpf = MemtrackBpf::new()?;
         bpf.attach_tracepoints()?;
 
-        for libc_path in &libc_paths {
-            debug!("Attaching uprobes to: {}", libc_path.display());
-            bpf.attach_probes(libc_path)?;
+        // Find and attach to all allocators
+        let allocators = AllocatorLib::find_all()?;
+        debug!("Found {} allocator instance(s)", allocators.len());
+
+        for allocator in &allocators {
+            debug!("Attaching uprobes to: {}", allocator.path.display());
+            bpf.attach_allocator_probes(allocator.kind, &allocator.path)?;
         }
 
         Ok(Self { bpf })
