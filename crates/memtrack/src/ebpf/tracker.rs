@@ -1,9 +1,8 @@
+use crate::prelude::*;
 use crate::{
     AllocatorLib,
     ebpf::{Event, MemtrackBpf},
 };
-use anyhow::Result;
-use log::debug;
 use std::sync::mpsc::{self, Receiver};
 
 pub struct Tracker {

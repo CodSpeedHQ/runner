@@ -2,6 +2,7 @@ mod allocators;
 #[cfg(feature = "ebpf")]
 mod ebpf;
 mod ipc;
+pub mod prelude;
 
 pub use allocators::{AllocatorKind, AllocatorLib};
 pub use ipc::{

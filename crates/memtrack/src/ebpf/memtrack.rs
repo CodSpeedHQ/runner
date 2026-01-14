@@ -1,11 +1,8 @@
-use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
+use crate::prelude::*;
 use libbpf_rs::Link;
 use libbpf_rs::skel::OpenSkel;
 use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::{MapCore, UprobeOpts};
-use log::{debug, warn};
 use paste::paste;
 use std::mem::MaybeUninit;
 use std::path::Path;

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::prelude::*;
 use ipc_channel::ipc::{self, IpcOneShotServer, IpcSender};
 use serde::{Deserialize, Serialize};
 
@@ -86,8 +86,6 @@ impl MemtrackIpcClient {
 /// Handle incoming IPC messages in memtrack
 #[cfg(feature = "ebpf")]
 pub fn handle_ipc_message(msg: IpcMessage, tracker: &std::sync::Arc<std::sync::Mutex<Tracker>>) {
-    use log::debug;
-
     let response = match msg.command {
         IpcCommand::Enable => match tracker.lock() {
             Ok(mut t) => match t.enable() {

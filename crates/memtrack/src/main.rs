@@ -1,7 +1,6 @@
-use anyhow::{Context, Result, anyhow};
 use clap::Parser;
-use ipc_channel::ipc::{self};
-use log::{debug, info};
+use ipc_channel::ipc;
+use memtrack::prelude::*;
 use memtrack::{MemtrackIpcMessage, Tracker, handle_ipc_message};
 use runner_shared::artifacts::{ArtifactExt, MemtrackArtifact, MemtrackEvent, MemtrackWriter};
 use std::path::{Path, PathBuf};
