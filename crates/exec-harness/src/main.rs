@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use crate::walltime::WalltimeResults;
 use clap::Parser;
-use codspeed::instrument_hooks::InstrumentHooks;
 use runner_shared::walltime_results::WalltimeBenchmark;
 use std::path::PathBuf;
 
@@ -44,13 +43,6 @@ fn main() -> Result<()> {
         name: bench_name,
         uri: bench_uri,
     } = uri::generate_name_and_uri(&args.name, &args.command);
-
-    let hooks = InstrumentHooks::instance();
-
-    // TODO(COD-1736): Stop impersonating codspeed-rust 🥸
-    hooks
-        .set_integration("codspeed-rust", env!("CARGO_PKG_VERSION"))
-        .unwrap();
 
     // Build execution options from CLI args
     let execution_options: walltime::ExecutionOptions = args.execution_args.try_into()?;
