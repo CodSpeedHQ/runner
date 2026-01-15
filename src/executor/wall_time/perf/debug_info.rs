@@ -101,7 +101,7 @@ impl ProcessDebugInfo {
                     modules.push(module_debug_info);
                 }
                 Err(error) => {
-                    debug!("Failed to load debug info for module {path:?}: {error}");
+                    trace!("Failed to load debug info for module {path:?}: {error}");
                 }
             }
         }

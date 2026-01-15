@@ -82,7 +82,7 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
             continue;
         }
 
-        debug!(
+        trace!(
             "Pid {}: {:016x}-{:016x} {:08x} {:?} (Prot {:?})",
             record.pid,
             record.address,
@@ -106,7 +106,7 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
                 end_addr,
                 record.page_offset,
             );
-        debug!("Added symbols mapping for module {record_path_string:?}");
+        trace!("Added symbols mapping for module {record_path_string:?}");
 
         match UnwindData::new(
             record_path_string.as_bytes(),
@@ -120,7 +120,7 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
                     .entry(record.pid)
                     .or_default()
                     .push(unwind_data);
-                debug!(
+                trace!(
                     "Added unwind data for {record_path_string} ({:x} - {:x})",
                     record.address, end_addr
                 );
