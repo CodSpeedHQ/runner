@@ -3,6 +3,7 @@ use core::{
     hash::{Hash, Hasher},
 };
 use serde::{Deserialize, Serialize};
+use std::io::BufWriter;
 use std::{hash::DefaultHasher, ops::Range};
 
 pub const UNWIND_FILE_EXT: &str = "unwind_data";
@@ -41,9 +42,13 @@ impl UnwindData {
             log::warn!("{} {:x?}", self.path, self.avma_range);
         }
 
-        let mut writer = std::fs::File::create(path.as_ref())?;
         let compat = UnwindDataCompat::V2(self.clone());
-        bincode::serialize_into(&mut writer, &compat)?;
+        let file = std::fs::File::create(path.as_ref())?;
+        const BUFFER_SIZE: usize = 256 * 1024 /* 256 KB */;
+
+        let writer = BufWriter::with_capacity(BUFFER_SIZE, file);
+        bincode::serialize_into(writer, &compat)?;
+
         Ok(())
     }
 }
