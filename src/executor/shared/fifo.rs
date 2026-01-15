@@ -147,7 +147,7 @@ impl RunnerFifo {
                 break;
             }
 
-            let result = tokio::time::timeout(Duration::from_secs(5), self.recv_cmd()).await;
+            let result = tokio::time::timeout(Duration::from_secs(1), self.recv_cmd()).await;
             let cmd = match result {
                 Ok(Ok(cmd)) => cmd,
                 Ok(Err(e)) => {
