@@ -3,13 +3,12 @@
 
 #define EVENT_TYPE_MALLOC 1
 #define EVENT_TYPE_FREE 2
-#define EVENT_TYPE_EXECVE 3
-#define EVENT_TYPE_CALLOC 4
-#define EVENT_TYPE_REALLOC 5
-#define EVENT_TYPE_ALIGNED_ALLOC 6
-#define EVENT_TYPE_MMAP 7
-#define EVENT_TYPE_MUNMAP 8
-#define EVENT_TYPE_BRK 9
+#define EVENT_TYPE_CALLOC 3
+#define EVENT_TYPE_REALLOC 4
+#define EVENT_TYPE_ALIGNED_ALLOC 5
+#define EVENT_TYPE_MMAP 6
+#define EVENT_TYPE_MUNMAP 7
+#define EVENT_TYPE_BRK 8
 
 /* Event structure - shared between BPF and userspace */
 struct event {

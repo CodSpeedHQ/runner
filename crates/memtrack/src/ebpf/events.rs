@@ -17,7 +17,6 @@ use bindings::*;
 pub enum EventType {
     Malloc = EVENT_TYPE_MALLOC as u8,
     Free = EVENT_TYPE_FREE as u8,
-    Execve = EVENT_TYPE_EXECVE as u8,
     Calloc = EVENT_TYPE_CALLOC as u8,
     Realloc = EVENT_TYPE_REALLOC as u8,
     AlignedAlloc = EVENT_TYPE_ALIGNED_ALLOC as u8,
@@ -31,7 +30,6 @@ impl From<u8> for EventType {
         match val as u32 {
             bindings::EVENT_TYPE_MALLOC => EventType::Malloc,
             bindings::EVENT_TYPE_FREE => EventType::Free,
-            bindings::EVENT_TYPE_EXECVE => EventType::Execve,
             bindings::EVENT_TYPE_CALLOC => EventType::Calloc,
             bindings::EVENT_TYPE_REALLOC => EventType::Realloc,
             bindings::EVENT_TYPE_ALIGNED_ALLOC => EventType::AlignedAlloc,
@@ -66,7 +64,6 @@ impl From<Event> for MemtrackEvent {
             EventType::Mmap => MemtrackEventKind::Mmap { size: val.size },
             EventType::Munmap => MemtrackEventKind::Munmap { size: val.size },
             EventType::Brk => MemtrackEventKind::Brk { size: val.size },
-            _ => panic!("This event isn't meant to be used outside of memtrack"),
         };
 
         MemtrackEvent {

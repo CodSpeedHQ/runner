@@ -350,11 +350,9 @@ impl MemtrackBpf {
         Ok(())
     }
     attach_tracepoint!(sched_fork);
-    attach_tracepoint!(sys_execve);
 
     pub fn attach_tracepoints(&mut self) -> Result<()> {
         self.attach_sched_fork()?;
-        self.attach_sys_execve()?;
         Ok(())
     }
 
