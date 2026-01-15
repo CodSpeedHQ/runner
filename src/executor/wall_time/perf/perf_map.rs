@@ -5,7 +5,7 @@ use object::{Object, ObjectSymbol, ObjectSymbolTable};
 use std::{
     collections::HashMap,
     fmt::Debug,
-    io::Write,
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
 
@@ -139,14 +139,16 @@ impl ModuleSymbols {
     }
 
     pub fn append_to_file<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
-        let mut file = std::fs::OpenOptions::new()
+        let file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(path)?;
+        const BUFFER_SIZE: usize = 256 * 1024 /* 256 KB */;
 
+        let mut writer = BufWriter::with_capacity(BUFFER_SIZE, file);
         for symbol in &self.symbols {
             writeln!(
-                file,
+                writer,
                 "{:x} {:x} {}",
                 symbol.addr.wrapping_add(self.load_bias),
                 symbol.size,
