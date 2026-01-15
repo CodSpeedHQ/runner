@@ -1,12 +1,8 @@
-use crate::prelude::*;
-use crate::walltime::WalltimeResults;
+use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
-use runner_shared::walltime_results::WalltimeBenchmark;
-use std::path::PathBuf;
-
-mod prelude;
-mod uri;
-mod walltime;
+use exec_harness::uri;
+use exec_harness::walltime;
 
 #[derive(Parser, Debug)]
 #[command(name = "exec-harness")]
@@ -39,37 +35,12 @@ fn main() -> Result<()> {
         bail!("Error: No command provided");
     }
 
-    let uri::NameAndUri {
-        name: bench_name,
-        uri: bench_uri,
-    } = uri::generate_name_and_uri(&args.name, &args.command);
+    let bench_name_and_uri = uri::generate_name_and_uri(&args.name, &args.command);
 
     // Build execution options from CLI args
     let execution_options: walltime::ExecutionOptions = args.execution_args.try_into()?;
 
-    let times_per_round_ns =
-        walltime::perform(bench_uri.clone(), args.command, &execution_options)?;
-
-    // Collect walltime results
-    let max_time_ns = times_per_round_ns.iter().copied().max();
-    let walltime_benchmark = WalltimeBenchmark::from_runtime_data(
-        bench_name.clone(),
-        bench_uri.clone(),
-        vec![1; times_per_round_ns.len()],
-        times_per_round_ns,
-        max_time_ns,
-    );
-
-    let walltime_results = WalltimeResults::from_benchmarks(vec![walltime_benchmark])
-        .expect("Failed to create walltime results");
-
-    walltime_results
-        .save_to_file(
-            std::env::var("CODSPEED_PROFILE_FOLDER")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| std::env::current_dir().unwrap().join(".codspeed")),
-        )
-        .expect("Failed to save walltime results");
+    walltime::perform(bench_name_and_uri, args.command, &execution_options)?;
 
     Ok(())
 }

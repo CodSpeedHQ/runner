@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub(crate) struct NameAndUri {
+pub struct NameAndUri {
     pub(crate) name: String,
     pub(crate) uri: String,
 }
@@ -9,7 +9,7 @@ pub(crate) struct NameAndUri {
 /// Should be removed once we have structured metadata around benchmarks
 const MAX_NAME_LENGTH: usize = 1024 - 100;
 
-pub(crate) fn generate_name_and_uri(name: &Option<String>, command: &[String]) -> NameAndUri {
+pub fn generate_name_and_uri(name: &Option<String>, command: &[String]) -> NameAndUri {
     let mut name = name.clone().unwrap_or_else(|| command.join(" "));
     let uri = format!("exec_harness::{name}");
 

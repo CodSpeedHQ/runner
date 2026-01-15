@@ -1,6 +1,8 @@
 use anyhow::Result;
 use tempfile::TempDir;
 
+use super::*;
+
 // Helper to create a simple sleep 100ms command
 fn sleep_cmd() -> Vec<String> {
     vec!["sleep".to_string(), "0.1".to_string()]
@@ -10,17 +12,15 @@ fn sleep_cmd() -> Vec<String> {
 #[test]
 fn test_max_rounds_without_warmup() -> Result<()> {
     // Create execution options with no warmup and fixed rounds
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()), // No warmup
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(10), // Exactly 10 rounds
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()), // No warmup
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(10), // Exactly 10 rounds
+        min_rounds: None,
+    })?;
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::max_rounds_no_warmup".to_string(),
         sleep_cmd(),
         &exec_opts,
@@ -36,17 +36,15 @@ fn test_max_rounds_without_warmup() -> Result<()> {
 #[test]
 fn test_min_max_rounds_with_warmup() -> Result<()> {
     // Create execution options with warmup and min/max rounds
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("100ms".to_string()), // Short warmup
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(50), // Max 50 rounds
-            min_rounds: Some(5),  // Min 5 rounds
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("100ms".to_string()), // Short warmup
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(50), // Max 50 rounds
+        min_rounds: Some(5),  // Min 5 rounds
+    })?;
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::min_max_rounds_warmup".to_string(),
         sleep_cmd(),
         &exec_opts,
@@ -71,18 +69,15 @@ fn test_min_max_rounds_with_warmup() -> Result<()> {
 #[test]
 fn test_max_time_constraint() -> Result<()> {
     // Use a very short max_time to ensure we don't run too many iterations
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("50ms".to_string()), // Short warmup
-            max_time: Some("500ms".to_string()),   // Very short max time
-            min_time: None,
-            max_rounds: None,
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("50ms".to_string()), // Short warmup
+        max_time: Some("500ms".to_string()),   // Very short max time
+        min_time: None,
+        max_rounds: None,
+        min_rounds: None,
+    })?;
 
-    let times =
-        exec_harness::walltime::perform("test::max_time".to_string(), sleep_cmd(), &exec_opts)?;
+    let times = run_rounds("test::max_time".to_string(), sleep_cmd(), &exec_opts)?;
 
     // Should have run at least 1 time, but not an excessive amount
     assert!(!times.is_empty(), "Expected at least 1 iteration");
@@ -99,17 +94,15 @@ fn test_max_time_constraint() -> Result<()> {
 #[test]
 fn test_min_rounds_and_min_time() -> Result<()> {
     // Set min_rounds and min_time
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("10ms".to_string()), // Very short warmup
-            max_time: None,
-            min_time: Some("1ms".to_string()),
-            max_rounds: None,
-            min_rounds: Some(15),
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("10ms".to_string()), // Very short warmup
+        max_time: None,
+        min_time: Some("1ms".to_string()),
+        max_rounds: None,
+        min_rounds: Some(15),
+    })?;
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::min_rounds_priority".to_string(),
         sleep_cmd(),
         &exec_opts,
@@ -129,34 +122,30 @@ fn test_min_rounds_and_min_time() -> Result<()> {
 #[test]
 fn test_warmup_is_performed() -> Result<()> {
     // With warmup enabled
-    let exec_opts_with_warmup = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("200ms".to_string()), // Significant warmup time
-            max_time: Some("500ms".to_string()),
-            min_time: None,
-            max_rounds: None,
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts_with_warmup = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("200ms".to_string()), // Significant warmup time
+        max_time: Some("500ms".to_string()),
+        min_time: None,
+        max_rounds: None,
+        min_rounds: None,
+    })?;
 
-    let times_with_warmup = exec_harness::walltime::perform(
+    let times_with_warmup = run_rounds(
         "test::with_warmup".to_string(),
         sleep_cmd(),
         &exec_opts_with_warmup,
     )?;
 
     // With warmup disabled
-    let exec_opts_no_warmup = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()), // No warmup
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(5), // Fixed 5 rounds
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts_no_warmup = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()), // No warmup
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(5), // Fixed 5 rounds
+        min_rounds: None,
+    })?;
 
-    let times_no_warmup = exec_harness::walltime::perform(
+    let times_no_warmup = run_rounds(
         "test::no_warmup".to_string(),
         sleep_cmd(),
         &exec_opts_no_warmup,
@@ -173,17 +162,15 @@ fn test_warmup_is_performed() -> Result<()> {
 #[test]
 fn test_with_sleep_command() -> Result<()> {
     // Use a command that takes a measurable amount of time
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()), // No warmup for faster test
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(3), // Just 3 rounds
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()), // No warmup for faster test
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(3), // Just 3 rounds
+        min_rounds: None,
+    })?;
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::sleep_command".to_string(),
         vec!["sleep".to_string(), "0.01".to_string()], // 10ms sleep
         &exec_opts,
@@ -206,19 +193,17 @@ fn test_with_sleep_command() -> Result<()> {
 /// Test that invalid command exits early
 #[test]
 fn test_invalid_command_fails() {
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()),
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(5),
-            min_rounds: None,
-        },
-    )
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()),
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(5),
+        min_rounds: None,
+    })
     .unwrap();
 
     // Try to run a command that doesn't exist
-    let result = exec_harness::walltime::perform(
+    let result = run_rounds(
         "test::invalid_command".to_string(),
         vec!["this_command_definitely_does_not_exist_12345".to_string()],
         &exec_opts,
@@ -232,17 +217,15 @@ fn test_invalid_command_fails() {
 #[test]
 fn test_pure_numbers_as_seconds() -> Result<()> {
     // Use pure numbers which should be interpreted as seconds
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0.1".to_string()), // 0.1 seconds warmup
-            max_time: Some("1".to_string()),      // 1 second max time
-            min_time: None,
-            max_rounds: None,
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0.1".to_string()), // 0.1 seconds warmup
+        max_time: Some("1".to_string()),      // 1 second max time
+        min_time: None,
+        max_rounds: None,
+        min_rounds: None,
+    })?;
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::pure_numbers_seconds".to_string(),
         sleep_cmd(),
         &exec_opts,
@@ -252,17 +235,15 @@ fn test_pure_numbers_as_seconds() -> Result<()> {
     assert!(!times.is_empty(), "Expected at least one iteration");
 
     // Test fractional seconds too
-    let exec_opts_fractional = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0.1".to_string()), // 0.1 seconds warmup
-            max_time: Some("0.5".to_string()),    // 0.5 seconds max time
-            min_time: None,
-            max_rounds: None,
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts_fractional = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0.1".to_string()), // 0.1 seconds warmup
+        max_time: Some("0.5".to_string()),    // 0.5 seconds max time
+        min_time: None,
+        max_rounds: None,
+        min_rounds: None,
+    })?;
 
-    let times_fractional = exec_harness::walltime::perform(
+    let times_fractional = run_rounds(
         "test::fractional_seconds".to_string(),
         sleep_cmd(),
         &exec_opts_fractional,
@@ -280,15 +261,13 @@ fn test_pure_numbers_as_seconds() -> Result<()> {
 #[test]
 fn test_single_long_execution() -> Result<()> {
     // Set max_time very low and warmup time high to force single execution
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("100ms".to_string()),
-            max_time: Some("100ms".to_string()), // Low max time, shorter than command duration
-            min_time: None,
-            max_rounds: None,
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("100ms".to_string()),
+        max_time: Some("100ms".to_string()), // Low max time, shorter than command duration
+        min_time: None,
+        max_rounds: None,
+        min_rounds: None,
+    })?;
 
     // Create a temporary directory for the test
     let tmpdir = TempDir::new()?;
@@ -298,7 +277,7 @@ fn test_single_long_execution() -> Result<()> {
     let test_dir = tmpdir.path().join("lock_file");
     let cmd = format!("sleep 1 && mkdir {}", test_dir.display());
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::single_long_execution".to_string(),
         vec!["sh".to_string(), "-c".to_string(), cmd.clone()],
         &exec_opts,
@@ -310,7 +289,7 @@ fn test_single_long_execution() -> Result<()> {
     // Sanity check: any subsequent run should fail due to directory existing, to avoid false
     // positives
     assert!(
-        exec_harness::walltime::perform(
+        run_rounds(
             "test::single_long_execution".to_string(),
             vec!["sh".to_string(), "-c".to_string(), cmd],
             &exec_opts,
@@ -325,15 +304,13 @@ fn test_single_long_execution() -> Result<()> {
 /// Test that a command with shell operators (&&) works correctly when passed as a single argument
 #[test]
 fn test_command_with_shell_operators() -> Result<()> {
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()),
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(1),
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()),
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(1),
+        min_rounds: None,
+    })?;
 
     let tmpdir = TempDir::new()?;
     let marker_file = tmpdir.path().join("marker.txt");
@@ -342,7 +319,7 @@ fn test_command_with_shell_operators() -> Result<()> {
     // The entire "echo first && echo second > marker.txt" should be passed as one argument to -c
     let cmd = format!("echo first && echo second > {}", marker_file.display());
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::shell_operators".to_string(),
         vec!["bash".to_string(), "-c".to_string(), cmd],
         &exec_opts,
@@ -369,15 +346,13 @@ fn test_command_with_shell_operators() -> Result<()> {
 /// Test that a command with pipes works correctly
 #[test]
 fn test_command_with_pipes() -> Result<()> {
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()),
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(1),
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()),
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(1),
+        min_rounds: None,
+    })?;
 
     let tmpdir = TempDir::new()?;
     let output_file = tmpdir.path().join("output.txt");
@@ -388,7 +363,7 @@ fn test_command_with_pipes() -> Result<()> {
         output_file.display()
     );
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::pipes".to_string(),
         vec!["bash".to_string(), "-c".to_string(), cmd],
         &exec_opts,
@@ -410,15 +385,13 @@ fn test_command_with_pipes() -> Result<()> {
 /// Test that a command with quotes in the argument works correctly
 #[test]
 fn test_command_with_embedded_quotes() -> Result<()> {
-    let exec_opts = exec_harness::walltime::ExecutionOptions::try_from(
-        exec_harness::walltime::WalltimeExecutionArgs {
-            warmup_time: Some("0s".to_string()),
-            max_time: None,
-            min_time: None,
-            max_rounds: Some(1),
-            min_rounds: None,
-        },
-    )?;
+    let exec_opts = ExecutionOptions::try_from(WalltimeExecutionArgs {
+        warmup_time: Some("0s".to_string()),
+        max_time: None,
+        min_time: None,
+        max_rounds: Some(1),
+        min_rounds: None,
+    })?;
 
     let tmpdir = TempDir::new()?;
     let output_file = tmpdir.path().join("output.txt");
@@ -426,7 +399,7 @@ fn test_command_with_embedded_quotes() -> Result<()> {
     // This simulates: bash -c "echo 'hello world' > output.txt"
     let cmd = format!("echo 'hello world' > {}", output_file.display());
 
-    let times = exec_harness::walltime::perform(
+    let times = run_rounds(
         "test::embedded_quotes".to_string(),
         vec!["bash".to_string(), "-c".to_string(), cmd],
         &exec_opts,

@@ -5,10 +5,6 @@ edition = "2024"
 repository = "https://github.com/CodSpeedHQ/runner"
 publish = false
 
-[lib]
-name = "exec_harness"
-path = "src/lib.rs"
-
 [[bin]]
 name = "exec-harness"
 path = "src/main.rs"
