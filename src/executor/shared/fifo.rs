@@ -123,10 +123,14 @@ impl RunnerFifo {
 
     /// Handles all incoming FIFO messages until it's closed, or until the health check closure
     /// returns `false` or an error.
+    ///
+    /// The `handle_cmd` callback is invoked first for each command. If it returns `Some(response)`,
+    /// that response is sent and the shared implementation is skipped. If it returns `None`,
+    /// the command falls through to the shared implementation for standard handling.
     pub async fn handle_fifo_messages(
         &mut self,
         mut health_check: impl AsyncFnMut() -> anyhow::Result<bool>,
-        mut handle_cmd: impl AsyncFnMut(&FifoCommand) -> anyhow::Result<FifoCommand>,
+        mut handle_cmd: impl AsyncFnMut(&FifoCommand) -> anyhow::Result<Option<FifoCommand>>,
     ) -> anyhow::Result<(ExecutionTimestamps, FifoBenchmarkData)> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
@@ -158,38 +162,44 @@ impl RunnerFifo {
             };
             debug!("Received command: {cmd:?}");
 
+            // Try executor-specific handler first
+            if let Some(response) = handle_cmd(&cmd).await? {
+                self.send_cmd(response).await?;
+                continue;
+            }
+
+            // Fall through to shared implementation for standard commands
             match &cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {
                     bench_order_by_timestamp.push((current_time(), uri.to_string()));
                     bench_pids.insert(*pid);
+                    self.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StartBenchmark => {
-                    if benchmark_started {
+                    if !benchmark_started {
+                        benchmark_started = true;
+                        markers.push(MarkerType::SampleStart(current_time()));
+                    } else {
                         warn!("Received duplicate StartBenchmark command, ignoring");
-                        self.send_cmd(FifoCommand::Ack).await?;
-                        continue;
                     }
-                    benchmark_started = true;
-                    markers.push(MarkerType::SampleStart(current_time()));
+                    self.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::StopBenchmark => {
-                    if !benchmark_started {
+                    if benchmark_started {
+                        benchmark_started = false;
+                        markers.push(MarkerType::SampleEnd(current_time()));
+                    } else {
                         warn!("Received StopBenchmark command before StartBenchmark, ignoring");
-                        self.send_cmd(FifoCommand::Ack).await?;
-                        continue;
                     }
-                    benchmark_started = false;
-                    markers.push(MarkerType::SampleEnd(current_time()));
+                    self.send_cmd(FifoCommand::Ack).await?;
                 }
                 FifoCommand::SetIntegration { name, version } => {
                     integration = Some((name.into(), version.into()));
                     self.send_cmd(FifoCommand::Ack).await?;
-                    continue;
                 }
                 FifoCommand::AddMarker { marker, .. } => {
                     markers.push(*marker);
                     self.send_cmd(FifoCommand::Ack).await?;
-                    continue;
                 }
                 FifoCommand::SetVersion(protocol_version) => {
                     match protocol_version.cmp(&runner_shared::fifo::CURRENT_PROTOCOL_VERSION) {
@@ -204,7 +214,6 @@ impl RunnerFifo {
                                 );
                             }
                             self.send_cmd(FifoCommand::Ack).await?;
-                            continue;
                         }
                         Ordering::Greater => bail!(
                             "Runner is using an incompatible protocol version ({} < {protocol_version}). Please update the runner to the latest version.",
@@ -212,14 +221,14 @@ impl RunnerFifo {
                         ),
                         Ordering::Equal => {
                             self.send_cmd(FifoCommand::Ack).await?;
-                            continue;
                         }
                     }
                 }
-                _ => {}
+                _ => {
+                    warn!("Unhandled FIFO command: {cmd:?}");
+                    self.send_cmd(FifoCommand::Err).await?;
+                }
             }
-
-            self.send_cmd(handle_cmd(&cmd).await?).await?;
         }
 
         let marker_result = ExecutionTimestamps::new(&bench_order_by_timestamp, &markers);

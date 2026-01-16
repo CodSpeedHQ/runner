@@ -295,19 +295,19 @@ impl PerfRunner {
                 }
                 FifoCommand::PingPerf => {
                     if perf_fifo.lock().await.ping().await.is_err() {
-                        return Ok(FifoCommand::Err);
+                        return Ok(Some(FifoCommand::Err));
                     }
+                    return Ok(Some(FifoCommand::Ack));
                 }
                 FifoCommand::GetIntegrationMode => {
-                    return Ok(FifoCommand::IntegrationModeResponse(IntegrationMode::Perf));
+                    return Ok(Some(FifoCommand::IntegrationModeResponse(
+                        IntegrationMode::Perf,
+                    )));
                 }
-                _ => {
-                    warn!("Unhandled FIFO command: {cmd:?}");
-                    return Ok(FifoCommand::Err);
-                }
+                _ => {}
             }
 
-            Ok(FifoCommand::Ack)
+            Ok(None)
         };
 
         let (marker_result, fifo_data) = runner_fifo

@@ -154,14 +154,19 @@ impl MemoryExecutor {
 
         let on_cmd = async move |cmd: &FifoCommand| {
             match cmd {
-                FifoCommand::CurrentBenchmark { pid, uri } => {
-                    debug!("Current benchmark: {pid}, {uri}");
+                FifoCommand::SetVersion(protocol_version) => {
+                    if *protocol_version < 2 {
+                        bail!(
+                            "Memory profiling requires protocol version 2 or higher, but the integration is using version {protocol_version}. \
+                            This integration doesn't support memory profiling. Please update your integration to a version that supports memory profiling.",
+                        );
+                    }
                 }
                 FifoCommand::StartBenchmark => {
                     debug!("Enabling memtrack via IPC");
                     if let Err(e) = ipc_client.enable() {
                         error!("Failed to enable memtrack: {e}");
-                        return Ok(FifoCommand::Err);
+                        return Ok(Some(FifoCommand::Err));
                     }
                 }
                 FifoCommand::StopBenchmark => {
@@ -169,21 +174,18 @@ impl MemoryExecutor {
                     if let Err(e) = ipc_client.disable() {
                         // There's a chance that memtrack has already exited here, so just log as debug
                         debug!("Failed to disable memtrack: {e}");
-                        return Ok(FifoCommand::Err);
+                        return Ok(Some(FifoCommand::Err));
                     }
                 }
                 FifoCommand::GetIntegrationMode => {
-                    return Ok(FifoCommand::IntegrationModeResponse(
+                    return Ok(Some(FifoCommand::IntegrationModeResponse(
                         IntegrationMode::Analysis,
-                    ));
+                    )));
                 }
-                _ => {
-                    warn!("Unhandled FIFO command: {cmd:?}");
-                    return Ok(FifoCommand::Err);
-                }
+                _ => {}
             }
 
-            Ok(FifoCommand::Ack)
+            Ok(None)
         };
 
         let (marker_result, _) = runner_fifo
