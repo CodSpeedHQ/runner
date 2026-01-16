@@ -10,7 +10,7 @@ pub mod merger;
 ///
 /// This configuration provides default options for the run and exec commands.
 /// CLI arguments always take precedence over config file values.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectConfig {
     /// Default options to apply to all benchmark runs
@@ -18,7 +18,7 @@ pub struct ProjectConfig {
 }
 
 /// Root-level options that apply to all benchmark runs unless overridden by CLI
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectOptions {
     /// Walltime execution configuration
@@ -30,7 +30,7 @@ pub struct ProjectOptions {
 }
 
 /// Walltime execution options matching WalltimeExecutionArgs structure
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct WalltimeOptions {
     /// Duration of warmup phase (e.g., "1s", "500ms")
