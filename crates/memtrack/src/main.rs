@@ -177,6 +177,11 @@ fn track_command(
         }
         writer.finish()?;
 
+        if i == 0 {
+            bail!(
+                "No memtrack events were written to disk, does the integration support memory profiling?"
+            )
+        }
         info!("Wrote {i} memtrack events to disk");
 
         Ok(())
