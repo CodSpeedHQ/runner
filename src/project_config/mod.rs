@@ -15,6 +15,14 @@ pub mod merger;
 pub struct ProjectConfig {
     /// Default options to apply to all benchmark runs
     pub options: Option<ProjectOptions>,
+    // pub targets: Option<Vec<Target>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub(crate) struct Target {
+    pub name: String,
+    pub command: Vec<String>,
+    pub options: Option<ProjectOptions>,
 }
 
 /// Root-level options that apply to all benchmark runs unless overridden by CLI
