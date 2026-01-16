@@ -145,6 +145,30 @@ impl ProjectConfig {
                 Self::validate_walltime_options(walltime, "root options")?;
             }
         }
+
+        // Validate targets
+        if let Some(targets) = &self.targets {
+            for (idx, target) in targets.iter().enumerate() {
+                let target_name = target
+                    .name
+                    .as_ref()
+                    .map(|n| format!("target '{n}'"))
+                    .unwrap_or_else(|| format!("target at index {idx}"));
+
+                // Ensure exec is not empty
+                if target.exec.is_empty() {
+                    bail!("Invalid configuration: {target_name} has an empty 'exec' field");
+                }
+
+                // Validate target's walltime options
+                if let Some(options) = &target.options {
+                    if let Some(walltime) = &options.walltime {
+                        Self::validate_walltime_options(walltime, &target_name)?;
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -240,6 +264,7 @@ options:
                 working_directory: None,
                 mode: None,
             }),
+            targets: None,
         };
 
         let result = config.validate();
@@ -266,6 +291,7 @@ options:
                 working_directory: None,
                 mode: None,
             }),
+            targets: None,
         };
 
         let result = config.validate();
@@ -292,6 +318,7 @@ options:
                 working_directory: Some("./bench".to_string()),
                 mode: Some(RunnerMode::Walltime),
             }),
+            targets: None,
         };
 
         assert!(config.validate().is_ok());

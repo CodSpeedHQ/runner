@@ -241,6 +241,47 @@ impl Default for ExecutionOptions {
     }
 }
 
+impl From<crate::exec_targets::WalltimeExecutionOptions> for ExecutionOptions {
+    /// Convert WalltimeExecutionOptions (from targets file) to ExecutionOptions
+    ///
+    /// Since WalltimeExecutionOptions already has durations as nanoseconds,
+    /// we don't need to parse strings - just map the values directly.
+    fn from(opts: crate::exec_targets::WalltimeExecutionOptions) -> Self {
+        let warmup_time_ns = opts.warmup_time_ns.unwrap_or(DEFAULT_WARMUP_TIME_NS);
+
+        // Determine max_time_ns with default logic
+        let max_time_ns = opts.max_time_ns.unwrap_or_else(|| {
+            // No max_time provided, use default only if no round-based constraints are set
+            if opts.max_rounds.is_some() || opts.min_rounds.is_some() || opts.min_time_ns.is_some() {
+                0
+            } else {
+                DEFAULT_MAX_TIME_NS
+            }
+        });
+
+        // Build min/max using RoundOrTime enum
+        let min = match (opts.min_rounds, opts.min_time_ns) {
+            (Some(rounds), None) => Some(RoundOrTime::Rounds(rounds)),
+            (None, Some(time_ns)) => Some(RoundOrTime::TimeNs(time_ns)),
+            (Some(rounds), Some(time_ns)) => Some(RoundOrTime::Both { rounds, time_ns }),
+            (None, None) => None,
+        };
+
+        let max = match (opts.max_rounds, max_time_ns) {
+            (Some(rounds), 0) => Some(RoundOrTime::Rounds(rounds)),
+            (Some(rounds), time_ns) => Some(RoundOrTime::Both { rounds, time_ns }),
+            (None, 0) => None,
+            (None, time_ns) => Some(RoundOrTime::TimeNs(time_ns)),
+        };
+
+        Self {
+            warmup_time_ns,
+            min,
+            max,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

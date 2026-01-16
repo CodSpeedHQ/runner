@@ -434,6 +434,7 @@ dependencies = [
  "gimli",
  "git2",
  "gql_client",
+ "humantime",
  "indicatif",
  "insta",
  "ipc-channel",

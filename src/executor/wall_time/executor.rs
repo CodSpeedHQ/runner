@@ -109,6 +109,14 @@ impl WallTimeExecutor {
             get_base_injected_env(RunnerMode::Walltime, &execution_context.profile_folder);
         extra_env.insert("PATH", path_value);
 
+        // Add targets file path for exec multi-target mode
+        if let Some(targets_file_path) = &config.targets_file_path {
+            extra_env.insert(
+                "CODSPEED_TARGETS_FILE",
+                targets_file_path.to_string_lossy().to_string(),
+            );
+        }
+
         // We have to write the benchmark command to a script, to ensure proper formatting
         // and to not have to manually escape everything.
         let mut script_file = NamedTempFile::new()?;

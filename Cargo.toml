@@ -71,6 +71,7 @@ tabled = "0.17"
 shell-words = "1.1.0"
 rmp-serde = "1.3.0"
 test-log = "0.2.19"
+humantime = "2.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 procfs = "0.17.0"

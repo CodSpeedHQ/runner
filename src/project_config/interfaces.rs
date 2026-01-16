@@ -10,10 +10,18 @@ use serde::{Deserialize, Serialize};
 pub struct ProjectConfig {
     /// Default options to apply to all benchmark runs
     pub options: Option<ProjectOptions>,
+    pub targets: Option<Vec<Target>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub(crate) struct TargetOptions {
+pub struct Target {
+    pub name: Option<String>,
+    pub exec: Vec<String>,
+    pub options: Option<TargetOptions>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct TargetOptions {
     pub walltime: Option<WalltimeOptions>,
 }
 
@@ -30,7 +38,7 @@ pub struct ProjectOptions {
 }
 
 /// Walltime execution options matching WalltimeExecutionArgs structure
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct WalltimeOptions {
     /// Duration of warmup phase (e.g., "1s", "500ms")

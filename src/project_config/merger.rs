@@ -1,7 +1,7 @@
 use crate::run::ExecAndRunSharedArgs;
 use exec_harness::walltime::WalltimeExecutionArgs;
 
-use super::{ProjectOptions, WalltimeOptions};
+use super::{ProjectOptions, TargetOptions, WalltimeOptions};
 
 /// Handles merging of CLI arguments with project configuration
 ///
@@ -63,6 +63,42 @@ impl ConfigMerger {
     /// Helper to merge Option values with precedence: CLI > config > None
     fn merge_option<T: Clone>(cli_value: &Option<T>, config_value: Option<&T>) -> Option<T> {
         cli_value.clone().or_else(|| config_value.cloned())
+    }
+
+    /// Merge walltime options with three-level precedence: CLI > target > global
+    ///
+    /// Used when resolving targets from config. CLI arguments take highest precedence,
+    /// then target-specific options, then global project options.
+    pub fn merge_walltime_with_target(
+        cli: &WalltimeExecutionArgs,
+        target_opts: Option<&TargetOptions>,
+        global_opts: Option<&WalltimeOptions>,
+    ) -> WalltimeExecutionArgs {
+        // First merge target with global (target wins)
+        let target_walltime = target_opts.and_then(|t| t.walltime.as_ref());
+        let merged_config = Self::merge_walltime_options_config(target_walltime, global_opts);
+
+        // Then merge CLI with the merged config (CLI wins)
+        Self::merge_walltime_options(cli, merged_config.as_ref())
+    }
+
+    /// Merge two WalltimeOptions (config-level), where first takes precedence
+    fn merge_walltime_options_config(
+        first: Option<&WalltimeOptions>,
+        second: Option<&WalltimeOptions>,
+    ) -> Option<WalltimeOptions> {
+        match (first, second) {
+            (Some(f), Some(s)) => Some(WalltimeOptions {
+                warmup_time: f.warmup_time.clone().or_else(|| s.warmup_time.clone()),
+                max_time: f.max_time.clone().or_else(|| s.max_time.clone()),
+                min_time: f.min_time.clone().or_else(|| s.min_time.clone()),
+                max_rounds: f.max_rounds.or(s.max_rounds),
+                min_rounds: f.min_rounds.or(s.min_rounds),
+            }),
+            (Some(f), None) => Some(f.clone()),
+            (None, Some(s)) => Some(s.clone()),
+            (None, None) => None,
+        }
     }
 }
 

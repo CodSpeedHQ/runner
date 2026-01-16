@@ -1,9 +1,12 @@
 use clap::Parser;
 use exec_harness::MeasurementMode;
 use exec_harness::analysis;
+use exec_harness::exec_targets::ExecTargetsFile;
 use exec_harness::prelude::*;
 use exec_harness::uri;
 use exec_harness::walltime;
+use std::fs;
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 #[command(name = "exec-harness")]
@@ -28,16 +31,35 @@ struct Args {
     command: Vec<String>,
 }
 
-fn main() -> Result<()> {
-    env_logger::builder()
-        .parse_env(env_logger::Env::new().filter_or("CODSPEED_LOG", "info"))
-        .format_timestamp(None)
-        .init();
+/// Load targets from a JSON file
+fn load_targets_file(path: &Path) -> Result<ExecTargetsFile> {
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read targets file: {}", path.display()))?;
+    serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse targets file: {}", path.display()))
+}
 
-    debug!("Starting exec-harness with pid {}", std::process::id());
+/// Run in multi-target mode with targets from file
+fn run_multi_target(targets_file: ExecTargetsFile, measurement_mode: Option<MeasurementMode>) -> Result<()> {
+    info!("Running {} targets from config", targets_file.targets.len());
 
-    let args = Args::parse();
+    match measurement_mode {
+        Some(MeasurementMode::Walltime) | None => {
+            walltime::perform_targets(targets_file.targets)?;
+        }
+        Some(MeasurementMode::Memory) => {
+            analysis::perform_targets(targets_file.targets)?;
+        }
+        Some(MeasurementMode::Simulation) => {
+            bail!("Simulation measurement mode is not yet supported by exec-harness");
+        }
+    }
 
+    Ok(())
+}
+
+/// Run in single command mode (backward compatible)
+fn run_single_command(args: Args) -> Result<()> {
     if args.command.is_empty() {
         bail!("Error: No command provided");
     }
@@ -56,6 +78,29 @@ fn main() -> Result<()> {
         Some(MeasurementMode::Simulation) => {
             bail!("Simulation measurement mode is not yet supported by exec-harness");
         }
+    }
+
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    env_logger::builder()
+        .parse_env(env_logger::Env::new().filter_or("CODSPEED_LOG", "info"))
+        .format_timestamp(None)
+        .init();
+
+    debug!("Starting exec-harness with pid {}", std::process::id());
+
+    let args = Args::parse();
+
+    // Check for multi-target mode via env var
+    if let Ok(targets_file_path) = std::env::var("CODSPEED_TARGETS_FILE") {
+        debug!("Running in multi-target mode with targets from: {targets_file_path}");
+        let targets_file = load_targets_file(Path::new(&targets_file_path))?;
+        run_multi_target(targets_file, args.measurement_mode)?;
+    } else {
+        // Single command mode (backward compatible)
+        run_single_command(args)?;
     }
 
     Ok(())

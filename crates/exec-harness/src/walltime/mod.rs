@@ -6,7 +6,9 @@ pub use config::WalltimeExecutionArgs;
 use runner_shared::walltime_results::WalltimeBenchmark;
 pub use runner_shared::walltime_results::WalltimeResults;
 
+use crate::exec_targets::ExecTarget;
 use crate::prelude::*;
+use crate::uri;
 use crate::uri::NameAndUri;
 use codspeed::instrument_hooks::InstrumentHooks;
 use std::process::Command;
@@ -198,6 +200,51 @@ fn run_rounds(
     hooks.set_executed_benchmark(&bench_uri).unwrap();
 
     Ok(times_per_round_ns)
+}
+
+/// Run multiple targets sequentially and save all results to a single WalltimeResults file
+pub fn perform_targets(targets: Vec<ExecTarget>) -> Result<()> {
+    let mut benchmarks = Vec::with_capacity(targets.len());
+
+    for (idx, target) in targets.iter().enumerate() {
+        let name_and_uri = uri::generate_name_and_uri(&target.name, &target.command);
+        let execution_options: ExecutionOptions = target.walltime_options.clone().into();
+
+        info!(
+            "Running target {}/{}: {}",
+            idx + 1,
+            targets.len(),
+            name_and_uri.name
+        );
+
+        let times_per_round_ns =
+            run_rounds(name_and_uri.uri.clone(), target.command.clone(), &execution_options)?;
+
+        let max_time_ns = times_per_round_ns.iter().copied().max();
+
+        benchmarks.push(WalltimeBenchmark::from_runtime_data(
+            name_and_uri.name,
+            name_and_uri.uri,
+            vec![1; times_per_round_ns.len()],
+            times_per_round_ns,
+            max_time_ns,
+        ));
+    }
+
+    let walltime_results =
+        WalltimeResults::from_benchmarks(benchmarks).expect("Failed to create walltime results");
+
+    walltime_results
+        .save_to_file(
+            std::env::var("CODSPEED_PROFILE_FOLDER")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| std::env::current_dir().unwrap().join(".codspeed")),
+        )
+        .context("Failed to save walltime results")?;
+
+    info!("Completed {} targets", targets.len());
+
+    Ok(())
 }
 
 #[cfg(test)]
