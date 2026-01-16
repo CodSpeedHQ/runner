@@ -120,7 +120,7 @@ fn track_command(
         .map_err(|e| anyhow!("Failed to spawn child process: {e}"))?;
     let root_pid = child.id() as i32;
     let event_rx = { tracker_arc.lock().unwrap().track(root_pid)? };
-    info!("Spawned child with pid {root_pid}");
+    debug!("Spawned child with pid {root_pid}");
 
     // Generate output file name and create file for streaming events
     let file_name = MemtrackArtifact::file_name(Some(root_pid));
@@ -184,17 +184,17 @@ fn track_command(
 
     // Wait for the command to complete
     let status = child.wait().context("Failed to wait for command")?;
-    info!("Command exited with status: {status}");
+    debug!("Command exited with status: {status}");
 
     // Wait for drain thread to finish
-    info!("Waiting for the drain thread to finish");
+    debug!("Waiting for the drain thread to finish");
     DRAIN_EVENTS.store(false, Ordering::Relaxed);
     drain_thread
         .join()
         .map_err(|_| anyhow::anyhow!("Failed to join drain thread"))?;
 
     // Wait for writer thread to finish and propagate errors
-    info!("Waiting for the writer thread to finish");
+    debug!("Waiting for the writer thread to finish");
     drop(write_tx);
     writer_thread
         .join()
