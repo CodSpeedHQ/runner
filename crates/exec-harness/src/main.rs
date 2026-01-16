@@ -1,11 +1,9 @@
-use anyhow::Result;
-use anyhow::bail;
 use clap::Parser;
 use exec_harness::MeasurementMode;
 use exec_harness::analysis;
+use exec_harness::prelude::*;
 use exec_harness::uri;
 use exec_harness::walltime;
-use log::debug;
 
 #[derive(Parser, Debug)]
 #[command(name = "exec-harness")]

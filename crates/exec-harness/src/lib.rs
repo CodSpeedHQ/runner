@@ -2,7 +2,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 pub mod analysis;
-mod prelude;
+pub mod prelude;
 pub mod uri;
 pub mod walltime;
 

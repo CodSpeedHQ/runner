@@ -81,7 +81,6 @@ impl WalltimeExecutionArgs {
     ///
     /// Unfortunately, clap does not provide a built-in way to serialize args back to CLI format,
     // Clippy is very confused since this is used in the runner, but not in the binary of exec-harness
-    #[allow(dead_code)]
     pub fn to_cli_args(&self) -> Vec<String> {
         let mut args = Vec::new();
 
