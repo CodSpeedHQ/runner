@@ -13,7 +13,7 @@ pub fn run_rounds(
     let warmup_time_ns = config.warmup_time_ns;
     let hooks = InstrumentHooks::instance();
 
-    let do_one_round = |times_per_round_ns: &mut Vec<u128>| {
+    let do_one_round = || -> Result<(u64, u64)> {
         let mut child = Command::new(&command[0])
             .args(&command[1..])
             .spawn()
@@ -24,21 +24,25 @@ pub fn run_rounds(
             .context("Failed to wait for command to finish")?;
 
         let bench_round_end_ts_ns = InstrumentHooks::current_timestamp();
-        hooks.add_benchmark_timestamps(bench_round_start_ts_ns, bench_round_end_ts_ns);
 
         if !status.success() {
             bail!("Command exited with non-zero status: {status}");
         }
 
-        times_per_round_ns.push((bench_round_end_ts_ns - bench_round_start_ts_ns) as u128);
-
-        Ok(())
+        Ok((bench_round_start_ts_ns, bench_round_end_ts_ns))
     };
 
     // Compute the number of rounds to perform (potentially undefined if no warmup and only time constraints)
+    hooks.start_benchmark().unwrap();
     let rounds_to_perform: Option<u64> = if warmup_time_ns > 0 {
-        match compute_rounds_from_warmup(config, hooks, &bench_uri, do_one_round)? {
-            WarmupResult::EarlyReturn(times) => return Ok(times),
+        match compute_rounds_from_warmup(config, do_one_round)? {
+            WarmupResult::EarlyReturn { start, end } => {
+                // Add marker for the single warmup round so the run still gets profiling data
+                hooks.add_benchmark_timestamps(start, end);
+                hooks.stop_benchmark().unwrap();
+                hooks.set_executed_benchmark(&bench_uri).unwrap();
+                return Ok(vec![(end - start) as u128]);
+            }
             WarmupResult::Rounds(rounds) => Some(rounds),
         }
     } else {
@@ -77,17 +81,25 @@ pub fn run_rounds(
         .unwrap_or_default();
     let mut current_round: u64 = 0;
 
-    hooks.start_benchmark().unwrap();
-
     debug!(
         "Starting loop with ending conditions: \
         rounds {rounds_to_perform:?}, \
         min_time_ns {min_time_ns:?}, \
         max_time_ns {max_time_ns:?}"
     );
+
     let round_start_ts_ns = InstrumentHooks::current_timestamp();
+
+    let mut round_timestamps: Vec<(u64, u64)> = if let Some(rounds) = rounds_to_perform {
+        Vec::with_capacity(rounds as usize)
+    } else {
+        Vec::new()
+    };
+
     loop {
-        do_one_round(&mut times_per_round_ns)?;
+        let current_round_timestamps = do_one_round()?;
+        // Only store timestamps for later processing in order to avoid overhead during the loop
+        round_timestamps.push(current_round_timestamps);
         current_round += 1;
 
         let elapsed_ns = InstrumentHooks::current_timestamp() - round_start_ts_ns;
@@ -122,6 +134,13 @@ pub fn run_rounds(
             break;
         }
     }
+
+    // Record timestamps
+    for (start, end) in round_timestamps {
+        hooks.add_benchmark_timestamps(start, end);
+        times_per_round_ns.push((end - start) as u128);
+    }
+
     hooks.stop_benchmark().unwrap();
     hooks.set_executed_benchmark(&bench_uri).unwrap();
 
@@ -129,54 +148,51 @@ pub fn run_rounds(
 }
 
 enum WarmupResult {
-    /// Warmup satisfied max_time constraint, return early with these times
-    EarlyReturn(Vec<u128>),
+    /// Warmup exceeded max_time constraint with a single run, return early with this single timestamp pair
+    EarlyReturn { start: u64, end: u64 },
     /// Continue with this many rounds
     Rounds(u64),
 }
 
 /// Run warmup rounds and compute the number of benchmark rounds to perform
-fn compute_rounds_from_warmup<F>(
-    config: &ExecutionOptions,
-    hooks: &InstrumentHooks,
-    bench_uri: &str,
-    do_one_round: F,
-) -> Result<WarmupResult>
+fn compute_rounds_from_warmup<F>(config: &ExecutionOptions, do_one_round: F) -> Result<WarmupResult>
 where
-    F: Fn(&mut Vec<u128>) -> Result<()>,
+    F: Fn() -> Result<(u64, u64)>,
 {
-    let mut warmup_times_ns = Vec::new();
+    let mut warmup_timestamps: Vec<(u64, u64)> = Vec::new();
     let warmup_start_ts_ns = InstrumentHooks::current_timestamp();
 
-    hooks.start_benchmark().unwrap();
     while InstrumentHooks::current_timestamp() < warmup_start_ts_ns + config.warmup_time_ns {
-        do_one_round(&mut warmup_times_ns)?;
+        let (start, end) = do_one_round()?;
+        warmup_timestamps.push((start, end));
     }
-    hooks.stop_benchmark().unwrap();
     let warmup_end_ts_ns = InstrumentHooks::current_timestamp();
 
     // Check if single warmup round already exceeded max_time
-    if let [single_warmup_round_duration_ns] = warmup_times_ns.as_slice() {
+    if let [(start, end)] = warmup_timestamps.as_slice() {
+        let single_warmup_round_duration_ns = end - start;
         match config.max {
             Some(RoundOrTime::TimeNs(time_ns)) | Some(RoundOrTime::Both { time_ns, .. }) => {
-                if time_ns <= *single_warmup_round_duration_ns as u64 {
+                if time_ns <= single_warmup_round_duration_ns {
                     info!(
-                        "Warmup duration ({}) exceeded or met max_time ({}). No more rounds will be performed.",
-                        format_ns(*single_warmup_round_duration_ns as u64),
+                        "A single warmup execution ({}) exceeded or met max_time ({}). No more rounds will be performed.",
+                        format_ns(single_warmup_round_duration_ns),
                         format_ns(time_ns)
                     );
-                    hooks.set_executed_benchmark(bench_uri).unwrap();
-                    return Ok(WarmupResult::EarlyReturn(warmup_times_ns));
+                    return Ok(WarmupResult::EarlyReturn {
+                        start: *start,
+                        end: *end,
+                    });
                 }
             }
             _ => { /* No max time constraint */ }
         }
     }
 
-    info!("Completed {} warmup rounds", warmup_times_ns.len());
+    info!("Completed {} warmup rounds", warmup_timestamps.len());
 
     let average_time_per_round_ns =
-        (warmup_end_ts_ns - warmup_start_ts_ns) / warmup_times_ns.len() as u64;
+        (warmup_end_ts_ns - warmup_start_ts_ns) / warmup_timestamps.len() as u64;
 
     let actual_min_rounds = compute_min_rounds(config, average_time_per_round_ns);
     let actual_max_rounds = compute_max_rounds(config, average_time_per_round_ns);
