@@ -125,17 +125,15 @@ impl TryFrom<RunArgs> for Config {
     }
 }
 
-impl TryFrom<crate::exec::ExecArgs> for Config {
-    type Error = Error;
-    fn try_from(args: crate::exec::ExecArgs) -> Result<Self> {
+impl Config {
+    /// Create a Config from ExecArgs with a custom command (used for targets mode)
+    pub fn try_from_with_command(args: crate::exec::ExecArgs, command: String) -> Result<Self> {
         let raw_upload_url = args
             .shared
             .upload_url
             .unwrap_or_else(|| DEFAULT_UPLOAD_URL.into());
         let upload_url = Url::parse(&raw_upload_url)
             .map_err(|e| anyhow!("Invalid upload URL: {raw_upload_url}, {e}"))?;
-
-        let wrapped_command = wrap_with_exec_harness(&args.walltime_args, &args.command);
 
         Ok(Self {
             upload_url,
@@ -150,13 +148,21 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
             instruments: Instruments { mongodb: None }, // exec doesn't support MongoDB
             perf_unwinding_mode: args.shared.perf_run_args.perf_unwinding_mode,
             enable_perf: args.shared.perf_run_args.enable_perf,
-            command: wrapped_command,
+            command,
             profile_folder: args.shared.profile_folder,
             skip_upload: args.shared.skip_upload,
             skip_run: args.shared.skip_run,
             skip_setup: args.shared.skip_setup,
             allow_empty: args.shared.allow_empty,
         })
+    }
+}
+
+impl TryFrom<crate::exec::ExecArgs> for Config {
+    type Error = Error;
+    fn try_from(args: crate::exec::ExecArgs) -> Result<Self> {
+        let wrapped_command = wrap_with_exec_harness(&args.walltime_args, &args.command);
+        Self::try_from_with_command(args, wrapped_command)
     }
 }
 

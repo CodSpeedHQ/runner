@@ -195,6 +195,21 @@ impl RunArgs {
     }
 }
 
+use crate::project_config::Target;
+use crate::project_config::WalltimeOptions;
+/// Determines the execution mode based on CLI args and project config
+enum RunTarget<'a> {
+    /// Single command from CLI args
+    SingleCommand(RunArgs),
+    /// Multiple targets from project config
+    /// Note: for now, only `codspeed exec` targets are supported in the project config
+    ConfigTargets {
+        args: RunArgs,
+        targets: &'a [Target],
+        default_walltime: Option<&'a WalltimeOptions>,
+    },
+}
+
 pub async fn run(
     args: RunArgs,
     api_client: &CodSpeedAPIClient,
@@ -204,35 +219,75 @@ pub async fn run(
 ) -> Result<()> {
     let output_json = args.message_format == Some(MessageFormat::Json);
 
-    let merged_args = args.merge_with_project_config(project_config);
+    let args = args.merge_with_project_config(project_config);
 
-    let config = Config::try_from(merged_args)?;
+    let run_target = if args.command.is_empty() {
+        // No command provided - check for targets in project config
+        let targets = project_config
+            .and_then(|c| c.targets.as_ref())
+            .filter(|t| !t.is_empty())
+            .ok_or_else(|| {
+                anyhow!("No command provided and no targets defined in codspeed.yaml")
+            })?;
 
-    // Create execution context
-    let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
+        let default_walltime = project_config
+            .and_then(|c| c.options.as_ref())
+            .and_then(|o| o.walltime.as_ref());
 
-    if !execution_context.is_local() {
-        show_banner();
-    }
-    debug!("config: {:#?}", execution_context.config);
-
-    // Execute benchmarks
-    let executor = executor::get_executor_from_mode(
-        &execution_context.config.mode,
-        executor::ExecutorCommand::Run,
-    );
-
-    let poll_results_fn = async |upload_result: &UploadResult| {
-        poll_results::poll_results(api_client, upload_result, output_json).await
+        RunTarget::ConfigTargets {
+            args,
+            targets,
+            default_walltime,
+        }
+    } else {
+        RunTarget::SingleCommand(args)
     };
-    executor::execute_benchmarks(
-        executor.as_ref(),
-        &mut execution_context,
-        setup_cache_dir,
-        poll_results_fn,
-        api_client,
-    )
-    .await?;
+
+    match run_target {
+        RunTarget::SingleCommand(args) => {
+            let config = Config::try_from(args)?;
+
+            // Create execution context
+            let mut execution_context =
+                executor::ExecutionContext::try_from((config, codspeed_config))?;
+
+            if !execution_context.is_local() {
+                show_banner();
+            }
+            debug!("config: {:#?}", execution_context.config);
+
+            // Execute benchmarks
+            let executor = executor::get_executor_from_mode(
+                &execution_context.config.mode,
+                executor::ExecutorCommand::Run,
+            );
+
+            let poll_results_fn = async |upload_result: &UploadResult| {
+                poll_results::poll_results(api_client, upload_result, output_json).await
+            };
+            executor::execute_benchmarks(
+                executor.as_ref(),
+                &mut execution_context,
+                setup_cache_dir,
+                poll_results_fn,
+                api_client,
+            )
+            .await?;
+        }
+
+        RunTarget::ConfigTargets {
+            mut args,
+            targets,
+            default_walltime,
+        } => {
+            args.command =
+                crate::exec::multi_targets::build_pipe_command(targets, default_walltime)?;
+            let config = Config::try_from(args)?;
+
+            crate::exec::execute_with_harness(config, api_client, codspeed_config, setup_cache_dir)
+                .await?;
+        }
+    }
 
     Ok(())
 }

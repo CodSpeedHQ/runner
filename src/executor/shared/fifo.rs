@@ -156,7 +156,7 @@ impl RunnerFifo {
                 }
                 Err(_) => continue,
             };
-            trace!("Received command: {cmd:?}");
+            debug!("Received command: {cmd:?}");
 
             match &cmd {
                 FifoCommand::CurrentBenchmark { pid, uri } => {

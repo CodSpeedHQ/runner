@@ -9,6 +9,7 @@ use crate::run::uploader::UploadResult;
 use clap::Args;
 use std::path::Path;
 
+pub mod multi_targets;
 mod poll_results;
 
 /// We temporarily force this name for all exec runs
@@ -78,8 +79,22 @@ pub async fn run(
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
     let merged_args = args.merge_with_project_config(project_config);
-
     let config = crate::executor::Config::try_from(merged_args)?;
+
+    execute_with_harness(config, api_client, codspeed_config, setup_cache_dir).await
+}
+
+/// Core execution logic for exec-harness based runs.
+///
+/// This function handles exec-harness installation and benchmark execution with exec-style
+/// result polling. It is used by both `codspeed exec` directly and by `codspeed run` when
+/// executing targets defined in codspeed.yaml.
+pub async fn execute_with_harness(
+    config: crate::executor::Config,
+    api_client: &CodSpeedAPIClient,
+    codspeed_config: &CodSpeedConfig,
+    setup_cache_dir: Option<&Path>,
+) -> Result<()> {
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
     debug!("config: {:#?}", execution_context.config);
     let executor = executor::get_executor_from_mode(
