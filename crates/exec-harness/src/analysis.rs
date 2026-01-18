@@ -1,24 +1,29 @@
 use crate::prelude::*;
 
-use crate::uri::NameAndUri;
+use crate::BenchmarkCommand;
+use crate::uri;
 use codspeed::instrument_hooks::InstrumentHooks;
 use std::process::Command;
 
-pub fn perform(name_and_uri: NameAndUri, command: Vec<String>) -> Result<()> {
+pub fn perform(commands: Vec<BenchmarkCommand>) -> Result<()> {
     let hooks = InstrumentHooks::instance();
 
-    let mut cmd = Command::new(&command[0]);
-    cmd.args(&command[1..]);
-    hooks.start_benchmark().unwrap();
-    let status = cmd.status();
-    hooks.stop_benchmark().unwrap();
-    let status = status.context("Failed to execute command")?;
+    for benchmark_cmd in commands {
+        let name_and_uri = uri::generate_name_and_uri(&benchmark_cmd.name, &benchmark_cmd.command);
 
-    if !status.success() {
-        bail!("Command exited with non-zero status: {status}");
+        let mut cmd = Command::new(&benchmark_cmd.command[0]);
+        cmd.args(&benchmark_cmd.command[1..]);
+        hooks.start_benchmark().unwrap();
+        let status = cmd.status();
+        hooks.stop_benchmark().unwrap();
+        let status = status.context("Failed to execute command")?;
+
+        if !status.success() {
+            bail!("Command exited with non-zero status: {status}");
+        }
+
+        hooks.set_executed_benchmark(&name_and_uri.uri).unwrap();
     }
-
-    hooks.set_executed_benchmark(&name_and_uri.uri).unwrap();
 
     Ok(())
 }

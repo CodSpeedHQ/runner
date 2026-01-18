@@ -1,9 +1,9 @@
 use clap::Parser;
-use exec_harness::MeasurementMode;
-use exec_harness::analysis;
 use exec_harness::prelude::*;
-use exec_harness::uri;
-use exec_harness::walltime;
+use exec_harness::walltime::WalltimeExecutionArgs;
+use exec_harness::{
+    BenchmarkCommand, MeasurementMode, execute_benchmarks, read_commands_from_stdin,
+};
 
 #[derive(Parser, Debug)]
 #[command(name = "exec-harness")]
@@ -21,9 +21,10 @@ struct Args {
     measurement_mode: Option<MeasurementMode>,
 
     #[command(flatten)]
-    execution_args: walltime::WalltimeExecutionArgs,
+    walltime_args: WalltimeExecutionArgs,
 
-    /// The command and arguments to execute
+    /// The command and arguments to execute.
+    /// Use "-" as the only argument to read a JSON payload from stdin.
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     command: Vec<String>,
 }
@@ -37,26 +38,20 @@ fn main() -> Result<()> {
     debug!("Starting exec-harness with pid {}", std::process::id());
 
     let args = Args::parse();
+    let measurement_mode = args.measurement_mode;
 
-    if args.command.is_empty() {
-        bail!("Error: No command provided");
-    }
+    // Determine if we're in stdin mode or CLI mode
+    let commands = match args.command.as_slice() {
+        [single] if single == "-" => read_commands_from_stdin()?,
+        [] => bail!("No command provided"),
+        _ => vec![BenchmarkCommand {
+            command: args.command,
+            name: args.name,
+            walltime_args: args.walltime_args,
+        }],
+    };
 
-    let bench_name_and_uri = uri::generate_name_and_uri(&args.name, &args.command);
-
-    match args.measurement_mode {
-        Some(MeasurementMode::Walltime) | None => {
-            let execution_options: walltime::ExecutionOptions = args.execution_args.try_into()?;
-
-            walltime::perform(bench_name_and_uri, args.command, &execution_options)?;
-        }
-        Some(MeasurementMode::Memory) => {
-            analysis::perform(bench_name_and_uri, args.command)?;
-        }
-        Some(MeasurementMode::Simulation) => {
-            bail!("Simulation measurement mode is not yet supported by exec-harness");
-        }
-    }
+    execute_benchmarks(commands, measurement_mode)?;
 
     Ok(())
 }
