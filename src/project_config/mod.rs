@@ -240,6 +240,7 @@ options:
                 working_directory: None,
                 mode: None,
             }),
+            targets: None,
         };
 
         let result = config.validate();
@@ -266,6 +267,7 @@ options:
                 working_directory: None,
                 mode: None,
             }),
+            targets: None,
         };
 
         let result = config.validate();
@@ -292,6 +294,7 @@ options:
                 working_directory: Some("./bench".to_string()),
                 mode: Some(RunnerMode::Walltime),
             }),
+            targets: None,
         };
 
         assert!(config.validate().is_ok());

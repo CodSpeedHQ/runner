@@ -10,6 +10,25 @@ use serde::{Deserialize, Serialize};
 pub struct ProjectConfig {
     /// Default options to apply to all benchmark runs
     pub options: Option<ProjectOptions>,
+    /// List of benchmark targets to execute
+    pub targets: Option<Vec<Target>>,
+}
+
+/// A benchmark target to execute
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub struct Target {
+    /// Optional name for this target
+    pub name: Option<String>,
+    /// Command to execute
+    pub exec: String,
+    /// Target-specific options
+    pub options: Option<TargetOptions>,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct TargetOptions {
+    pub walltime: Option<WalltimeOptions>,
 }
 
 /// Root-level options that apply to all benchmark runs unless overridden by CLI
