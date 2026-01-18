@@ -63,7 +63,7 @@ fn run_rounds(
     let warmup_time_ns = config.warmup_time_ns;
     let hooks = InstrumentHooks::instance();
 
-    let do_one_round = |times_per_round_ns: &mut Vec<u128>| {
+    let do_one_round = |times_per_round_ns: &mut Vec<u128>, add_markers: bool| {
         let mut child = Command::new(&command[0])
             .args(&command[1..])
             .spawn()
@@ -74,27 +74,28 @@ fn run_rounds(
             .context("Failed to wait for command to finish")?;
 
         let bench_round_end_ts_ns = InstrumentHooks::current_timestamp();
-        hooks.add_benchmark_timestamps(bench_round_start_ts_ns, bench_round_end_ts_ns);
+
+        if add_markers {
+            hooks.add_benchmark_timestamps(bench_round_start_ts_ns, bench_round_end_ts_ns);
+        }
+        times_per_round_ns.push((bench_round_end_ts_ns - bench_round_start_ts_ns) as u128);
 
         if !status.success() {
             bail!("Command exited with non-zero status: {status}");
         }
 
-        times_per_round_ns.push((bench_round_end_ts_ns - bench_round_start_ts_ns) as u128);
-
         Ok(())
     };
 
     // Compute the number of rounds to perform, either from warmup or directly from config
+    hooks.start_benchmark().unwrap();
     let rounds_to_perform = if warmup_time_ns > 0 {
         let mut warmup_times_ns = Vec::new();
         let warmup_start_ts_ns = InstrumentHooks::current_timestamp();
 
-        hooks.start_benchmark().unwrap();
         while InstrumentHooks::current_timestamp() < warmup_start_ts_ns + warmup_time_ns {
-            do_one_round(&mut warmup_times_ns)?;
+            do_one_round(&mut warmup_times_ns, false)?;
         }
-        hooks.stop_benchmark().unwrap();
         let warmup_end_ts_ns = InstrumentHooks::current_timestamp();
 
         if let [single_warmup_round_duration_ns] = warmup_times_ns.as_slice() {
@@ -105,6 +106,8 @@ fn run_rounds(
                             "Warmup duration ({single_warmup_round_duration_ns} ns) exceeded or met max_time ({time_ns} ns). No more rounds will be performed."
                         );
                         // Mark benchmark as executed for the runner to register
+                        hooks.add_benchmark_timestamps(warmup_start_ts_ns, warmup_end_ts_ns);
+                        hooks.stop_benchmark().unwrap();
                         hooks.set_executed_benchmark(&bench_uri).unwrap();
                         return Ok(warmup_times_ns);
                     }
@@ -177,9 +180,8 @@ fn run_rounds(
     let round_start_ts_ns = InstrumentHooks::current_timestamp();
     let mut times_per_round_ns = Vec::with_capacity(rounds_to_perform.try_into().unwrap());
 
-    hooks.start_benchmark().unwrap();
     for round in 0..rounds_to_perform {
-        do_one_round(&mut times_per_round_ns)?;
+        do_one_round(&mut times_per_round_ns, true)?;
 
         // Check if we've exceeded max time
         let max_time_ns = match &config.max {
