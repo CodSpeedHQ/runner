@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tempfile::TempDir;
 
+use super::benchmark_loop::run_rounds;
 use super::*;
 
 // Helper to create a simple sleep 100ms command

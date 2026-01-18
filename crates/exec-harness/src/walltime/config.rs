@@ -40,39 +40,39 @@ pub struct WalltimeExecutionArgs {
 
     /// Maximum total time to spend running benchmarks (includes warmup).
     /// Execution stops when this time is reached, even if min_rounds is not satisfied.
-    /// Cannot be used together with --min-rounds.
+    /// When used with --min-rounds, the max_time constraint takes priority.
     ///
     /// Format: duration string (e.g., "3s", "15s", "1m") or number in seconds (e.g., "3", "15")
     /// Default: 3s if no other constraints are set, 0 (unlimited) if one of min_time, max_rounds,
     /// or min_rounds is set
-    #[arg(long, value_name = "DURATION", conflicts_with = "min_rounds")]
+    #[arg(long, value_name = "DURATION")]
     pub max_time: Option<String>,
 
     /// Minimum total time to spend running benchmarks (excludes warmup).
     /// Ensures benchmarks run for at least this duration for statistical accuracy.
-    /// Cannot be used together with --max-rounds.
+    /// When used with --max-rounds, we try to satisfy both if possible, else max_rounds takes priority.
     ///
     /// Format: duration string (e.g., "1s", "500ms") or number in seconds (e.g., "1", "0.5")
     /// Default: undefined (no minimum)
-    #[arg(long, value_name = "DURATION", conflicts_with = "max_rounds")]
+    #[arg(long, value_name = "DURATION")]
     pub min_time: Option<String>,
 
     /// Maximum number of benchmark iterations (rounds) to perform.
     /// Execution stops after this many rounds, even if max_time is not reached.
-    /// Cannot be used together with --min-time.
+    /// When used with --min-time, we try to satisfy both if possible, else max_rounds takes priority.
     ///
     /// Format: positive integer
     /// Default: undefined (determined by timing constraints)
-    #[arg(long, value_name = "COUNT", conflicts_with = "min_time")]
+    #[arg(long, value_name = "COUNT")]
     pub max_rounds: Option<u64>,
 
     /// Minimum number of benchmark iterations (rounds) to perform.
     /// Ensures at least this many rounds are executed for statistical accuracy.
-    /// Cannot be used together with --max-time.
+    /// When used with --max-time, the max_time constraint takes priority.
     ///
     /// Format: positive integer
     /// Default: undefined (determined by timing constraints)
-    #[arg(long, value_name = "COUNT", conflicts_with = "max_time")]
+    #[arg(long, value_name = "COUNT")]
     pub min_rounds: Option<u64>,
 }
 
@@ -136,10 +136,16 @@ impl TryFrom<WalltimeExecutionArgs> for ExecutionOptions {
 
     /// Convert WalltimeExecutionArgs to ExecutionOptions with validation
     ///
-    /// Check that the input is coherent with rules
-    /// - 1: Cannot mix time-based and round-based constraints for the opposite bounds
-    /// - 2: min_xxx cannot be greater than max_xxx
-    /// - 3: If warmup is disabled, must specify at least one rounds bound explicitly
+    /// Check that the input is coherent with rules:
+    /// - min_xxx cannot be greater than max_xxx (for same dimension)
+    ///
+    /// When constraints of different dimensions are mixed (e.g., min_time + max_rounds):
+    /// - We try to satisfy both if possible
+    /// - Otherwise, the MAX constraint takes priority
+    ///
+    /// When warmup is disabled and only time constraints are provided:
+    /// - We run in "degraded mode" where we try to satisfy the constraint best-effort
+    /// - For max_time: actual_benched_time < max_time + one_iteration_time
     fn try_from(args: WalltimeExecutionArgs) -> Result<Self> {
         // Parse duration strings
         let warmup_time_ns = args
@@ -172,16 +178,7 @@ impl TryFrom<WalltimeExecutionArgs> for ExecutionOptions {
             .transpose()
             .context("Invalid min_time")?;
 
-        // Rule 1: Cannot mix time-based and round-based constraints for the opposite bounds
-        if min_time_ns.is_some() && args.max_rounds.is_some() {
-            bail!("Cannot use both min_time and max_rounds. Choose one minimum constraint.");
-        }
-
-        if max_time_ns > 0 && args.min_rounds.is_some() {
-            bail!("Cannot use both max_time and min_rounds. Choose one maximum constraint.");
-        }
-
-        // Rule 2: min_xxx cannot be greater than max_xxx
+        // Validation: min_xxx cannot be greater than max_xxx (for same dimension)
         if max_time_ns > 0 {
             if let Some(min) = min_time_ns {
                 if min > max_time_ns {
@@ -200,15 +197,8 @@ impl TryFrom<WalltimeExecutionArgs> for ExecutionOptions {
             }
         }
 
-        // Rule 3: If warmup is disabled, must specify at least one rounds bound explicitly
-        if warmup_time_ns == Some(0) && args.min_rounds.is_none() && args.max_rounds.is_none() {
-            bail!(
-                "When warmup_time is 0, you must specify either min_rounds or max_rounds. \
-                Without warmup, the number of iterations cannot be determined automatically."
-            );
-        }
-
         // Build min/max using RoundOrTime enum
+        // Now we allow mixing time and rounds constraints across min/max bounds
         let min = match (args.min_rounds, min_time_ns) {
             (Some(rounds), None) => Some(RoundOrTime::Rounds(rounds)),
             (None, Some(time_ns)) => Some(RoundOrTime::TimeNs(time_ns)),
@@ -341,26 +331,28 @@ mod tests {
     // Business rule validation tests
 
     #[test]
-    fn test_validation_cannot_mix_min_time_and_max_rounds() {
+    fn test_mixing_min_time_and_max_rounds_is_allowed() {
+        // min_time + max_rounds (different dimensions)
+        // The constraint will be: try to satisfy both if possible, else max_rounds takes priority
         let result: Result<ExecutionOptions> = WalltimeExecutionArgs {
             warmup_time: Some("1s".to_string()),
-            max_time: Some("10s".to_string()),
+            max_time: None,
             min_time: Some("2s".to_string()),
-            max_rounds: None,
-            min_rounds: Some(5),
+            max_rounds: Some(10),
+            min_rounds: None,
         }
         .try_into();
 
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(
-            err.contains("Cannot use both max_time and min_rounds"),
-            "Expected error about mixing min_time and min_rounds, got: {err}"
-        );
+        assert!(result.is_ok());
+        let opts = result.unwrap();
+        assert!(matches!(opts.min, Some(RoundOrTime::TimeNs(_))));
+        assert!(matches!(opts.max, Some(RoundOrTime::Rounds(10))));
     }
 
     #[test]
-    fn test_validation_cannot_mix_max_time_and_min_rounds() {
+    fn test_mixing_max_time_and_min_rounds_is_allowed() {
+        // Now allowed: max_time + min_rounds (different dimensions)
+        // The constraint will be: max_time constraint takes priority
         let result: Result<ExecutionOptions> = WalltimeExecutionArgs {
             warmup_time: Some("1s".to_string()),
             max_time: Some("10s".to_string()),
@@ -370,12 +362,10 @@ mod tests {
         }
         .try_into();
 
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(
-            err.contains("Cannot use both max_time and min_rounds"),
-            "Expected error about mixing max_time and max_rounds, got: {err}"
-        );
+        assert!(result.is_ok());
+        let opts = result.unwrap();
+        assert!(matches!(opts.min, Some(RoundOrTime::Rounds(5))));
+        assert!(matches!(opts.max, Some(RoundOrTime::TimeNs(_))));
     }
 
     #[test]
@@ -417,7 +407,9 @@ mod tests {
     }
 
     #[test]
-    fn test_validation_no_warmup_requires_rounds() {
+    fn test_no_warmup_with_time_only_is_allowed() {
+        // No warmup + time constraints only is now allowed (degraded mode)
+        // Validation happens at runtime in run_rounds
         let result: Result<ExecutionOptions> = WalltimeExecutionArgs {
             warmup_time: Some("0".to_string()), // No warmup
             max_time: Some("10s".to_string()),
@@ -427,12 +419,10 @@ mod tests {
         }
         .try_into();
 
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(
-            err.contains("warmup_time is 0") && err.contains("min_rounds or max_rounds"),
-            "Expected error about needing rounds when warmup is 0, got: {err}"
-        );
+        assert!(result.is_ok());
+        let opts = result.unwrap();
+        assert_eq!(opts.warmup_time_ns, 0);
+        assert!(matches!(opts.max, Some(RoundOrTime::TimeNs(_))));
     }
 
     #[test]
