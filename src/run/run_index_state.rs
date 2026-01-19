@@ -36,7 +36,7 @@ impl RunIndexState {
             .join(".codspeed")
             .join("run-state")
             .join(run_id)
-            .join(format!("{}.json", &run_part_id_hash[..16]));
+            .join(format!("{run_part_id_hash}.json"));
 
         Self { state_file_path }
     }

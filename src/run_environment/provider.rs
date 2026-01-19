@@ -100,23 +100,20 @@ pub trait RunEnvironmentProvider {
         // Apply run index suffix to run_part if applicable.
         // This differentiates multiple uploads within the same CI job execution
         // (e.g., running both simulation and memory benchmarks in the same job).
-        let run_part = match self.get_run_provider_run_part() {
-            Some(run_part) => {
-                let run_index_state = RunIndexState::new(
-                    &run_environment_metadata.repository_root_path,
-                    &run_part.run_id,
-                    &run_part.run_part_id,
-                );
-                match run_index_state.get_and_increment() {
-                    Ok(run_index) => Some(run_part.with_run_index(run_index)),
-                    Err(e) => {
-                        warn!("Failed to track run index: {e}. Continuing with index 0.");
-                        Some(run_part.with_run_index(0))
-                    }
+        let run_part = self.get_run_provider_run_part().map(|run_part| {
+            let run_index_state = RunIndexState::new(
+                &run_environment_metadata.repository_root_path,
+                &run_part.run_id,
+                &run_part.run_part_id,
+            );
+            match run_index_state.get_and_increment() {
+                Ok(run_index) => run_part.with_run_index(run_index),
+                Err(e) => {
+                    warn!("Failed to track run index: {e}. Continuing with index 0.");
+                    run_part.with_run_index(0)
                 }
             }
-            None => None,
-        };
+        });
 
         Ok(UploadMetadata {
             version: Some(LATEST_UPLOAD_METADATA_VERSION),
