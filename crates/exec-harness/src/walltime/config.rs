@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 const DEFAULT_WARMUP_TIME_NS: u64 = 1_000_000_000; // 1 second
@@ -27,7 +28,7 @@ fn parse_duration_to_ns(s: &str) -> Result<u64> {
 ///
 /// ⚠️ Make sure to update WalltimeExecutionArgs::to_cli_args() when fields change, else the runner
 /// will not properly forward arguments
-#[derive(Debug, Clone, Default, clap::Args)]
+#[derive(Debug, Clone, Default, clap::Args, Serialize, Deserialize)]
 pub struct WalltimeExecutionArgs {
     /// Duration of the warmup phase before measurement starts.
     /// During warmup, the benchmark runs to stabilize performance (e.g., JIT compilation, cache warming).
