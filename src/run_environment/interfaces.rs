@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Default)]
@@ -89,6 +89,19 @@ pub struct RunPart {
     /// We use a `BTreeMap` and not a `HashMap` to keep insert order for
     /// `serde_json` serialization.
     pub metadata: BTreeMap<String, Value>,
+}
+
+impl RunPart {
+    /// Returns a new `RunPart` with the run index suffix appended to `run_part_id`.
+    ///
+    /// This is used to differentiate multiple uploads within the same CI job execution.
+    /// The suffix follows the same structured format as other metadata: `-{"run-index":N}`
+    pub fn with_run_index(mut self, run_index: u32) -> Self {
+        self.run_part_id = format!("{}-{{\"run-index\":{}}}", self.run_part_id, run_index);
+        self.metadata
+            .insert("run-index".to_string(), json!(run_index));
+        self
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]

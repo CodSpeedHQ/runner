@@ -16,6 +16,7 @@ use std::path::PathBuf;
 pub mod check_system;
 pub mod helpers;
 pub(crate) mod poll_results;
+pub mod run_index_state;
 pub(crate) mod uploader;
 
 pub mod logger;
