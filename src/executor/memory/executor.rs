@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use ipc_channel::ipc;
 use memtrack::MemtrackIpcClient;
 use memtrack::MemtrackIpcServer;
-use runner_shared::artifacts::{ArtifactExt, ExecutionTimestamps};
+use runner_shared::artifacts::{ArtifactExt, ExecutionTimestamps, MemtrackArtifact};
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
 use std::path::Path;
@@ -117,7 +117,25 @@ impl Executor for MemoryExecutor {
         Ok(())
     }
 
-    async fn teardown(&self, _execution_context: &ExecutionContext) -> Result<()> {
+    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()> {
+        let files: Vec<_> = std::fs::read_dir(execution_context.profile_folder.join("results"))?
+            .filter_map(Result::ok)
+            // Filter out non-memtrack files:
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(MemtrackArtifact::name())
+            })
+            // Filter empty files:
+            .filter(|entry| entry.metadata().map(|m| m.len() == 0).unwrap_or_default())
+            .collect();
+        if files.is_empty() {
+            bail!(
+                "No memtrack artifact files found. Does the integration support memory profiling?"
+            );
+        }
+
         Ok(())
     }
 }
