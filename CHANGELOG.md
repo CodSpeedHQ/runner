@@ -5,6 +5,60 @@
 
 
 
+## [4.8.0] - 2026-01-20
+
+### <!-- 0 -->🚀 Features
+- Allow defining targets in codspeed yaml by @GuillaumeLagrange in [#197](https://github.com/CodSpeedHQ/runner/pull/197)
+- Add an stdin mode to provide multiple commands by @GuillaumeLagrange
+- Add a run index suffix by @fargito in [#199](https://github.com/CodSpeedHQ/runner/pull/199)
+- Make the config less strict about its config by @GuillaumeLagrange in [#198](https://github.com/CodSpeedHQ/runner/pull/198)
+- Add support for analysis mode with memory instrument by @GuillaumeLagrange
+- Reduce shared fifo timeout to end executor runs faster after the program has ended by @GuillaumeLagrange in [#193](https://github.com/CodSpeedHQ/runner/pull/193)
+- Use a bufwriter to save unwind data by @GuillaumeLagrange
+- Support dynamically and statically linked allocators by @not-matthias
+- Track `memalign` calls by @not-matthias
+- Accept IPC before creating tracker to avoid timeouts by @not-matthias
+- Add integration tests for complex cli commands by @GuillaumeLagrange
+- Add the full command to the uri and handle hyphens better by @GuillaumeLagrange
+- Add yaml project config discovery and loading by @GuillaumeLagrange in [#189](https://github.com/CodSpeedHQ/runner/pull/189)
+- Implement the walltime benchmarking algorithm by @GuillaumeLagrange
+- Use rayon to collect perf walltime data by @GuillaumeLagrange
+- Handle memory executor when displaying results by @GuillaumeLagrange in [#190](https://github.com/CodSpeedHQ/runner/pull/190)
+- Do not draw a table if there is only one benchmark by @GuillaumeLagrange
+- Stop using the deprecated `time` field and use `value` instead by @GuillaumeLagrange
+
+### <!-- 1 -->🐛 Bug Fixes
+- Fix behavior when multiple benchmarks are ran by @GuillaumeLagrange
+- Simplify `run_part_id` computation by @fargito in [#200](https://github.com/CodSpeedHQ/runner/pull/200)
+- Write perf map all at once instead of line by line by @GuillaumeLagrange
+- Drop privileges when running commands under sudo by @not-matthias
+- Make walltime results stat computation the same as pytest-codspeed by @GuillaumeLagrange in [#185](https://github.com/CodSpeedHQ/runner/pull/185)
+
+### <!-- 2 -->🏗️ Refactor
+- Move project config structs to interfaces mod by @GuillaumeLagrange
+- Move all walltime benchmarking to its dedicated module by @GuillaumeLagrange
+
+### <!-- 7 -->⚙️ Internals
+- Bump memtrack version
+- Ignore .codspeed for exec-harness output by @GuillaumeLagrange
+- Remove useless clone derive for project config by @GuillaumeLagrange
+- Cleanup output by @not-matthias in [#196](https://github.com/CodSpeedHQ/runner/pull/196)
+- Use simulation in codspeed action by @GuillaumeLagrange in [#194](https://github.com/CodSpeedHQ/runner/pull/194)
+- Cache benchmark executable by @GuillaumeLagrange
+- Add prelude and remove linter dead_code suppression by @GuillaumeLagrange
+- Reduce logs verbosity of debug info and perf file serialization by @GuillaumeLagrange
+- Remove unused execve event by @not-matthias in [#192](https://github.com/CodSpeedHQ/runner/pull/192)
+- Add prelude by @not-matthias
+- Print number of events written to disk by @not-matthias
+- Switch to rust-cache to cache builds of the installed workspace binaries by @GuillaumeLagrange in [#191](https://github.com/CodSpeedHQ/runner/pull/191)
+- Install exec-harness before runner tests tests by @GuillaumeLagrange
+- Remove double metadata information by @GuillaumeLagrange
+- Add link to relevant issue for codspeed-rust metadata by @GuillaumeLagrange
+- Use fork supporting compressed events for linux-perf-data by @GuillaumeLagrange
+- Run exec-harness tests in separate CI job to prevent fifo issues by @GuillaumeLagrange
+- Downgrade flate because 1.1.7 was yanked by @GuillaumeLagrange
+
+
 ## [4.7.0] - 2026-01-12
 
 ### <!-- 0 -->🚀 Features
@@ -710,6 +764,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.8.0]: https://github.com/CodSpeedHQ/runner/compare/v4.7.0..v4.8.0
 [4.7.0]: https://github.com/CodSpeedHQ/runner/compare/v4.6.0..v4.7.0
 [4.6.0]: https://github.com/CodSpeedHQ/runner/compare/v4.5.2..v4.6.0
 [4.5.2]: https://github.com/CodSpeedHQ/runner/compare/v4.5.1..v4.5.2
