@@ -1,6 +1,6 @@
 use crate::executor::wall_time::perf::perf_map::ModuleSymbols;
 use crate::prelude::*;
-use addr2line::gimli;
+use addr2line::{fallible_iterator::FallibleIterator, gimli};
 use object::{Object, ObjectSection};
 use runner_shared::debug_info::{DebugInfo, ModuleDebugInfo};
 use std::path::Path;
@@ -47,13 +47,24 @@ impl ModuleDebugInfoExt for ModuleDebugInfo {
             .symbols()
             .iter()
             .filter_map(|symbol| {
-                let (file, line) = match ctx.find_location(symbol.addr) {
-                    Ok(Some(location)) => {
-                        let file = location.file.map(|f| f.to_string())?;
-                        (file, location.line)
-                    }
-                    _ => return None,
-                };
+                // Use find_frames() instead of find_location() to handle inlined functions correctly.
+                //
+                // If we have foo -> bar -> baz(inlined) -> stdfunc(inlined)
+                // where the whole body of bar is the inlined baz, which itself is just inlined stdfunc.
+                //
+                // Using find_location() on the `bar` symbol address would return the location of
+                // `stdfunc`, while using find_frames() an iterator that yields the frames in
+                // order:
+                // 1. stdfunc (inlined)
+                // 2. baz (inlined)
+                // 3. bar
+                //
+                // And stops until a non inlined function is reached.
+                // We can then take the last frame to get the correct location.
+                let frames = ctx.find_frames(symbol.addr).skip_all_loads().ok()?;
+                // Take the last frame (outermost/non-inline caller)
+                let location = frames.last().ok()??.location?;
+                let (file, line) = (location.file?.to_string(), location.line);
 
                 min_addr = Some(min_addr.map_or(symbol.addr, |addr: u64| addr.min(symbol.addr)));
                 max_addr = Some(max_addr.map_or(symbol.addr + symbol.size, |addr: u64| {
