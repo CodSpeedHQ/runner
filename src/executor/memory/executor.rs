@@ -19,6 +19,7 @@ use memtrack::MemtrackIpcServer;
 use runner_shared::artifacts::{ArtifactExt, ExecutionTimestamps, MemtrackArtifact};
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
+use semver::Version;
 use std::path::Path;
 use std::rc::Rc;
 use tempfile::NamedTempFile;
@@ -171,12 +172,31 @@ impl MemoryExecutor {
         };
 
         let on_cmd = async move |cmd: &FifoCommand| {
+            const INVALID_INTEGRATION_ERROR: &str = "This integration doesn't support memory profiling. Please update your integration to a version that supports memory profiling.";
+
             match cmd {
+                FifoCommand::SetIntegration { name, version } => {
+                    let min_version = match name.as_str() {
+                        "codspeed-rust" => Version::new(4, 2, 0),
+                        "codspeed-cpp" => Version::new(2, 1, 0),
+                        _ => {
+                            panic!("{INVALID_INTEGRATION_ERROR}")
+                        }
+                    };
+
+                    let Ok(cur_version) = Version::parse(version) else {
+                        panic!("Received invalid integration version");
+                    };
+
+                    if cur_version < min_version {
+                        return Ok(Some(FifoCommand::Err));
+                    }
+                }
                 FifoCommand::SetVersion(protocol_version) => {
                     if *protocol_version < 2 {
                         bail!(
                             "Memory profiling requires protocol version 2 or higher, but the integration is using version {protocol_version}. \
-                            This integration doesn't support memory profiling. Please update your integration to a version that supports memory profiling.",
+                            {INVALID_INTEGRATION_ERROR}",
                         );
                     }
                 }
