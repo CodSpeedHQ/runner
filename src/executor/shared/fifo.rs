@@ -12,6 +12,7 @@ use tokio::net::unix::pid_t;
 use tokio::net::unix::pipe::OpenOptions as TokioPipeOpenOptions;
 use tokio::net::unix::pipe::Receiver as TokioPipeReader;
 use tokio::net::unix::pipe::Sender as TokioPipeSender;
+use tokio::time::error::Elapsed;
 
 fn create_fifo<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<()> {
     // Remove the previous FIFO (if it exists)
@@ -145,89 +146,96 @@ impl RunnerFifo {
         };
 
         let mut benchmark_started = false;
+
+        // Outer loop: continues until health check fails
         loop {
+            // Inner loop: process commands until timeout/error
+            loop {
+                let result: Result<_, Elapsed> =
+                    tokio::time::timeout(Duration::from_secs(1), self.recv_cmd()).await;
+                let cmd = match result {
+                    Ok(Ok(cmd)) => cmd,
+                    Ok(Err(e)) => {
+                        warn!("Failed to parse FIFO command: {e}");
+                        break;
+                    }
+                    Err(_) => break, // Timeout
+                };
+                trace!("Received command: {cmd:?}");
+
+                // Try executor-specific handler first
+                if let Some(response) = handle_cmd(&cmd).await? {
+                    self.send_cmd(response).await?;
+                    continue;
+                }
+
+                // Fall through to shared implementation for standard commands
+                match &cmd {
+                    FifoCommand::CurrentBenchmark { pid, uri } => {
+                        bench_order_by_timestamp.push((current_time(), uri.to_string()));
+                        bench_pids.insert(*pid);
+                        self.send_cmd(FifoCommand::Ack).await?;
+                    }
+                    FifoCommand::StartBenchmark => {
+                        if !benchmark_started {
+                            benchmark_started = true;
+                            markers.push(MarkerType::SampleStart(current_time()));
+                        } else {
+                            warn!("Received duplicate StartBenchmark command, ignoring");
+                        }
+                        self.send_cmd(FifoCommand::Ack).await?;
+                    }
+                    FifoCommand::StopBenchmark => {
+                        if benchmark_started {
+                            benchmark_started = false;
+                            markers.push(MarkerType::SampleEnd(current_time()));
+                        } else {
+                            warn!("Received StopBenchmark command before StartBenchmark, ignoring");
+                        }
+                        self.send_cmd(FifoCommand::Ack).await?;
+                    }
+                    FifoCommand::SetIntegration { name, version } => {
+                        integration = Some((name.into(), version.into()));
+                        self.send_cmd(FifoCommand::Ack).await?;
+                    }
+                    FifoCommand::AddMarker { marker, .. } => {
+                        markers.push(*marker);
+                        self.send_cmd(FifoCommand::Ack).await?;
+                    }
+                    FifoCommand::SetVersion(protocol_version) => {
+                        match protocol_version.cmp(&runner_shared::fifo::CURRENT_PROTOCOL_VERSION) {
+                            Ordering::Less => {
+                                if *protocol_version
+                                    < runner_shared::fifo::MINIMAL_SUPPORTED_PROTOCOL_VERSION
+                                {
+                                    bail!(
+                                        "Integration is using a version of the protocol that is smaller than the minimal supported protocol version ({protocol_version} < {}). \
+                                        Please update the integration to a supported version.",
+                                        runner_shared::fifo::MINIMAL_SUPPORTED_PROTOCOL_VERSION
+                                    );
+                                }
+                                self.send_cmd(FifoCommand::Ack).await?;
+                            }
+                            Ordering::Greater => bail!(
+                                "Runner is using an incompatible protocol version ({} < {protocol_version}). Please update the runner to the latest version.",
+                                runner_shared::fifo::CURRENT_PROTOCOL_VERSION
+                            ),
+                            Ordering::Equal => {
+                                self.send_cmd(FifoCommand::Ack).await?;
+                            }
+                        }
+                    }
+                    _ => {
+                        warn!("Unhandled FIFO command: {cmd:?}");
+                        self.send_cmd(FifoCommand::Err).await?;
+                    }
+                }
+            }
+
             let is_alive = health_check().await?;
             if !is_alive {
+                debug!("Process terminated, stopping the command handler");
                 break;
-            }
-
-            let result = tokio::time::timeout(Duration::from_secs(1), self.recv_cmd()).await;
-            let cmd = match result {
-                Ok(Ok(cmd)) => cmd,
-                Ok(Err(e)) => {
-                    warn!("Failed to parse FIFO command: {e}");
-                    break;
-                }
-                Err(_) => continue,
-            };
-            trace!("Received command: {cmd:?}");
-
-            // Try executor-specific handler first
-            if let Some(response) = handle_cmd(&cmd).await? {
-                self.send_cmd(response).await?;
-                continue;
-            }
-
-            // Fall through to shared implementation for standard commands
-            match &cmd {
-                FifoCommand::CurrentBenchmark { pid, uri } => {
-                    bench_order_by_timestamp.push((current_time(), uri.to_string()));
-                    bench_pids.insert(*pid);
-                    self.send_cmd(FifoCommand::Ack).await?;
-                }
-                FifoCommand::StartBenchmark => {
-                    if !benchmark_started {
-                        benchmark_started = true;
-                        markers.push(MarkerType::SampleStart(current_time()));
-                    } else {
-                        warn!("Received duplicate StartBenchmark command, ignoring");
-                    }
-                    self.send_cmd(FifoCommand::Ack).await?;
-                }
-                FifoCommand::StopBenchmark => {
-                    if benchmark_started {
-                        benchmark_started = false;
-                        markers.push(MarkerType::SampleEnd(current_time()));
-                    } else {
-                        warn!("Received StopBenchmark command before StartBenchmark, ignoring");
-                    }
-                    self.send_cmd(FifoCommand::Ack).await?;
-                }
-                FifoCommand::SetIntegration { name, version } => {
-                    integration = Some((name.into(), version.into()));
-                    self.send_cmd(FifoCommand::Ack).await?;
-                }
-                FifoCommand::AddMarker { marker, .. } => {
-                    markers.push(*marker);
-                    self.send_cmd(FifoCommand::Ack).await?;
-                }
-                FifoCommand::SetVersion(protocol_version) => {
-                    match protocol_version.cmp(&runner_shared::fifo::CURRENT_PROTOCOL_VERSION) {
-                        Ordering::Less => {
-                            if *protocol_version
-                                < runner_shared::fifo::MINIMAL_SUPPORTED_PROTOCOL_VERSION
-                            {
-                                bail!(
-                                    "Integration is using a version of the protocol that is smaller than the minimal supported protocol version ({protocol_version} < {}). \
-                                    Please update the integration to a supported version.",
-                                    runner_shared::fifo::MINIMAL_SUPPORTED_PROTOCOL_VERSION
-                                );
-                            }
-                            self.send_cmd(FifoCommand::Ack).await?;
-                        }
-                        Ordering::Greater => bail!(
-                            "Runner is using an incompatible protocol version ({} < {protocol_version}). Please update the runner to the latest version.",
-                            runner_shared::fifo::CURRENT_PROTOCOL_VERSION
-                        ),
-                        Ordering::Equal => {
-                            self.send_cmd(FifoCommand::Ack).await?;
-                        }
-                    }
-                }
-                _ => {
-                    warn!("Unhandled FIFO command: {cmd:?}");
-                    self.send_cmd(FifoCommand::Err).await?;
-                }
             }
         }
 
