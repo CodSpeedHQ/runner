@@ -160,7 +160,7 @@ impl RunnerFifo {
                 }
                 Err(_) => continue,
             };
-            debug!("Received command: {cmd:?}");
+            trace!("Received command: {cmd:?}");
 
             // Try executor-specific handler first
             if let Some(response) = handle_cmd(&cmd).await? {
