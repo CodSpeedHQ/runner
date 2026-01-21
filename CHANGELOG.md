@@ -5,6 +5,12 @@
 
 
 
+## [4.8.2] - 2026-01-21
+
+### <!-- 1 -->🐛 Bug Fixes
+- Check whether artifact contains any elements by @not-matthias in [#204](https://github.com/CodSpeedHQ/runner/pull/204)
+
+
 ## [4.8.1] - 2026-01-21
 
 ### <!-- 0 -->🚀 Features
@@ -774,6 +780,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.8.2]: https://github.com/CodSpeedHQ/runner/compare/v4.8.1..v4.8.2
 [4.8.1]: https://github.com/CodSpeedHQ/runner/compare/v4.8.0..v4.8.1
 [4.8.0]: https://github.com/CodSpeedHQ/runner/compare/v4.7.0..v4.8.0
 [4.7.0]: https://github.com/CodSpeedHQ/runner/compare/v4.6.0..v4.7.0
