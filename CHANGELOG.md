@@ -5,6 +5,16 @@
 
 
 
+## [4.8.1] - 2026-01-21
+
+### <!-- 0 -->🚀 Features
+- Check if memtrack produced artifacts by @not-matthias in [#195](https://github.com/CodSpeedHQ/runner/pull/195)
+- Require minimum protocol version for memtrack by @not-matthias
+
+### <!-- 1 -->🐛 Bug Fixes
+- Add explicit min version check for memory executor by @not-matthias in [#203](https://github.com/CodSpeedHQ/runner/pull/203)
+
+
 ## [4.8.0] - 2026-01-20
 
 ### <!-- 0 -->🚀 Features
@@ -39,7 +49,7 @@
 - Move all walltime benchmarking to its dedicated module by @GuillaumeLagrange
 
 ### <!-- 7 -->⚙️ Internals
-- Bump memtrack version
+- Bump memtrack version by @adriencaccia
 - Ignore .codspeed for exec-harness output by @GuillaumeLagrange
 - Remove useless clone derive for project config by @GuillaumeLagrange
 - Cleanup output by @not-matthias in [#196](https://github.com/CodSpeedHQ/runner/pull/196)
@@ -764,6 +774,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.8.1]: https://github.com/CodSpeedHQ/runner/compare/v4.8.0..v4.8.1
 [4.8.0]: https://github.com/CodSpeedHQ/runner/compare/v4.7.0..v4.8.0
 [4.7.0]: https://github.com/CodSpeedHQ/runner/compare/v4.6.0..v4.7.0
 [4.6.0]: https://github.com/CodSpeedHQ/runner/compare/v4.5.2..v4.6.0
