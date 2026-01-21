@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use anyhow::Context;
+use futures::StreamExt;
 use nix::{sys::time::TimeValLike, time::clock_gettime};
 use runner_shared::artifacts::ExecutionTimestamps;
 use runner_shared::fifo::{Command as FifoCommand, MarkerType};
@@ -7,12 +8,13 @@ use runner_shared::fifo::{RUNNER_ACK_FIFO, RUNNER_CTL_FIFO};
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::{collections::HashSet, time::Duration};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::unix::pid_t;
 use tokio::net::unix::pipe::OpenOptions as TokioPipeOpenOptions;
 use tokio::net::unix::pipe::Receiver as TokioPipeReader;
 use tokio::net::unix::pipe::Sender as TokioPipeSender;
 use tokio::time::error::Elapsed;
+use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
 fn create_fifo<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<()> {
     // Remove the previous FIFO (if it exists)
@@ -72,7 +74,7 @@ pub struct FifoBenchmarkData {
 
 pub struct RunnerFifo {
     ack_fifo: TokioPipeSender,
-    ctl_fifo: TokioPipeReader,
+    ctl_reader: FramedRead<TokioPipeReader, LengthDelimitedCodec>,
 }
 
 fn get_pipe_open_options() -> TokioPipeOpenOptions {
@@ -95,24 +97,27 @@ impl RunnerFifo {
         let ack_fifo = get_pipe_open_options().open_sender(ack_path)?;
         let ctl_fifo = get_pipe_open_options().open_receiver(ctl_path)?;
 
-        Ok(Self { ctl_fifo, ack_fifo })
+        let codec = LengthDelimitedCodec::builder()
+            .length_field_length(4)
+            .little_endian()
+            .new_codec();
+        let ctl_reader = FramedRead::new(ctl_fifo, codec);
+
+        Ok(Self {
+            ack_fifo,
+            ctl_reader,
+        })
     }
 
     pub async fn recv_cmd(&mut self) -> anyhow::Result<FifoCommand> {
-        let mut len_buffer = [0u8; 4];
-        self.ctl_fifo.read_exact(&mut len_buffer).await?;
-        let message_len = u32::from_le_bytes(len_buffer) as usize;
+        let bytes = self
+            .ctl_reader
+            .next()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("FIFO stream closed"))??;
 
-        let mut buffer = vec![0u8; message_len];
-        loop {
-            if self.ctl_fifo.read_exact(&mut buffer).await.is_ok() {
-                break;
-            }
-        }
-
-        let decoded = bincode::deserialize(&buffer).with_context(|| {
-            format!("Failed to deserialize FIFO command (len: {message_len}, data: {buffer:?})")
-        })?;
+        let decoded = bincode::deserialize(&bytes)
+            .with_context(|| format!("Failed to deserialize FIFO command (data: {bytes:?})"))?;
         Ok(decoded)
     }
 
