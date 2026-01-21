@@ -85,11 +85,15 @@ fn get_pipe_open_options() -> TokioPipeOpenOptions {
 
 impl RunnerFifo {
     pub fn new() -> anyhow::Result<Self> {
-        create_fifo(RUNNER_CTL_FIFO)?;
-        create_fifo(RUNNER_ACK_FIFO)?;
+        Self::open(RUNNER_CTL_FIFO.as_ref(), RUNNER_ACK_FIFO.as_ref())
+    }
 
-        let ack_fifo = get_pipe_open_options().open_sender(RUNNER_ACK_FIFO)?;
-        let ctl_fifo = get_pipe_open_options().open_receiver(RUNNER_CTL_FIFO)?;
+    pub fn open(ctl_path: &Path, ack_path: &Path) -> anyhow::Result<Self> {
+        create_fifo(ctl_path)?;
+        create_fifo(ack_path)?;
+
+        let ack_fifo = get_pipe_open_options().open_sender(ack_path)?;
+        let ctl_fifo = get_pipe_open_options().open_receiver(ctl_path)?;
 
         Ok(Self { ctl_fifo, ack_fifo })
     }
@@ -246,5 +250,43 @@ impl RunnerFifo {
         };
 
         Ok((marker_result, fifo_data))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::io::AsyncWriteExt;
+
+    #[tokio::test]
+    async fn recv_cmd_is_not_cancel_safe() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let ctl_path = temp_dir.path().join("ctl_fifo");
+        let ack_path = temp_dir.path().join("ack_fifo");
+
+        let mut fifo = RunnerFifo::open(&ctl_path, &ack_path).unwrap();
+        let mut writer = get_pipe_open_options().open_sender(&ctl_path).unwrap();
+
+        let cmd = FifoCommand::Ack;
+        let payload = bincode::serialize(&cmd).unwrap();
+        let len_bytes = (payload.len() as u32).to_le_bytes();
+
+        tokio::spawn(async move {
+            writer.write_all(&len_bytes).await.unwrap();
+            writer.write_all(&payload[..1]).await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            writer.write_all(&payload[1..]).await.unwrap();
+        });
+
+        let first = tokio::time::timeout(Duration::from_millis(10), fifo.recv_cmd()).await;
+        assert!(first.is_err(), "Expected timeout on first recv_cmd");
+
+        let second = tokio::time::timeout(Duration::from_millis(200), fifo.recv_cmd()).await;
+
+        assert!(
+            matches!(second, Ok(Ok(FifoCommand::Ack))),
+            "recv_cmd should be cancel-safe: expected Ok(Ok(Ack)), got: {second:?}"
+        );
     }
 }
