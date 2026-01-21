@@ -1,6 +1,6 @@
 use libc::pid_t;
 use serde::{Deserialize, Serialize};
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemtrackArtifact {
@@ -25,6 +25,13 @@ impl MemtrackArtifact {
         Ok(MemtrackEventStream {
             deserializer: rmp_serde::Deserializer::new(decoder),
         })
+    }
+
+    pub fn is_empty<R: std::io::Read>(reader: R) -> bool {
+        let Ok(mut stream) = MemtrackArtifact::decode_streamed(BufReader::new(reader)) else {
+            return true;
+        };
+        stream.next().is_none()
     }
 }
 
@@ -135,6 +142,19 @@ mod tests {
         let stream = MemtrackArtifact::decode_streamed(Cursor::new(buf))?;
         let collected: Vec<_> = stream.collect();
         assert_eq!(collected, events);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_artifact_is_empty() -> anyhow::Result<()> {
+        let artifact = MemtrackArtifact { events: vec![] };
+
+        let mut buf = Vec::new();
+        artifact.encode_to_writer(&mut buf)?;
+
+        let reader = Cursor::new(buf);
+        assert!(MemtrackArtifact::is_empty(reader));
 
         Ok(())
     }

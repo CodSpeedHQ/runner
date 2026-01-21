@@ -128,8 +128,8 @@ impl Executor for MemoryExecutor {
                     .to_string_lossy()
                     .contains(MemtrackArtifact::name())
             })
-            // Filter empty files:
-            .filter(|entry| entry.metadata().map(|m| m.len() == 0).unwrap_or_default())
+            .flat_map(|f| std::fs::File::open(f.path()))
+            .filter(|file| !MemtrackArtifact::is_empty(file))
             .collect();
         if files.is_empty() {
             bail!(
