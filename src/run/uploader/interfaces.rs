@@ -5,7 +5,7 @@ use crate::instruments::InstrumentName;
 use crate::run::check_system::SystemInfo;
 use crate::run_environment::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart};
 
-pub const LATEST_UPLOAD_METADATA_VERSION: u32 = 7;
+pub const LATEST_UPLOAD_METADATA_VERSION: u32 = 8;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -19,6 +19,7 @@ pub struct UploadMetadata {
     pub run_environment: RunEnvironment,
     pub run_part: Option<RunPart>,
     pub commit_hash: String,
+    pub allow_empty: bool,
     #[serde(flatten)]
     pub run_environment_metadata: RunEnvironmentMetadata,
 }

@@ -43,6 +43,7 @@ mod tests {
             },
             run_environment: RunEnvironment::GithubActions,
             commit_hash: "5bd77cb0da72bef094893ed45fb793ff16ecfbe3".into(),
+            allow_empty: false,
             run_environment_metadata: RunEnvironmentMetadata {
                 ref_: "refs/pull/29/merge".into(),
                 head_ref: Some("chore/native-action-runner".into()),
@@ -77,7 +78,7 @@ mod tests {
             hash,
             // Caution: when changing this value, we need to ensure that
             // the related backend snapshot remains the same
-            @"7275243b4457a8fa70215c084210bea7518a3994b863e4437fa33c5ae2bd219e"
+            @"11f363bd959389e57c79f6fc7d5c965d168c7b2f3cb2b566b647588b23322013"
         );
         assert_json_snapshot!(upload_metadata);
     }

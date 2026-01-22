@@ -226,6 +226,7 @@ impl RunEnvironmentProvider for LocalProvider {
             tokenless: config.token.is_none(),
             repository_provider,
             commit_hash: run_environment_metadata.ref_.clone(),
+            allow_empty: config.allow_empty,
             run_environment_metadata,
             profile_md5: profile_archive.hash.clone(),
             profile_encoding: profile_archive.content.encoding(),

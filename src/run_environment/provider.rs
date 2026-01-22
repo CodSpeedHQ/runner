@@ -123,6 +123,7 @@ pub trait RunEnvironmentProvider {
             profile_md5: profile_archive.hash.clone(),
             profile_encoding: profile_archive.content.encoding(),
             commit_hash,
+            allow_empty: config.allow_empty,
             runner: Runner {
                 name: "codspeed-runner".into(),
                 version: crate::VERSION.into(),
