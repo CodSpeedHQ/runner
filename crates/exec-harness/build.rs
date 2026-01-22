@@ -27,50 +27,34 @@ struct PreloadConstants {
     /// Integration version reported to CodSpeed.
     /// This should match the version of the `codspeed` crate dependency.
     integration_version: &'static str,
-}
-
-// TODO(COD-1736): Stop impersonating codspeed-rust 🥸
-const PRELOAD_CONSTANTS: PreloadConstants = PreloadConstants {
-    uri_env: "CODSPEED_BENCH_URI",
-    integration_name: "codspeed-rust",
-    integration_version: "4.2.0",
-};
-
-/// Filename for the preload shared library.
-const PRELOAD_LIB_FILENAME: &str = "libcodspeed_preload.so";
-
-/// Paths required to build the preload shared library.
-struct PreloadBuildPaths {
-    /// Path to the preload C source file (codspeed_preload.c).
-    preload_c: PathBuf,
-    /// Path to the core C source file from instrument-hooks.
-    core_c: PathBuf,
-    /// Path to the includes directory from instrument-hooks.
-    includes_dir: PathBuf,
-    /// Path where the output shared library will be written.
-    output_lib: PathBuf,
+    /// Filename for the preload shared library.
+    preload_lib_filename: &'static str,
 }
 
 fn main() {
     println!("cargo:rerun-if-changed=preload/codspeed_preload.c");
     println!("cargo:rerun-if-env-changed=CODSPEED_INSTRUMENT_HOOKS_DIR");
 
+    let preload_constants: PreloadConstants = PreloadConstants::default();
+
     // Export constants as environment variables for the Rust code
     println!(
         "cargo:rustc-env=CODSPEED_URI_ENV={}",
-        PRELOAD_CONSTANTS.uri_env
+        preload_constants.uri_env
     );
     println!(
         "cargo:rustc-env=CODSPEED_INTEGRATION_NAME={}",
-        PRELOAD_CONSTANTS.integration_name
+        preload_constants.integration_name
     );
     println!(
         "cargo:rustc-env=CODSPEED_INTEGRATION_VERSION={}",
-        PRELOAD_CONSTANTS.integration_version
+        preload_constants.integration_version
     );
-    println!("cargo:rustc-env=CODSPEED_PRELOAD_LIB_FILENAME={PRELOAD_LIB_FILENAME}");
+    println!(
+        "cargo:rustc-env=CODSPEED_PRELOAD_LIB_FILENAME={}",
+        preload_constants.preload_lib_filename
+    );
 
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
     // Try to get the instrument-hooks directory from the environment variable first,
@@ -85,10 +69,9 @@ fn main() {
         preload_c: manifest_dir.join("preload/codspeed_preload.c"),
         core_c: instrument_hooks_dir.join("dist/core.c"),
         includes_dir: instrument_hooks_dir.join("includes"),
-        output_lib: out_dir.join(PRELOAD_LIB_FILENAME),
     };
     paths.check_sources_exist();
-    build_shared_library(&paths, &PRELOAD_CONSTANTS);
+    build_shared_library(&paths, &preload_constants);
 }
 
 /// Build the shared library using the cc crate
@@ -96,6 +79,8 @@ fn build_shared_library(paths: &PreloadBuildPaths, constants: &PreloadConstants)
     let uri_env_val = format!("\"{}\"", constants.uri_env);
     let integration_name_val = format!("\"{}\"", constants.integration_name);
     let integration_version_val = format!("\"{}\"", constants.integration_version);
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_file = out_dir.join(constants.preload_lib_filename);
 
     let mut build = cc::Build::new();
     build
@@ -103,7 +88,9 @@ fn build_shared_library(paths: &PreloadBuildPaths, constants: &PreloadConstants)
         .file(&paths.core_c)
         .include(&paths.includes_dir)
         .pic(true)
-        .opt_level(2)
+        .opt_level(3)
+        // There's no need to output cargo metadata as we are just building a shared library
+        // that will be copied to disk and loaded through LD_PRELOAD at runtime
         .cargo_metadata(false)
         // Pass constants as C defines
         .define("CODSPEED_URI_ENV", uri_env_val.as_str())
@@ -131,7 +118,7 @@ fn build_shared_library(paths: &PreloadBuildPaths, constants: &PreloadConstants)
     link_cmd
         .arg("-shared")
         .arg("-o")
-        .arg(&paths.output_lib)
+        .arg(&out_file)
         .args(&objects)
         .arg("-lpthread");
 
@@ -166,6 +153,28 @@ fn find_codspeed_instrument_hooks_dir() -> PathBuf {
     }
 
     instrument_hooks_dir.into_std_path_buf()
+}
+
+impl Default for PreloadConstants {
+    // TODO(COD-1736): Stop impersonating codspeed-rust 🥸
+    fn default() -> Self {
+        Self {
+            uri_env: "CODSPEED_BENCH_URI",
+            integration_name: "codspeed-rust",
+            integration_version: "4.2.0",
+            preload_lib_filename: "libcodspeed_preload.so",
+        }
+    }
+}
+
+/// Paths required to build the preload shared library.
+struct PreloadBuildPaths {
+    /// Path to the preload C source file (codspeed_preload.c).
+    preload_c: PathBuf,
+    /// Path to the core C source file from instrument-hooks.
+    core_c: PathBuf,
+    /// Path to the includes directory from instrument-hooks.
+    includes_dir: PathBuf,
 }
 
 impl PreloadBuildPaths {
