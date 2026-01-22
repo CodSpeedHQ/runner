@@ -16,11 +16,13 @@ pub fn perform(commands: Vec<BenchmarkCommand>) -> Result<()> {
 
     for cmd in commands {
         let name_and_uri = generate_name_and_uri(&cmd.name, &cmd.command);
+        name_and_uri.print_executing();
         let execution_options: ExecutionOptions = cmd.walltime_args.try_into()?;
 
         let NameAndUri {
             name: bench_name,
             uri: bench_uri,
+            ..
         } = name_and_uri;
 
         let times_per_round_ns =

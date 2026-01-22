@@ -3,6 +3,7 @@ use crate::prelude::*;
 pub struct NameAndUri {
     pub(crate) name: String,
     pub(crate) uri: String,
+    command: Vec<String>,
 }
 
 /// Maximum length for benchmark name to avoid excessively long URIs
@@ -22,5 +23,16 @@ pub fn generate_name_and_uri(name: &Option<String>, command: &[String]) -> NameA
         name.truncate(MAX_NAME_LENGTH);
     }
 
-    NameAndUri { name, uri }
+    NameAndUri {
+        name,
+        uri,
+        command: command.to_vec(),
+    }
+}
+
+impl NameAndUri {
+    pub fn print_executing(&self) {
+        info!("Executing: {}", self.name);
+        debug!("Command: {:?}", self.command);
+    }
 }

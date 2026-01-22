@@ -10,6 +10,7 @@ pub fn perform(commands: Vec<BenchmarkCommand>) -> Result<()> {
 
     for benchmark_cmd in commands {
         let name_and_uri = uri::generate_name_and_uri(&benchmark_cmd.name, &benchmark_cmd.command);
+        name_and_uri.print_executing();
 
         let mut cmd = Command::new(&benchmark_cmd.command[0]);
         cmd.args(&benchmark_cmd.command[1..]);
