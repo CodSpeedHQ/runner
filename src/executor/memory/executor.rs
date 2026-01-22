@@ -131,10 +131,17 @@ impl Executor for MemoryExecutor {
             .flat_map(|f| std::fs::File::open(f.path()))
             .filter(|file| !MemtrackArtifact::is_empty(file))
             .collect();
+
         if files.is_empty() {
-            bail!(
-                "No memtrack artifact files found. Does the integration support memory profiling?"
-            );
+            if !execution_context.config.allow_empty {
+                bail!(
+                    "No memtrack artifact files found. Does the integration support memory profiling?"
+                );
+            } else {
+                info!(
+                    "No memtrack artifact files found. Does the integration support memory profiling?"
+                );
+            }
         }
 
         Ok(())

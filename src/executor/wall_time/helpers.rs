@@ -17,7 +17,7 @@ pub fn validate_walltime_results(profile_folder: &Path, allow_empty: bool) -> Re
 
     if !results_dir.exists() {
         if allow_empty {
-            warn!("No walltime results found in profile folder: {results_dir:?}.");
+            info!("No walltime results found in profile folder: {results_dir:?}.");
             return Ok(());
         }
         bail!(add_empty_result_error_explanation(&format!(
@@ -52,18 +52,18 @@ pub fn validate_walltime_results(profile_folder: &Path, allow_empty: bool) -> Re
                 )));
             }
             debug!("No benchmarks found in {path:?} (allowed)");
+        } else {
+            found_benchmark_results = true;
+            debug!(
+                "Found {} benchmark(s) in {path:?}",
+                results.benchmarks.len()
+            );
         }
-
-        found_benchmark_results = true;
-        debug!(
-            "Found {} benchmark(s) in {path:?}",
-            results.benchmarks.len()
-        );
     }
 
     if !found_benchmark_results {
         if allow_empty {
-            warn!("No JSON result files found in: {results_dir:?}.");
+            info!("No JSON result files found in: {results_dir:?}.");
             return Ok(());
         }
         bail!(add_empty_result_error_explanation(&format!(
