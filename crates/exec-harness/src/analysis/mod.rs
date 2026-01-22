@@ -1,0 +1,61 @@
+use crate::prelude::*;
+
+use crate::BenchmarkCommand;
+use crate::constants;
+use crate::uri;
+use codspeed::instrument_hooks::InstrumentHooks;
+use std::process::Command;
+
+mod preload_lib_file;
+
+pub fn perform(commands: Vec<BenchmarkCommand>) -> Result<()> {
+    let hooks = InstrumentHooks::instance();
+
+    for benchmark_cmd in commands {
+        let name_and_uri = uri::generate_name_and_uri(&benchmark_cmd.name, &benchmark_cmd.command);
+        name_and_uri.print_executing();
+
+        let mut cmd = Command::new(&benchmark_cmd.command[0]);
+        cmd.args(&benchmark_cmd.command[1..]);
+        hooks.start_benchmark().unwrap();
+        let status = cmd.status();
+        hooks.stop_benchmark().unwrap();
+        let status = status.context("Failed to execute command")?;
+
+        if !status.success() {
+            bail!("Command exited with non-zero status: {status}");
+        }
+
+        hooks.set_executed_benchmark(&name_and_uri.uri).unwrap();
+    }
+
+    Ok(())
+}
+
+/// Executes the given benchmark commands using a preload based trick to handle valgrind control.
+///
+/// This function is only supported on Unix-like platforms, as it relies on the
+/// `LD_PRELOAD` environment variable and Unix file permissions for shared libraries.
+/// It will not work on non-Unix platforms.
+pub fn perform_with_valgrind(commands: Vec<BenchmarkCommand>) -> Result<()> {
+    let preload_lib_path = preload_lib_file::get_preload_lib_path()?;
+
+    for benchmark_cmd in commands {
+        let name_and_uri = uri::generate_name_and_uri(&benchmark_cmd.name, &benchmark_cmd.command);
+        name_and_uri.print_executing();
+
+        let mut cmd = Command::new(&benchmark_cmd.command[0]);
+        cmd.args(&benchmark_cmd.command[1..]);
+        // Use LD_PRELOAD to inject instrumentation into the child process
+        cmd.env("LD_PRELOAD", preload_lib_path);
+        cmd.env(constants::URI_ENV, &name_and_uri.uri);
+
+        let status = cmd.status().context("Failed to execute command")?;
+
+        if !status.success() {
+            bail!("Command exited with non-zero status: {status}");
+        }
+    }
+
+    Ok(())
+}
