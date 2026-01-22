@@ -2,6 +2,7 @@ use super::helpers::validate_walltime_results;
 use super::perf::PerfRunner;
 use crate::executor::Config;
 use crate::executor::Executor;
+use crate::executor::ExecutorTeardownResult;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::{get_base_injected_env, is_codspeed_debug_enabled};
 use crate::executor::helpers::get_bench_command::get_bench_command;
@@ -195,7 +196,10 @@ impl Executor for WallTimeExecutor {
         Ok(())
     }
 
-    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()> {
+    async fn teardown(
+        &self,
+        execution_context: &ExecutionContext,
+    ) -> Result<ExecutorTeardownResult> {
         debug!("Copying files to the profile folder");
 
         if let Some(perf) = &self.perf
@@ -205,12 +209,12 @@ impl Executor for WallTimeExecutor {
                 .await?;
         }
 
-        validate_walltime_results(
+        let has_results = validate_walltime_results(
             &execution_context.profile_folder,
             execution_context.config.allow_empty,
         )?;
 
-        Ok(())
+        Ok(ExecutorTeardownResult { has_results })
     }
 }
 

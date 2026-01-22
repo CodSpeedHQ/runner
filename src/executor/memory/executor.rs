@@ -1,5 +1,4 @@
 use crate::binary_installer::ensure_binary_installed;
-use crate::executor::ExecutorName;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::get_base_injected_env;
 use crate::executor::helpers::get_bench_command::get_bench_command;
@@ -8,6 +7,7 @@ use crate::executor::helpers::run_with_env::wrap_with_env;
 use crate::executor::helpers::run_with_sudo::wrap_with_sudo;
 use crate::executor::shared::fifo::RunnerFifo;
 use crate::executor::{ExecutionContext, Executor};
+use crate::executor::{ExecutorName, ExecutorTeardownResult};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
@@ -118,7 +118,10 @@ impl Executor for MemoryExecutor {
         Ok(())
     }
 
-    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()> {
+    async fn teardown(
+        &self,
+        execution_context: &ExecutionContext,
+    ) -> Result<ExecutorTeardownResult> {
         let files: Vec<_> = std::fs::read_dir(execution_context.profile_folder.join("results"))?
             .filter_map(Result::ok)
             // Filter out non-memtrack files:
@@ -131,13 +134,22 @@ impl Executor for MemoryExecutor {
             .flat_map(|f| std::fs::File::open(f.path()))
             .filter(|file| !MemtrackArtifact::is_empty(file))
             .collect();
+
         if files.is_empty() {
-            bail!(
-                "No memtrack artifact files found. Does the integration support memory profiling?"
-            );
+            if !execution_context.config.allow_empty {
+                bail!(
+                    "No memtrack artifact files found. Does the integration support memory profiling?"
+                );
+            } else {
+                warn!(
+                    "No memtrack artifact files found. Does the integration support memory profiling?"
+                );
+            }
         }
 
-        Ok(())
+        Ok(ExecutorTeardownResult {
+            has_results: !files.is_empty(),
+        })
     }
 }
 

@@ -12,13 +12,15 @@ fn add_empty_result_error_explanation(error_details: &str) -> String {
 
 /// Validates that walltime results exist and contain at least one benchmark.
 /// When `allow_empty` is true, empty benchmark results are allowed.
-pub fn validate_walltime_results(profile_folder: &Path, allow_empty: bool) -> Result<()> {
+///
+/// Returns `Ok(true)` if valid results are found, `Ok(false)` if no results are found but `allow_empty` is true
+pub fn validate_walltime_results(profile_folder: &Path, allow_empty: bool) -> Result<bool> {
     let results_dir = profile_folder.join("results");
 
     if !results_dir.exists() {
         if allow_empty {
             warn!("No walltime results found in profile folder: {results_dir:?}.");
-            return Ok(());
+            return Ok(false);
         }
         bail!(add_empty_result_error_explanation(&format!(
             "No walltime results found in profile folder: {results_dir:?}."
@@ -52,26 +54,26 @@ pub fn validate_walltime_results(profile_folder: &Path, allow_empty: bool) -> Re
                 )));
             }
             debug!("No benchmarks found in {path:?} (allowed)");
+        } else {
+            found_benchmark_results = true;
+            debug!(
+                "Found {} benchmark(s) in {path:?}",
+                results.benchmarks.len()
+            );
         }
-
-        found_benchmark_results = true;
-        debug!(
-            "Found {} benchmark(s) in {path:?}",
-            results.benchmarks.len()
-        );
     }
 
     if !found_benchmark_results {
         if allow_empty {
             warn!("No JSON result files found in: {results_dir:?}.");
-            return Ok(());
+            return Ok(false);
         }
         bail!(add_empty_result_error_explanation(&format!(
             "No JSON result files found in: {results_dir:?}."
         )));
     }
 
-    Ok(())
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -188,6 +190,7 @@ mod tests {
 
         let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 
     #[test]
@@ -198,6 +201,7 @@ mod tests {
 
         let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 
     #[test]
@@ -209,6 +213,7 @@ mod tests {
 
         let result = validate_walltime_results(profile.path(), false);
         assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 
     // Failure cases
@@ -290,6 +295,7 @@ mod tests {
 
         let result = validate_walltime_results(profile.path(), true);
         assert!(result.is_ok());
+        assert!(!result.unwrap());
     }
 
     #[test]
@@ -299,6 +305,7 @@ mod tests {
 
         let result = validate_walltime_results(profile.path(), true);
         assert!(result.is_ok());
+        assert!(!result.unwrap());
     }
 
     #[test]
@@ -308,5 +315,6 @@ mod tests {
 
         let result = validate_walltime_results(profile.path(), true);
         assert!(result.is_ok());
+        assert!(!result.unwrap());
     }
 }
