@@ -3,7 +3,7 @@
 
 CLI to gather performance data and upload performance reports to [CodSpeed](https://codspeed.io)
 
-[![CI](https://github.com/CodSpeedHQ/runner/actions/workflows/ci.yml/badge.svg)](https://github.com/CodSpeedHQ/runner/actions/workflows/ci.yml)
+[![CI](https://github.com/CodSpeedHQ/codspeed/actions/workflows/ci.yml/badge.svg)](https://github.com/CodSpeedHQ/codspeed/actions/workflows/ci.yml)
 [![Discord](https://img.shields.io/badge/chat%20on-discord-7289da.svg)](https://discord.com/invite/MxpaCfKSqF)
 [![CodSpeed Badge](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/)
 
@@ -21,16 +21,16 @@ The following CI providers are supported:
 
 If you want to use the CLI with another provider, you can open an issue or chat with us on [Discord](https://discord.com/invite/MxpaCfKSqF) 🚀
 
-You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/runner/tree/main/src/run/run_environment) for reference.
+You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/codspeed/tree/main/src/run/run_environment) for reference.
 
 ## Installation
 
 ```bash
-curl -fsSL https://github.com/CodSpeedHQ/runner/releases/latest/download/codspeed-runner-installer.sh | bash
+curl -fsSL https://github.com/CodSpeedHQ/codspeed/releases/latest/download/codspeed-runner-installer.sh | bash
 source "$HOME/.cargo/env"
 ```
 
-Refer to the [releases page](https://github.com/CodSpeedHQ/runner/releases) to see all available versions.
+Refer to the [releases page](https://github.com/CodSpeedHQ/codspeed/releases) to see all available versions.
 
 ## Usage
 

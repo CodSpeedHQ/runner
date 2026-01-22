@@ -104,7 +104,7 @@ pub async fn execute_with_harness(
 
     let get_exec_harness_installer_url = || {
         format!(
-            "https://github.com/CodSpeedHQ/runner/releases/download/exec-harness-v{EXEC_HARNESS_VERSION}/exec-harness-installer.sh"
+            "https://github.com/CodSpeedHQ/codspeed/releases/download/exec-harness-v{EXEC_HARNESS_VERSION}/exec-harness-installer.sh"
         )
     };
 

@@ -271,16 +271,16 @@ mod tests {
     #[test]
     fn test_repository_override_from_arg() {
         let override_result =
-            RepositoryOverride::from_arg("CodSpeedHQ/runner".to_string(), None).unwrap();
+            RepositoryOverride::from_arg("CodSpeedHQ/codspeed".to_string(), None).unwrap();
         assert_eq!(override_result.owner, "CodSpeedHQ");
-        assert_eq!(override_result.repository, "runner");
+        assert_eq!(override_result.repository, "codspeed");
         assert_eq!(
             override_result.repository_provider,
             RepositoryProvider::GitHub
         );
 
         let override_with_provider = RepositoryOverride::from_arg(
-            "CodSpeedHQ/runner".to_string(),
+            "CodSpeedHQ/codspeed".to_string(),
             Some(RepositoryProvider::GitLab),
         )
         .unwrap();

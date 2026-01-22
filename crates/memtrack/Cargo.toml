@@ -2,7 +2,7 @@
 name = "memtrack"
 version = "1.2.0"
 edition = "2024"
-repository = "https://github.com/CodSpeedHQ/runner"
+repository = "https://github.com/CodSpeedHQ/codspeed"
 publish = false
 
 [lib]

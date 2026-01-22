@@ -2,7 +2,7 @@
 name = "codspeed-runner"
 version = "4.8.2"
 edition = "2024"
-repository = "https://github.com/CodSpeedHQ/runner"
+repository = "https://github.com/CodSpeedHQ/codspeed"
 publish = false
 
 [[bin]]

@@ -279,16 +279,16 @@ mod tests {
     fn test_extract_provider_owner_and_repository_from_remote_url() {
         let remote_urls = [
             (
-                "git@github.com:CodSpeedHQ/runner.git",
+                "git@github.com:CodSpeedHQ/codspeed.git",
                 RepositoryProvider::GitHub,
                 "CodSpeedHQ",
-                "runner",
+                "codspeed",
             ),
             (
-                "https://github.com/CodSpeedHQ/runner.git",
+                "https://github.com/CodSpeedHQ/codspeed.git",
                 RepositoryProvider::GitHub,
                 "CodSpeedHQ",
-                "runner",
+                "codspeed",
             ),
             (
                 "git@gitlab.com:codspeed/runner.git",

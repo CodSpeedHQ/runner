@@ -70,7 +70,7 @@ impl Executor for MemoryExecutor {
     ) -> Result<()> {
         let get_memtrack_installer_url = || {
             format!(
-                "https://github.com/CodSpeedHQ/runner/releases/download/memtrack-v{MEMTRACK_CODSPEED_VERSION}/memtrack-installer.sh"
+                "https://github.com/CodSpeedHQ/codspeed/releases/download/memtrack-v{MEMTRACK_CODSPEED_VERSION}/memtrack-installer.sh"
             )
         };
 

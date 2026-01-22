@@ -37,33 +37,33 @@ mod tests {
 
     #[test]
     fn test_parse_git_remote() {
-        let remote = "git@github.com:CodSpeedHQ/runner.git";
+        let remote = "git@github.com:CodSpeedHQ/codspeed.git";
         let git_remote = parse_git_remote(remote).unwrap();
         insta::assert_debug_snapshot!(git_remote, @r###"
         GitRemote {
             domain: "github.com",
             owner: "CodSpeedHQ",
-            repository: "runner",
+            repository: "codspeed",
         }
         "###);
 
-        let remote = "https://github.com/CodSpeedHQ/runner.git";
+        let remote = "https://github.com/CodSpeedHQ/codspeed.git";
         let git_remote = parse_git_remote(remote).unwrap();
         insta::assert_debug_snapshot!(git_remote, @r###"
         GitRemote {
             domain: "github.com",
             owner: "CodSpeedHQ",
-            repository: "runner",
+            repository: "codspeed",
         }
         "###);
 
-        let remote = "https://github.com/CodSpeedHQ/runner";
+        let remote = "https://github.com/CodSpeedHQ/codspeed";
         let git_remote = parse_git_remote(remote).unwrap();
         insta::assert_debug_snapshot!(git_remote, @r###"
         GitRemote {
             domain: "github.com",
             owner: "CodSpeedHQ",
-            repository: "runner",
+            repository: "codspeed",
         }
         "###);
 
