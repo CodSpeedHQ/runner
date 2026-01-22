@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead};
 
 pub mod analysis;
+pub mod constants;
 pub mod prelude;
 mod uri;
 pub mod walltime;
@@ -13,6 +14,7 @@ pub mod walltime;
 pub enum MeasurementMode {
     Walltime,
     Memory,
+    #[value(alias = "instrumentation")]
     Simulation,
 }
 
@@ -75,7 +77,7 @@ pub fn execute_benchmarks(
             analysis::perform(commands)?;
         }
         Some(MeasurementMode::Simulation) => {
-            bail!("Simulation measurement mode is not yet supported by exec-harness");
+            analysis::perform_with_valgrind(commands)?;
         }
     }
 

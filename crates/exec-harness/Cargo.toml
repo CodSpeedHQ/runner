@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-codspeed = "4.1.0"
+codspeed = "4.2.0"
 log = { workspace = true }
 env_logger = { workspace = true }
 clap = { workspace = true }
@@ -19,6 +19,10 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 humantime = "2.1"
 runner-shared = { path = "../runner-shared" }
+
+[build-dependencies]
+cargo_metadata = "0.19"
+cc = "1"
 
 [dev-dependencies]
 tempfile = { workspace = true }

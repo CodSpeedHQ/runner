@@ -756,6 +756,8 @@ name = "exec-harness"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "cargo_metadata",
+ "cc",
  "clap",
  "codspeed",
  "env_logger",

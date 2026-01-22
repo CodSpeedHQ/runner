@@ -1,3 +1,5 @@
 /target
 .DS_Store
 .codspeed
+compile_commands.json
+.cache
