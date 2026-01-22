@@ -6,6 +6,7 @@ use crate::uri;
 use codspeed::instrument_hooks::InstrumentHooks;
 use std::process::Command;
 
+mod ld_preload_check;
 mod preload_lib_file;
 
 pub fn perform(commands: Vec<BenchmarkCommand>) -> Result<()> {
@@ -36,11 +37,14 @@ pub fn perform(commands: Vec<BenchmarkCommand>) -> Result<()> {
 ///
 /// This function is only supported on Unix-like platforms, as it relies on the
 /// `LD_PRELOAD` environment variable and Unix file permissions for shared libraries.
-/// It will not work on non-Unix platforms.
+/// It will not work on non-Unix platforms or with statically linked binaries.
 pub fn perform_with_valgrind(commands: Vec<BenchmarkCommand>) -> Result<()> {
     let preload_lib_path = preload_lib_file::get_preload_lib_path()?;
 
     for benchmark_cmd in commands {
+        // Check if the executable will honor LD_PRELOAD before running
+        ld_preload_check::check_ld_preload_compatible(&benchmark_cmd.command[0])?;
+
         let name_and_uri = uri::generate_name_and_uri(&benchmark_cmd.name, &benchmark_cmd.command);
         name_and_uri.print_executing();
 

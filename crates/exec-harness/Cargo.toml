@@ -20,6 +20,7 @@ serde = { workspace = true }
 humantime = "2.1"
 runner-shared = { path = "../runner-shared" }
 tempfile = { workspace = true }
+object = { workspace = true }
 
 [build-dependencies]
 cargo_metadata = "0.19"
