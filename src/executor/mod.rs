@@ -71,13 +71,6 @@ pub fn get_all_executors() -> Vec<Box<dyn Executor>> {
     ]
 }
 
-pub struct ExecutorTeardownResult {
-    /// Whether the executor has produced results
-    /// Normally, the executor should fail if it does not produce results
-    /// Unless `allow_empty` option is set
-    has_results: bool,
-}
-
 #[async_trait(?Send)]
 pub trait Executor {
     fn name(&self) -> ExecutorName;
@@ -98,10 +91,7 @@ pub trait Executor {
         mongo_tracer: &Option<MongoTracer>,
     ) -> Result<()>;
 
-    async fn teardown(
-        &self,
-        execution_context: &ExecutionContext,
-    ) -> Result<ExecutorTeardownResult>;
+    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()>;
 }
 
 /// Execute benchmarks with the given configuration
@@ -129,8 +119,6 @@ where
         end_group!();
     }
 
-    let mut has_results = false;
-
     if !execution_context.config.skip_run {
         start_opened_group!("Running the benchmarks");
 
@@ -153,8 +141,7 @@ where
         }
         end_group!();
         start_opened_group!("Tearing down environment");
-        let teardown_result = executor.teardown(execution_context).await?;
-        has_results = teardown_result.has_results;
+        executor.teardown(execution_context).await?;
 
         execution_context
             .logger
@@ -166,7 +153,7 @@ where
     };
 
     // Handle upload and polling
-    if has_results && !execution_context.config.skip_upload {
+    if !execution_context.config.skip_upload {
         if !execution_context.is_local() {
             // If relevant, set the OIDC token for authentication
             // Note: OIDC tokens can expire quickly, so we set it just before the upload

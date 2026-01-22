@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use std::path::Path;
 
+use crate::executor::Executor;
 use crate::executor::{ExecutionContext, ExecutorName};
-use crate::executor::{Executor, ExecutorTeardownResult};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::run::check_system::SystemInfo;
@@ -45,10 +45,7 @@ impl Executor for ValgrindExecutor {
         Ok(())
     }
 
-    async fn teardown(
-        &self,
-        execution_context: &ExecutionContext,
-    ) -> Result<ExecutorTeardownResult> {
+    async fn teardown(&self, execution_context: &ExecutionContext) -> Result<()> {
         harvest_perf_maps(&execution_context.profile_folder).await?;
 
         // No matter the command in input, at this point valgrind will have been run and have produced output files.
@@ -58,6 +55,6 @@ impl Executor for ValgrindExecutor {
         // A comprehensive message will be sent to the user if no benchmarks are detected,
         // even if it's later in the process than technically possible.
 
-        Ok(ExecutorTeardownResult { has_results: true })
+        Ok(())
     }
 }
