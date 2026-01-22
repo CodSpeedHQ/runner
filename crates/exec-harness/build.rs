@@ -36,6 +36,9 @@ const PRELOAD_CONSTANTS: PreloadConstants = PreloadConstants {
     integration_version: "4.2.0",
 };
 
+/// Filename for the preload shared library.
+const PRELOAD_LIB_FILENAME: &str = "libcodspeed_preload.so";
+
 /// Paths required to build the preload shared library.
 struct PreloadBuildPaths {
     /// Path to the preload C source file (codspeed_preload.c).
@@ -65,6 +68,7 @@ fn main() {
         "cargo:rustc-env=CODSPEED_INTEGRATION_VERSION={}",
         PRELOAD_CONSTANTS.integration_version
     );
+    println!("cargo:rustc-env=CODSPEED_PRELOAD_LIB_FILENAME={PRELOAD_LIB_FILENAME}");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -81,16 +85,10 @@ fn main() {
         preload_c: manifest_dir.join("preload/codspeed_preload.c"),
         core_c: instrument_hooks_dir.join("dist/core.c"),
         includes_dir: instrument_hooks_dir.join("includes"),
-        output_lib: out_dir.join("libcodspeed_preload.so"),
+        output_lib: out_dir.join(PRELOAD_LIB_FILENAME),
     };
-    paths.check_all_exist();
+    paths.check_sources_exist();
     build_shared_library(&paths, &PRELOAD_CONSTANTS);
-
-    // Export the library path for use by the main crate
-    println!(
-        "cargo:rustc-env=CODSPEED_PRELOAD_LIB_PATH={}",
-        paths.output_lib.display()
-    );
 }
 
 /// Build the shared library using the cc crate
@@ -173,7 +171,7 @@ fn find_codspeed_instrument_hooks_dir() -> PathBuf {
 impl PreloadBuildPaths {
     /// Verify that all required source files and directories exist.
     /// Panics with a descriptive message if any path is missing.
-    fn check_all_exist(&self) {
+    fn check_sources_exist(&self) {
         if !self.core_c.exists() {
             panic!(
                 "core.c not found at {}. Make sure the codspeed crate is available.",

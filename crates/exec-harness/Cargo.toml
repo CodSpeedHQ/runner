@@ -19,13 +19,11 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 humantime = "2.1"
 runner-shared = { path = "../runner-shared" }
+tempfile = { workspace = true }
 
 [build-dependencies]
 cargo_metadata = "0.19"
 cc = "1"
-
-[dev-dependencies]
-tempfile = { workspace = true }
 
 [package.metadata.dist]
 targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
