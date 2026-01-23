@@ -180,8 +180,7 @@ mod tests {
     fn test_deserialize_minimal_config() {
         let yaml = r#"
 options:
-  walltime:
-    warmup-time: 1s
+  warmup-time: 1s
 "#;
         let config: ProjectConfig = serde_yaml::from_str(yaml).unwrap();
         assert!(config.options.is_some());
@@ -197,12 +196,11 @@ options:
     fn test_deserialize_full_walltime_config() {
         let yaml = r#"
 options:
-  walltime:
-    warmup-time: 2s
-    max-time: 10s
-    min-time: 1s
-    max-rounds: 100
-    min-rounds: 10
+  warmup-time: 2s
+  max-time: 10s
+  min-time: 1s
+  max-rounds: 100
+  min-rounds: 10
   working-directory: ./bench
   mode: walltime
 "#;
@@ -309,8 +307,7 @@ options:
             &config_path,
             r#"
 options:
-  walltime:
-    warmup-time: 5s
+  warmup-time: 5s
 "#,
         )
         .unwrap();
@@ -339,8 +336,7 @@ options:
             &config_path,
             r#"
 options:
-  walltime:
-    warmup-time: 3s
+  warmup-time: 3s
 "#,
         )
         .unwrap();
@@ -370,8 +366,7 @@ options:
             &config_path,
             r#"
 options:
-  walltime:
-    warmup-time: 2s
+  warmup-time: 2s
 "#,
         )
         .unwrap();
@@ -390,8 +385,7 @@ options:
             temp_dir.path().join("codspeed.yaml"),
             r#"
 options:
-  walltime:
-    warmup-time: 1s
+  warmup-time: 1s
 "#,
         )
         .unwrap();
@@ -400,8 +394,7 @@ options:
             temp_dir.path().join("codspeed.yml"),
             r#"
 options:
-  walltime:
-    warmup-time: 2s
+  warmup-time: 2s
 "#,
         )
         .unwrap();

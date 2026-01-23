@@ -27,7 +27,9 @@ pub struct Target {
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
 pub struct TargetOptions {
+    #[serde(flatten)]
     pub walltime: Option<WalltimeOptions>,
 }
 
@@ -35,12 +37,13 @@ pub struct TargetOptions {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectOptions {
-    /// Walltime execution configuration
-    pub walltime: Option<WalltimeOptions>,
     /// Working directory where commands will be executed (relative to config file)
     pub working_directory: Option<String>,
     /// Runner mode (walltime, memory, or simulation)
     pub mode: Option<RunnerMode>,
+    /// Walltime execution configuration (flattened)
+    #[serde(flatten)]
+    pub walltime: Option<WalltimeOptions>,
 }
 
 /// Walltime execution options matching WalltimeExecutionArgs structure
