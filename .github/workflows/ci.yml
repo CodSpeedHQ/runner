@@ -24,7 +24,7 @@ jobs:
         with:
           lfs: true
 
-      - name: 'Install rust-toolchain.toml'
+      - name: "Install rust-toolchain.toml"
         run: rustup toolchain install
       # We use Swatinem/rust-cache to cache cargo registry, index and target in this job
       - uses: Swatinem/rust-cache@v2
@@ -58,6 +58,10 @@ jobs:
       - uses: moonrepo/setup-rust@v1
       - name: Install dependencies required for libbpf-sys (vendored feature)
         run: sudo apt-get update && sudo apt-get install -y autopoint bison flex
+
+      - name: Install additional allocators
+        run: sudo apt-get install -y libmimalloc-dev libjemalloc-dev
+
       - name: Run tests
         run: sudo -E $(which cargo) test
         working-directory: crates/memtrack
@@ -67,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: 'Install rust-toolchain.toml'
+      - name: "Install rust-toolchain.toml"
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo codspeed
