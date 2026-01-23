@@ -32,7 +32,10 @@ struct Args {
 fn main() -> Result<()> {
     env_logger::builder()
         .parse_env(env_logger::Env::new().filter_or("CODSPEED_LOG", "info"))
-        .format_timestamp(None)
+        .format(|buf, record| {
+            use std::io::Write;
+            writeln!(buf, "{}", record.args())
+        })
         .init();
 
     debug!("Starting exec-harness with pid {}", std::process::id());
