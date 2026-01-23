@@ -1,4 +1,3 @@
-use crate::runner_mode::RunnerMode;
 use serde::{Deserialize, Serialize};
 
 /// Project-level configuration from codspeed.yaml file
@@ -39,8 +38,6 @@ pub struct TargetOptions {
 pub struct ProjectOptions {
     /// Working directory where commands will be executed (relative to config file)
     pub working_directory: Option<String>,
-    /// Runner mode (walltime, memory, or simulation)
-    pub mode: Option<RunnerMode>,
     /// Walltime execution configuration (flattened)
     #[serde(flatten)]
     pub walltime: Option<WalltimeOptions>,

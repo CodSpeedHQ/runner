@@ -173,7 +173,6 @@ mod tests {
         let config = ProjectOptions {
             walltime: None,
             working_directory: Some("./config-dir".to_string()),
-            mode: Some(RunnerMode::Simulation),
         };
 
         let merged = ConfigMerger::merge_shared_args(&cli, Some(&config));
@@ -206,7 +205,6 @@ mod tests {
         let config = ProjectOptions {
             walltime: None,
             working_directory: Some("./config-dir".to_string()),
-            mode: Some(RunnerMode::Memory),
         };
 
         let merged = ConfigMerger::merge_shared_args(&cli, Some(&config));

@@ -173,7 +173,6 @@ impl ProjectConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::runner_mode::RunnerMode;
     use tempfile::TempDir;
 
     #[test]
@@ -202,7 +201,6 @@ options:
   max-rounds: 100
   min-rounds: 10
   working-directory: ./bench
-  mode: walltime
 "#;
         let config: ProjectConfig = serde_yaml::from_str(yaml).unwrap();
         let options = config.options.unwrap();
@@ -214,7 +212,6 @@ options:
         assert_eq!(walltime.max_rounds, Some(100));
         assert_eq!(walltime.min_rounds, Some(10));
         assert_eq!(options.working_directory, Some("./bench".to_string()));
-        assert_eq!(options.mode, Some(RunnerMode::Walltime));
     }
 
     #[test]
@@ -236,7 +233,6 @@ options:
                     min_rounds: None,
                 }),
                 working_directory: None,
-                mode: None,
             }),
             targets: None,
         };
@@ -263,7 +259,6 @@ options:
                     min_rounds: Some(5),
                 }),
                 working_directory: None,
-                mode: None,
             }),
             targets: None,
         };
@@ -290,7 +285,6 @@ options:
                     min_rounds: None,
                 }),
                 working_directory: Some("./bench".to_string()),
-                mode: Some(RunnerMode::Walltime),
             }),
             targets: None,
         };
