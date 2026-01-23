@@ -1,36 +1,42 @@
-<div align="center">
-<h1>CodSpeed CLI</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://codspeed.io/codspeed-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://codspeed.io/codspeed-logo-light.svg">
+    <img alt="CodSpeed logo" src="https://codspeed.io/codspeed-logo-light.svg" width="400px">
+  </picture>
+</p>
 
-CLI to gather performance data and upload performance reports to [CodSpeed](https://codspeed.io)
+<h3 align="center">The toolkit to optimize code and avoid performance regressions.</h3>
+<p align="center"><a href="https://codspeed.io/login?flow=get-started&utm_source=github-readme">Get Started</a> · <a href="https://codspeed.io/docs?utm_source=github-readme">Documentation</a></p>
 
-[![CI](https://github.com/CodSpeedHQ/codspeed/actions/workflows/ci.yml/badge.svg)](https://github.com/CodSpeedHQ/codspeed/actions/workflows/ci.yml)
-[![Discord](https://img.shields.io/badge/chat%20on-discord-7289da.svg)](https://discord.com/invite/MxpaCfKSqF)
-[![CodSpeed Badge](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/)
+<br/>
 
-</div>
+<p align="center">
+  <a href="https://github.com/CodSpeedHQ/codspeed/releases/latest"><img src="https://img.shields.io/github/v/release/CodSpeedHQ/codspeed" alt="Latest Release"></a>
+  <a href="https://github.com/CodSpeedHQ/codspeed/releases"><img src="https://img.shields.io/github/downloads/CodSpeedHQ/codspeed/total?logo=github" alt="Downloads"></a>
+  <a href="https://github.com/CodSpeedHQ/codspeed/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/CodSpeedHQ/codspeed/ci.yml?branch=main&logo=github&label=CI" alt="CI Status"></a>
+  <a href="https://github.com/CodSpeedHQ/codspeed/blob/main/LICENSE-APACHE"><img src="https://img.shields.io/github/license/CodSpeedHQ/codspeed" alt="License"></a>
+  <a href="https://codspeed.io/discord"><img src="https://img.shields.io/badge/chat%20on-discord-7289da.svg" alt="Discord Chat"></a>
+  <a href="https://codspeed.io/?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed Badge"></a>
+</p>
 
-The `codspeed` CLI is designed to be used both in **local** in **CI environments**.
+[![Video Demo](https://codspeed.io/readme-video.gif)](https://codspeed.io/?utm_source=github-readme)
 
-The following CI providers are supported:
+# Key features
 
-- [GitHub Actions](https://docs.codspeed.io/integrations/ci/github-actions): Usage with [`@CodSpeedHQ/action`](https://github.com/CodSpeedHQ/action) is recommended.
-- [GitLab CI](https://docs.codspeed.io/integrations/ci/gitlab-ci)
-- [Buildkite](https://docs.codspeed.io/integrations/ci/buildkite)
-
-#### Other providers
-
-If you want to use the CLI with another provider, you can open an issue or chat with us on [Discord](https://discord.com/invite/MxpaCfKSqF) 🚀
-
-You can check out the implementation of the [supported providers](https://github.com/CodSpeedHQ/codspeed/tree/main/src/run/run_environment) for reference.
+- 🎯 **<1% variance** in measurements using CPU simulation - no more flaky benchmarks.
+- 🔥 **Differential flamegraphs** to pinpoint exactly what got slower, commit by commit.
+- 💬 **PR comments & status checks** showing performance impact directly in your workflow.
+- 🛡️ **Merge protection** to block PRs that degrade performance beyond your threshold.
+- 🐍 **Multi-language support** for Python, Rust, Node.js, Go, C/C++ and more.
+- 🏠 **Run locally or in CI** - works on your machine and integrates with GitHub Actions, GitLab CI, and more.
+- 🔌 **Plug your existing benchmarks** in less than 5 minutes - works with pytest, vitest, criterion, and more.
 
 ## Installation
 
 ```bash
-curl -fsSL https://github.com/CodSpeedHQ/codspeed/releases/latest/download/codspeed-runner-installer.sh | bash
-source "$HOME/.cargo/env"
+curl -fsSL https://codspeed.io/install.sh | bash
 ```
-
-Refer to the [releases page](https://github.com/CodSpeedHQ/codspeed/releases) to see all available versions.
 
 ## Usage
 
@@ -58,6 +64,25 @@ codspeed run pytest ./tests --codspeed
 codspeed run pnpm vitest bench
 ```
 
+## In CI environments
+
+To run CodSpeed in Github Actions, we recommend using our official GitHub Action: [@CodSpeedHQ/action](https://github.com/CodSpeedHQ/action).
+
+## Languages Integrations
+
+On top of the generic CLI, CodSpeed provides first-class integrations for multiple languages and frameworks:
+
+| Language        | Repository                                                       | Supported Frameworks                  |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------- |
+| Rust            | [codspeed-rust](https://github.com/CodSpeedHQ/codspeed-rust)     | `divan`, `criterion.rs`, `bencher`    |
+| C/C++           | [codspeed-cpp](https://github.com/CodSpeedHQ/codspeed-cpp)       | `google-benchmark`                    |
+| Python          | [pytest-codspeed](https://github.com/CodSpeedHQ/pytest-codspeed) | `pytest` plugin                       |
+| Node.js         | [codspeed-node](https://github.com/CodSpeedHQ/codspeed-node)     | `vitest`, `tinybench`, `benchmark.js` |
+| Go              | [codspeed-go](https://github.com/CodSpeedHQ/codspeed-go)         | builtin `testing` package integration |
+| Zig (community) | [codspeed-zig](https://github.com/james-elicx/codspeed-zig)      | custom                                |
+
+Need to bench another language or framework? Open [an issue](https://github.com/CodSpeedHQ/codspeed/issues) or let us know on [Discord](https://codspeed.io/discord)!
+
 ## Advanced usage
 
 ### Installing tools before running
@@ -70,27 +95,18 @@ codspeed setup
 
 This is especially useful when configuring environments with tools such as docker.
 
-### Logging level
-
-Use the `CODSPEED_LOG` environment variable to set the logging level:
-
-```bash
-CODSPEED_LOG=debug codspeed run ...
-```
-
 ### Changing the mode of the runner
 
-By default, the runner will run the benchmark in the `instrumentation` mode. You can specify the mode with the `--mode` flag of the `run` command:
+By default, the runner will run the benchmark in the `simulation` mode. You can specify the mode with the `--mode` flag of the `run` command:
 
 ```bash
-# Run in the `instrumentation` mode
-codspeed run --mode instrumentation <my-benchmark-command>
+# Run in the `simulation` mode
+codspeed run --mode simulation <my-benchmark-command>
 
 # Run in the `walltime` mode
 codspeed run --mode walltime <my-benchmark-command>
 ```
 
 > [!WARNING]
-> We strongly recommend not changing this mode unless you know what you are doing.
 > Using the `walltime` mode on traditional VMs/Hosted Runners will lead to inconsistent data. For the best results, we recommend using CodSpeed Hosted Macro Runners, which are fine-tuned for performance measurement consistency.
 > Check out the [Walltime Instrument Documentation](https://docs.codspeed.io/instruments/walltime/) for more details.
