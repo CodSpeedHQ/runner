@@ -63,7 +63,9 @@ jobs:
         run: sudo apt-get install -y libmimalloc-dev libjemalloc-dev
 
       - name: Run tests
-        run: sudo -E $(which cargo) test
+        env:
+          RUST_LOG: debug
+        run: sudo -E $(which cargo) test -- --test-threads 1 --nocapture
         working-directory: crates/memtrack
 
   benchmarks:
