@@ -27,4 +27,4 @@ cargo_metadata = "0.19"
 cc = "1"
 
 [package.metadata.dist]
-targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
+targets = ["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"]
