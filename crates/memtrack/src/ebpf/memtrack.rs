@@ -340,7 +340,27 @@ impl MemtrackBpf {
         // - rust_dealloc: _rjem_sdallocx
         // - rust_realloc: _rjem_realloc / _rjem_rallocx
 
-        // Prefixed standard API
+        // je_*_default API (C++ with static linking)
+        self.try_attach_malloc(lib_path, "je_malloc_default");
+        self.try_attach_malloc(lib_path, "je_mallocx_default");
+        self.try_attach_free(lib_path, "je_free_default");
+        self.try_attach_free(lib_path, "je_sdallocx_default");
+        self.try_attach_realloc(lib_path, "je_realloc_default");
+        self.try_attach_realloc(lib_path, "je_rallocx_default");
+        self.try_attach_calloc(lib_path, "je_calloc_default");
+
+        // je_* API (internal jemalloc functions, static linking)
+        self.try_attach_malloc(lib_path, "je_malloc");
+        self.try_attach_malloc(lib_path, "je_mallocx");
+        self.try_attach_calloc(lib_path, "je_calloc");
+        self.try_attach_realloc(lib_path, "je_realloc");
+        self.try_attach_realloc(lib_path, "je_rallocx");
+        self.try_attach_aligned_alloc(lib_path, "je_aligned_alloc");
+        self.try_attach_memalign(lib_path, "je_memalign");
+        self.try_attach_free(lib_path, "je_free");
+        self.try_attach_free(lib_path, "je_sdallocx");
+
+        // _rjem_* API (Rust jemalloc crate, dynamic linking)
         self.try_attach_malloc(lib_path, "_rjem_malloc");
         self.try_attach_malloc(lib_path, "_rjem_mallocx"); // Also used for `calloc`
         self.try_attach_calloc(lib_path, "_rjem_calloc");
