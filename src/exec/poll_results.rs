@@ -22,7 +22,6 @@ pub async fn poll_results(
         run_id: upload_result.run_id.clone(),
     };
 
-    start_group!("Fetching the results");
     let response;
     loop {
         if start.elapsed() > RUN_PROCESSING_MAX_DURATION {
@@ -50,13 +49,8 @@ pub async fn poll_results(
         bail!("Run failed to be processed, try again in a few minutes");
     }
 
-    info!(
-        "\nTo see the full report, visit: {}",
-        style(response.run.url).blue().bold().underlined()
-    );
-    end_group!();
-
     if !response.run.results.is_empty() {
+        end_group!();
         start_group!("Benchmark results");
 
         if response.run.results.len() == 1 {
@@ -67,7 +61,10 @@ pub async fn poll_results(
             info!("\n{table}");
         }
 
-        end_group!();
+        info!(
+            "\nTo see the full report, visit: {}",
+            style(response.run.url).blue().bold().underlined()
+        );
     }
 
     Ok(())

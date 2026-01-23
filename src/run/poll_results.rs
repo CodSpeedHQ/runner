@@ -23,7 +23,6 @@ pub async fn poll_results(
         run_id: upload_result.run_id.clone(),
     };
 
-    start_group!("Fetching the results");
     let response;
     loop {
         if start.elapsed() > RUN_PROCESSING_MAX_DURATION {
@@ -75,11 +74,6 @@ pub async fn poll_results(
         info!("No impact detected, reason: {}", report.conclusion);
     }
 
-    info!(
-        "\nTo see the full report, visit: {}",
-        style(response.run.url).blue().bold().underlined()
-    );
-
     if output_json {
         // TODO: Refactor `log_json` to avoid having to format the json manually
         // We could make use of structured logging for this https://docs.rs/log/latest/log/#structured-logging
@@ -89,9 +83,8 @@ pub async fn poll_results(
         ));
     }
 
-    end_group!();
-
     if !response.run.results.is_empty() {
+        end_group!();
         start_group!("Benchmark results");
 
         let table = build_benchmark_table(&response.run.results);
@@ -106,7 +99,10 @@ pub async fn poll_results(
             }
         }
 
-        end_group!();
+        info!(
+            "\nTo see the full report, visit: {}",
+            style(response.run.url).blue().bold().underlined()
+        );
     }
 
     Ok(())

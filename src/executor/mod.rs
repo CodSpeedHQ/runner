@@ -162,14 +162,14 @@ where
                 .await?;
         }
 
-        start_group!("Uploading performance data");
+        start_group!("Uploading results");
         let upload_result =
             crate::run::uploader::upload(execution_context, executor.name(), api_client).await?;
-        end_group!();
 
         if execution_context.is_local() {
             poll_results(&upload_result).await?;
         }
+        end_group!();
     } else {
         debug!("Skipping upload of performance data");
     }

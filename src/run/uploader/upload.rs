@@ -283,7 +283,7 @@ pub async fn upload(
         .await?;
     debug!("Upload metadata: {upload_metadata:#?}");
     info!(
-        "Linked repository: {}\n",
+        "Linked repository: {}",
         style(format!(
             "{}/{}",
             upload_metadata.run_environment_metadata.owner,
@@ -296,11 +296,10 @@ pub async fn upload(
         info!("CodSpeed Run Hash: \"{hash}\"");
     }
 
-    info!("Preparing upload...");
+    debug!("Preparing upload...");
     let upload_data = retrieve_upload_data(&execution_context.config, &upload_metadata).await?;
     debug!("runId: {}", upload_data.run_id);
 
-    info!("Uploading performance data...");
     debug!(
         "Uploading {} bytes...",
         profile_archive.content.size().await?
