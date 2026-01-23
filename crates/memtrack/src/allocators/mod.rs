@@ -28,11 +28,13 @@ pub enum AllocatorKind {
 impl AllocatorKind {
     /// Returns all supported allocator kinds.
     pub fn all() -> &'static [AllocatorKind] {
+        // IMPORTANT: Check non-default allocators first, because they will contain compatibility
+        // layers for the default allocators.
         &[
-            AllocatorKind::Libc,
-            AllocatorKind::LibCpp,
             AllocatorKind::Jemalloc,
             AllocatorKind::Mimalloc,
+            AllocatorKind::LibCpp,
+            AllocatorKind::Libc,
         ]
     }
 
@@ -56,7 +58,7 @@ impl AllocatorKind {
         match self {
             AllocatorKind::Libc => &["malloc", "free"],
             AllocatorKind::LibCpp => &["_Znwm", "_Znam", "_ZdlPv", "_ZdaPv"],
-            AllocatorKind::Jemalloc => &["_rjem_malloc", "_rjem_free"],
+            AllocatorKind::Jemalloc => &["_rjem_malloc", "je_malloc", "je_malloc_default"],
             AllocatorKind::Mimalloc => &["mi_malloc_aligned", "mi_malloc", "mi_free"],
         }
     }
