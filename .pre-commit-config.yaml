@@ -20,3 +20,9 @@ repos:
         args: [--all-targets]
       - id: clippy
         args: [--all-targets, --, -D, warnings]
+  - repo: local
+    hooks:
+      - id: check-config-schema
+        name: check config schema is up to date
+        entry: bash -c 'cargo run --bin generate_config_schema && git diff --exit-code schemas/codspeed.schema.json'
+        language: system
