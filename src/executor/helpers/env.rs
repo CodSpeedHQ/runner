@@ -1,10 +1,12 @@
 use std::{collections::HashMap, env::consts::ARCH, path::Path};
 
+use crate::executor::Config;
 use crate::runner_mode::RunnerMode;
 
 pub fn get_base_injected_env(
     mode: RunnerMode,
     profile_folder: &Path,
+    config: &Config,
 ) -> HashMap<&'static str, String> {
     let runner_mode_internal_env_value = match mode {
         // While the runner now deprecates the usage of instrumentation with a message, we
@@ -17,7 +19,7 @@ pub fn get_base_injected_env(
         RunnerMode::Walltime => "walltime",
         RunnerMode::Memory => "memory",
     };
-    HashMap::from([
+    let mut env = HashMap::from([
         ("PYTHONHASHSEED", "0".into()),
         (
             "PYTHON_PERF_JIT_SUPPORT",
@@ -37,7 +39,13 @@ pub fn get_base_injected_env(
             "CODSPEED_PROFILE_FOLDER",
             profile_folder.to_string_lossy().to_string(),
         ),
-    ])
+    ]);
+
+    if let Some(version) = &config.go_runner_version {
+        env.insert("CODSPEED_GO_RUNNER_VERSION", version.to_string());
+    }
+
+    env
 }
 
 pub fn is_codspeed_debug_enabled() -> bool {

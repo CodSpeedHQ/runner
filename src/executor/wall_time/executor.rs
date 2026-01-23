@@ -105,8 +105,11 @@ impl WallTimeExecutor {
             path_env
         );
 
-        let mut extra_env =
-            get_base_injected_env(RunnerMode::Walltime, &execution_context.profile_folder);
+        let mut extra_env = get_base_injected_env(
+            RunnerMode::Walltime,
+            &execution_context.profile_folder,
+            &execution_context.config,
+        );
         extra_env.insert("PATH", path_value);
 
         // We have to write the benchmark command to a script, to ensure proper formatting

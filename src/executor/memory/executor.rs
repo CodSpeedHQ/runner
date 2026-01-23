@@ -49,8 +49,11 @@ impl MemoryExecutor {
         cmd_builder.arg(get_bench_command(&execution_context.config)?);
 
         // Wrap command with environment forwarding
-        let extra_env =
-            get_base_injected_env(RunnerMode::Memory, &execution_context.profile_folder);
+        let extra_env = get_base_injected_env(
+            RunnerMode::Memory,
+            &execution_context.profile_folder,
+            &execution_context.config,
+        );
         let (cmd_builder, env_file) = wrap_with_env(cmd_builder, &extra_env)?;
 
         Ok((ipc_server, cmd_builder, env_file))

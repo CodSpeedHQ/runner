@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::run::{RunArgs, UnwindingMode};
 use crate::run_environment::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
+use semver::Version;
 use std::path::PathBuf;
 use url::Url;
 
@@ -34,6 +35,8 @@ pub struct Config {
     pub skip_setup: bool,
     /// If true, allow execution even when no benchmarks are found
     pub allow_empty: bool,
+    /// The version of go-runner to install (if None, installs latest)
+    pub go_runner_version: Option<Version>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -85,6 +88,7 @@ impl Config {
             skip_run: false,
             skip_setup: false,
             allow_empty: false,
+            go_runner_version: None,
         }
     }
 }
@@ -121,6 +125,7 @@ impl TryFrom<RunArgs> for Config {
             skip_run: args.shared.skip_run,
             skip_setup: args.shared.skip_setup,
             allow_empty: args.shared.allow_empty,
+            go_runner_version: args.shared.go_runner_version,
         })
     }
 }
@@ -154,6 +159,7 @@ impl Config {
             skip_run: args.shared.skip_run,
             skip_setup: args.shared.skip_setup,
             allow_empty: args.shared.allow_empty,
+            go_runner_version: args.shared.go_runner_version,
         })
     }
 }
@@ -188,6 +194,7 @@ mod tests {
                 skip_run: false,
                 skip_setup: false,
                 allow_empty: false,
+                go_runner_version: None,
                 perf_run_args: PerfRunArgs {
                     enable_perf: false,
                     perf_unwinding_mode: None,
@@ -226,6 +233,7 @@ mod tests {
                 skip_run: true,
                 skip_setup: true,
                 allow_empty: true,
+                go_runner_version: None,
                 perf_run_args: PerfRunArgs {
                     enable_perf: false,
                     perf_unwinding_mode: Some(UnwindingMode::FramePointer),
@@ -308,6 +316,7 @@ mod tests {
                 skip_run: false,
                 skip_setup: false,
                 allow_empty: false,
+                go_runner_version: None,
                 perf_run_args: PerfRunArgs {
                     enable_perf: false,
                     perf_unwinding_mode: None,

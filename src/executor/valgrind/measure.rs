@@ -89,6 +89,7 @@ pub async fn measure(
     cmd.envs(get_base_injected_env(
         RunnerMode::Simulation,
         profile_folder,
+        config,
     ));
 
     // Only set PYTHONMALLOC=malloc for non-free-threaded Python builds.

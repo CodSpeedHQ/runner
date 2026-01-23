@@ -120,8 +120,18 @@ pub struct ExecAndRunSharedArgs {
     #[arg(long, default_value = "false", hide = true)]
     pub allow_empty: bool,
 
+    /// The version of the go-runner to use (e.g., 1.2.3, 1.0.0-beta.1)
+    /// If not specified, the latest version will be installed
+    #[arg(long, env = "CODSPEED_GO_RUNNER_VERSION", value_parser = parse_version)]
+    pub go_runner_version: Option<semver::Version>,
+
     #[command(flatten)]
     pub perf_run_args: PerfRunArgs,
+}
+
+/// Parser for go-runner version that validates semver format
+fn parse_version(s: &str) -> Result<semver::Version, String> {
+    semver::Version::parse(s).map_err(|e| format!("Invalid semantic version: {e}"))
 }
 
 #[derive(Args, Debug)]
@@ -182,6 +192,7 @@ impl RunArgs {
                 skip_run: false,
                 skip_setup: false,
                 allow_empty: false,
+                go_runner_version: None,
                 perf_run_args: PerfRunArgs {
                     enable_perf: false,
                     perf_unwinding_mode: None,

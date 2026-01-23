@@ -39,7 +39,18 @@ if [ "$1" = "test" ]; then
     # Find go-runner or install if not found
     GO_RUNNER=$(which codspeed-go-runner 2>/dev/null || true)
     if [ -z "$GO_RUNNER" ]; then
-        curl -fsSL http://github.com/CodSpeedHQ/codspeed-go/releases/latest/download/codspeed-go-runner-installer.sh | bash -s -- --quiet
+        # Build the installer URL with the specified version or use latest
+        INSTALLER_VERSION="${CODSPEED_GO_RUNNER_VERSION:-latest}"
+        if [ "$INSTALLER_VERSION" = "latest" ]; then
+            DOWNLOAD_URL="http://github.com/CodSpeedHQ/codspeed-go/releases/latest/download/codspeed-go-runner-installer.sh"
+            echo "WARNING: Installing the latest version of codspeed-go-runner. This can silently introduce breaking changes." >&2
+            echo "We recommend pinning a specific version via the `go-runner-version` option in the action." >&2
+        else
+            DOWNLOAD_URL="http://github.com/CodSpeedHQ/codspeed-go/releases/download/v${INSTALLER_VERSION}/codspeed-go-runner-installer.sh"
+        fi
+
+        debug_log "Installing go-runner from: $DOWNLOAD_URL"
+        curl -fsSL "$DOWNLOAD_URL" | bash -s -- --quiet
         GO_RUNNER=$(which codspeed-go-runner 2>/dev/null || true)
     fi
 
