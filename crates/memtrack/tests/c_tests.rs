@@ -1,37 +1,12 @@
-use libbpf_rs::ErrorExt;
-use memtrack::{EventType, MemtrackEventExt, Tracker};
+mod shared;
+
+use memtrack::EventType;
 use rstest::rstest;
-use runner_shared::artifacts::{MemtrackEvent as Event, MemtrackEventKind};
+use runner_shared::artifacts::MemtrackEventKind;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
 use tempfile::TempDir;
-
-pub fn track_binary(binary: &Path) -> anyhow::Result<(Vec<Event>, std::thread::JoinHandle<()>)> {
-    let mut tracker = Tracker::new()?;
-
-    let child = Command::new(binary)
-        .spawn()
-        .context("Failed to spawn command")?;
-    let root_pid = child.id() as i32;
-
-    tracker.enable()?;
-    let rx = tracker.track(root_pid)?;
-
-    let mut events = Vec::new();
-    while let Ok(event) = rx.recv_timeout(Duration::from_secs(10)) {
-        events.push(event);
-    }
-
-    // Drop the tracker in a new thread to not block the test
-    let thread_handle = std::thread::spawn(move || core::mem::drop(tracker));
-
-    eprintln!("Tracked {} events", events.len());
-    eprintln!("Events: {events:#?}");
-
-    Ok((events, thread_handle))
-}
 
 /// Compiles C source code and returns the binary path
 fn compile_c_source(
@@ -55,14 +30,6 @@ fn compile_c_source(
     }
 
     Ok(binary_path)
-}
-
-/// Helper to count events of a specific type
-fn count_events_by_type(events: &[Event], event_type: EventType) -> usize {
-    events
-        .iter()
-        .filter(|e| e.event_type() == event_type)
-        .count()
 }
 
 // ============================================================================
@@ -134,10 +101,10 @@ fn test_allocation_tracking(
     let temp_dir = TempDir::new()?;
     let binary = compile_c_source(test_case.source, test_case.name, temp_dir.path())?;
 
-    let (events, thread_handle) = track_binary(&binary)?;
+    let (events, thread_handle) = shared::track_binary(&binary)?;
 
     for (event_type, expected_count) in test_case.assertions {
-        let actual_count = count_events_by_type(&events, *event_type);
+        let actual_count = shared::count_events_by_type(&events, *event_type);
 
         if test_case.allow_excess {
             assert!(
@@ -168,10 +135,10 @@ fn test_fork_tracking() -> Result<(), Box<dyn std::error::Error>> {
     let source = include_str!("../testdata/fork_test.c");
     let binary = compile_c_source(source, "fork_test", temp_dir.path())?;
 
-    let (events, thread_handle) = track_binary(&binary)?;
+    let (events, thread_handle) = shared::track_binary(&binary)?;
 
-    let malloc_count = count_events_by_type(&events, EventType::Malloc);
-    let free_count = count_events_by_type(&events, EventType::Free);
+    let malloc_count = shared::count_events_by_type(&events, EventType::Malloc);
+    let free_count = shared::count_events_by_type(&events, EventType::Free);
 
     // Should have at least 2 mallocs (parent + child)
     assert!(
@@ -203,7 +170,7 @@ fn test_allocation_sizes() -> Result<(), Box<dyn std::error::Error>> {
     let source = include_str!("../testdata/alloc_size.c");
     let binary = compile_c_source(source, "alloc_size", temp_dir.path())?;
 
-    let (events, thread_handle) = track_binary(&binary)?;
+    let (events, thread_handle) = shared::track_binary(&binary)?;
 
     // Filter malloc events and collect their sizes
     let malloc_events: Vec<u64> = events
@@ -234,7 +201,7 @@ fn test_allocation_sizes() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Check that we have 4 free events
-    let free_count = count_events_by_type(&events, EventType::Free);
+    let free_count = shared::count_events_by_type(&events, EventType::Free);
     assert_eq!(free_count, 4, "Expected 4 free events, got {free_count}");
 
     thread_handle.join().unwrap();
