@@ -1,0 +1,65 @@
+# C++ Allocator Test Fixture Build System
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Configure the build with CMake
+configure:
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+# Clean build directory
+clean:
+    rm -rf build
+
+# Reconfigure from scratch
+reconfigure: clean configure
+
+# Build a specific target
+build target:
+    cmake --build build --target {{target}} -j
+
+# Build all targets
+build-all: configure
+    cmake --build build -j
+
+# Build system allocator target
+build-system: configure
+    cmake --build build --target alloc_cpp_system -j
+
+# Build jemalloc static target
+build-jemalloc-static: configure
+    cmake --build build --target alloc_cpp_jemalloc_static -j
+
+# Build jemalloc dynamic target
+build-jemalloc-dynamic: configure
+    cmake --build build --target alloc_cpp_jemalloc_dynamic -j
+
+# Build mimalloc static target
+build-mimalloc-static: configure
+    cmake --build build --target alloc_cpp_mimalloc_static -j
+
+# Build mimalloc dynamic target
+build-mimalloc-dynamic: configure
+    cmake --build build --target alloc_cpp_mimalloc_dynamic -j
+
+# Run a specific target binary
+run target: (build target)
+    ./build/{{target}}
+
+# Run system allocator binary
+run-system: build-system
+    ./build/alloc_cpp_system
+
+# Run all binaries
+run-all: build-all
+    @echo "Running system allocator..."
+    ./build/alloc_cpp_system
+    @echo "\nRunning jemalloc static..."
+    ./build/alloc_cpp_jemalloc_static
+    @echo "\nRunning jemalloc dynamic..."
+    ./build/alloc_cpp_jemalloc_dynamic
+    @echo "\nRunning mimalloc static..."
+    ./build/alloc_cpp_mimalloc_static
+    @echo "\nRunning mimalloc dynamic..."
+    ./build/alloc_cpp_mimalloc_dynamic

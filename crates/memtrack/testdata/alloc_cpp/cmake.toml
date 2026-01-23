@@ -1,0 +1,71 @@
+[project]
+name = "alloc_cpp"
+version = "0.1.0"
+languages = ["CXX"]
+cmake-after = """
+# Find static libraries - CMake searches CMAKE_PREFIX_PATH (NixOS) and system paths (Ubuntu)
+find_library(MIMALLOC_STATIC_LIB
+    NAMES libmimalloc.a mimalloc-static
+    DOC "Static mimalloc library"
+)
+
+find_library(JEMALLOC_STATIC_LIB
+    NAMES libjemalloc.a jemalloc_pic
+    DOC "Static jemalloc library"
+)
+
+if(NOT MIMALLOC_STATIC_LIB)
+    message(STATUS "Static mimalloc not found, will fall back to dynamic linking")
+endif()
+
+if(NOT JEMALLOC_STATIC_LIB)
+    message(STATUS "Static jemalloc not found, will fall back to dynamic linking")
+endif()
+"""
+
+# System allocator (libc default malloc)
+[target.alloc_cpp_system]
+type = "executable"
+sources = ["src/main.cpp"]
+
+# Jemalloc - static linking
+[target.alloc_cpp_jemalloc_static]
+type = "executable"
+sources = ["src/main.cpp"]
+compile-definitions = ["USE_JEMALLOC=1"]
+cmake-after = """
+if(JEMALLOC_STATIC_LIB)
+    target_link_libraries(alloc_cpp_jemalloc_static PRIVATE ${JEMALLOC_STATIC_LIB})
+else()
+    # Fallback to dynamic linking
+    target_link_libraries(alloc_cpp_jemalloc_static PRIVATE jemalloc)
+endif()
+"""
+
+# Jemalloc - dynamic linking
+[target.alloc_cpp_jemalloc_dynamic]
+type = "executable"
+sources = ["src/main.cpp"]
+compile-definitions = ["USE_JEMALLOC=1"]
+link-libraries = ["jemalloc"]
+
+# Mimalloc - static linking
+[target.alloc_cpp_mimalloc_static]
+type = "executable"
+sources = ["src/main.cpp"]
+compile-definitions = ["USE_MIMALLOC=1"]
+cmake-after = """
+if(MIMALLOC_STATIC_LIB)
+    target_link_libraries(alloc_cpp_mimalloc_static PRIVATE ${MIMALLOC_STATIC_LIB})
+else()
+    # Fallback to dynamic linking
+    target_link_libraries(alloc_cpp_mimalloc_static PRIVATE mimalloc)
+endif()
+"""
+
+# Mimalloc - dynamic linking
+[target.alloc_cpp_mimalloc_dynamic]
+type = "executable"
+sources = ["src/main.cpp"]
+compile-definitions = ["USE_MIMALLOC=1"]
+link-libraries = ["mimalloc"]
