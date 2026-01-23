@@ -6,7 +6,8 @@
   </picture>
 </p>
 
-<h3 align="center">The toolkit to optimize code and avoid performance regressions.</h3>
+<h3 align="center">Optimize code performance and catch regressions early.</h3>
+
 <p align="center"><a href="https://codspeed.io/login?flow=get-started&utm_source=github-readme">Get Started</a> · <a href="https://codspeed.io/docs?utm_source=github-readme">Documentation</a></p>
 
 <br/>
@@ -20,7 +21,7 @@
   <a href="https://codspeed.io/?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed Badge"></a>
 </p>
 
-[![Video Demo](https://codspeed.io/readme-video.gif)](https://codspeed.io/?utm_source=github-readme)
+[![Video Demo](./assets/readme-video.gif)](https://codspeed.io/?utm_source=github-readme)
 
 # Key features
 
@@ -38,39 +39,57 @@
 curl -fsSL https://codspeed.io/install.sh | bash
 ```
 
-## Usage
-
 > [!NOTE]
-> For now, the CLI only supports Ubuntu 20.04, 22.04, 24.04 and Debian 11, 12.
+> The CodSpeed CLI officially supports Ubuntu 20.04, 22.04, 24.04 and Debian 11, 12.
+> Other Linux distributions may work, but are not officially supported.
 
-First, authenticate with your CodSpeed account:
+## Quick Start
+
+First, authenticate to keep your benchmark results linked to your CodSpeed account:
 
 ```bash
 codspeed auth login
 ```
 
-Then, run benchmarks with the following command:
+The simplest way to get started is to benchmark any executable program directly:
 
 ```bash
-codspeed run <my-benchmark-command>
+# Benchmark a single command
+codspeed exec -- ./my-binary --arg1 value
 
-# Example, using https://github.com/CodSpeedHQ/codspeed-rust
+# Benchmark a script
+codspeed exec -- python my_script.py
+
+# Benchmark with specific instrument
+codspeed exec --mode walltime -- node app.js
+```
+
+This approach requires no code changes and works with any executable. CodSpeed will measure the performance provide the instrument results.
+
+## Deeper integration with harnesses using `codspeed run`
+
+For more control and integration with your existing benchmark suite, you can use language-specific harnesses. This allows you to:
+
+- Define multiple benchmarks and keep them versioned in your codebase
+- Scope benchmarks to specific functions or modules
+- Integrate with existing benchmark suites (pytest, criterion, vitest, etc.)
+
+```bash
+# Using the Rust harness with criterion
 codspeed run cargo codspeed run
 
-# Example, using https://github.com/CodSpeedHQ/pytest-codspeed
+# Using the Python harness with pytest
 codspeed run pytest ./tests --codspeed
 
-# Example, using https://github.com/CodSpeedHQ/codspeed-node/tree/main/packages/vitest-plugin
+# Using the Node.js harness with vitest
 codspeed run pnpm vitest bench
 ```
 
-## In CI environments
+These harnesses provide deeper instrumentation and allow you to write benchmarks using familiar testing frameworks.
 
-To run CodSpeed in Github Actions, we recommend using our official GitHub Action: [@CodSpeedHQ/action](https://github.com/CodSpeedHQ/action).
+### Languages Integrations
 
-## Languages Integrations
-
-On top of the generic CLI, CodSpeed provides first-class integrations for multiple languages and frameworks:
+CodSpeed provides first-class integrations for multiple languages and frameworks:
 
 | Language        | Repository                                                       | Supported Frameworks                  |
 | --------------- | ---------------------------------------------------------------- | ------------------------------------- |
@@ -83,30 +102,155 @@ On top of the generic CLI, CodSpeed provides first-class integrations for multip
 
 Need to bench another language or framework? Open [an issue](https://github.com/CodSpeedHQ/codspeed/issues) or let us know on [Discord](https://codspeed.io/discord)!
 
-## Advanced usage
+### CLI Harness: `codspeed.yml` configuration
 
-### Installing tools before running
+The CLI also offers a built-in harness that allows you to define benchmarks directly.
 
-You can install executors and instruments before running the benchmark with the `setup` command:
+You can define multiple `codspeed exec` benchmark targets and configure options in a `codspeed.yml` file.
+This is useful when you want to benchmark several commands with different configurations.
 
-```bash
-codspeed setup
+Create a `codspeed.yml` file in your project root:
+
+```yaml
+# Global options applied to all benchmarks
+options:
+  warmup-time: "0.2s"
+  max-time: 1s
+
+# List of benchmarks to run
+benchmarks:
+  - name: "Fast operation"
+    exec: ./my_binary --mode fast
+    options:
+      max-rounds: 20
+
+  - name: "Slow operation"
+    exec: ./my_binary --mode slow
+    options:
+      max-time: 200ms
+
+  - name: "Script benchmark"
+    exec: python scripts/benchmark.py
 ```
 
-This is especially useful when configuring environments with tools such as docker.
-
-### Changing the mode of the runner
-
-By default, the runner will run the benchmark in the `simulation` mode. You can specify the mode with the `--mode` flag of the `run` command:
+Then run all benchmarks with:
 
 ```bash
-# Run in the `simulation` mode
-codspeed run --mode simulation <my-benchmark-command>
+codspeed run --mode walltime
+```
 
-# Run in the `walltime` mode
-codspeed run --mode walltime <my-benchmark-command>
+> [!TIP]
+> For more details on configuration options, see the [CLI documentation](https://codspeed.io/docs/cli).
+
+## Performance Instruments
+
+CodSpeed provides multiple instruments to measure different aspects of your code's performance. Choose the one that best fits your use case:
+
+### CPU Simulation
+
+Simulates CPU behavior for **<1% variance** regardless of system load. Hardware-agnostic measurements with automatic flame graphs.
+
+**Best for:** CPU-intensive code, CI regression detection, cross-platform comparison
+
+```bash
+codspeed exec --mode simulation -- ./my-binary
+```
+
+### Memory
+
+Tracks heap allocations (peak usage, count, allocation size) with eBPF profiling.
+
+**Best for:** Memory optimization, leak detection, constrained environments
+
+**Supported:** Rust, C/C++ with libc, jemalloc, mimalloc
+
+```bash
+codspeed exec --mode memory -- ./my-binary
+```
+
+### Walltime
+
+Measures real-world execution time including I/O, system calls, and multi-threading effects.
+
+**Best for:** API tests, I/O-heavy workloads, multi-threaded applications
+
+```bash
+codspeed exec --mode walltime -- ./my-api-test
 ```
 
 > [!WARNING]
 > Using the `walltime` mode on traditional VMs/Hosted Runners will lead to inconsistent data. For the best results, we recommend using CodSpeed Hosted Macro Runners, which are fine-tuned for performance measurement consistency.
 > Check out the [Walltime Instrument Documentation](https://docs.codspeed.io/instruments/walltime/) for more details.
+
+> [!TIP]
+> For detailed information on each instrument, see the [Instruments documentation](https://codspeed.io/docs/instruments).
+
+## Usage In CI environments
+
+Running CodSpeed in CI allows you to automatically detect performance regressions on every pull request and track performance evolution over time.
+
+### GitHub Actions
+
+We recommend using our official GitHub Action: [@CodSpeedHQ/action](https://github.com/CodSpeedHQ/action).
+
+Here is a sample `.github/workflows/codspeed.yml` workflow for Python:
+
+```yaml
+name: CodSpeed Benchmarks
+
+on:
+  push:
+    branches:
+      - "main" # or "master"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Set up your language/environment here
+      # For Python:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      # Run benchmarks with CodSpeed
+      - uses: CodSpeedHQ/action@v4
+        with:
+          mode: instrumentation
+          run: pytest tests/ --codspeed
+```
+
+### GitLab CI
+
+Here is a sample `.gitlab-ci.yml` configuration for Python:
+
+```yaml
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+codspeed:
+  stage: test
+  image: python:3.12
+  id_tokens:
+    CODSPEED_TOKEN:
+      aud: codspeed.io
+  before_script:
+    - pip install -r requirements.txt
+    - curl -fsSL https://codspeed.io/install.sh | bash -s -- --quiet
+  script:
+    - codspeed run --mode simulation -- pytest tests/ --codspeed
+```
+
+> [!TIP]
+> For more CI integration examples and advanced configurations, check out the [CI Integration Documentation](https://codspeed.io/docs/integrations/ci/).
