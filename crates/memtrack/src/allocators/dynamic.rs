@@ -1,6 +1,5 @@
-use std::path::PathBuf;
-
 use crate::{AllocatorKind, AllocatorLib};
+use std::path::PathBuf;
 
 /// Returns the glob patterns used to find this allocator's shared libraries.
 fn get_allocator_paths(lib: &AllocatorKind) -> &'static [&'static str] {
@@ -14,6 +13,16 @@ fn get_allocator_paths(lib: &AllocatorKind) -> &'static [&'static str] {
             "/usr/lib*/libc.so.6",
             // NixOS: find all glibc versions in the Nix store
             "/nix/store/*glibc*/lib/libc.so.6",
+        ],
+        AllocatorKind::LibCpp => &[
+            // Standard Linux multiarch paths
+            "/lib/*-linux-gnu/libstdc++.so*",
+            "/usr/lib/*-linux-gnu/libstdc++.so*",
+            // RHEL, Fedora, CentOS, Arch
+            "/lib*/libstdc++.so*",
+            "/usr/lib*/libstdc++.so*",
+            // NixOS: find all gcc lib versions in the Nix store
+            "/nix/store/*gcc*/lib/libstdc++.so*",
         ],
         AllocatorKind::Jemalloc => &[
             // Debian, Ubuntu: Standard Linux multiarch paths
@@ -62,6 +71,7 @@ pub fn find_all() -> anyhow::Result<Vec<AllocatorLib>> {
                         .map(|m| m.is_file())
                         .unwrap_or(false)
                 })
+                .filter(|path| super::is_elf(path))
                 .collect::<Vec<_>>();
 
             for path in paths {
