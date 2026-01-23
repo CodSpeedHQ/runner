@@ -34,4 +34,4 @@ local-artifacts-jobs = ["./create-draft-release"]
 allow-dirty = ["ci"]
 
 [dist.github-custom-runners]
-aarch64-unknown-linux-musl = "buildjet-2vcpu-ubuntu-2204-arm"
+aarch64-unknown-linux-musl = "codspeedhq-arm64-ubuntu-24.04"
