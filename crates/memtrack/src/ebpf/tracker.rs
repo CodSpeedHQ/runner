@@ -16,22 +16,36 @@ impl Tracker {
     /// - Attach uprobes to all libc instances
     /// - Attach tracepoints for fork tracking
     pub fn new() -> Result<Self> {
+        let mut instance = Self::new_without_allocators()?;
+
+        let allocators = AllocatorLib::find_all()?;
+        debug!("Found {} allocator instance(s)", allocators.len());
+        instance.attach_allocators(&allocators)?;
+
+        Ok(instance)
+    }
+
+    pub fn new_without_allocators() -> Result<Self> {
         // Bump memlock limits
         Self::bump_memlock_rlimit()?;
 
         let mut bpf = MemtrackBpf::new()?;
         bpf.attach_tracepoints()?;
 
-        // Find and attach to all allocators
-        let allocators = AllocatorLib::find_all()?;
-        debug!("Found {} allocator instance(s)", allocators.len());
+        Ok(Self { bpf })
+    }
 
-        for allocator in &allocators {
-            debug!("Attaching uprobes to: {}", allocator.path.display());
-            bpf.attach_allocator_probes(allocator.kind, &allocator.path)?;
+    pub fn attach_allocators(&mut self, libs: &[AllocatorLib]) -> Result<()> {
+        for allocator in libs {
+            self.bpf
+                .attach_allocator_probes(allocator.kind, &allocator.path)?;
         }
 
-        Ok(Self { bpf })
+        Ok(())
+    }
+
+    pub fn attach_allocator(&mut self, lib: &AllocatorLib) -> Result<()> {
+        self.bpf.attach_allocator_probes(lib.kind, &lib.path)
     }
 
     /// Start tracking allocations for a specific PID

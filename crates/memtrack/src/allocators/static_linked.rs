@@ -90,3 +90,13 @@ pub fn find_all() -> anyhow::Result<Vec<AllocatorLib>> {
 
     Ok(allocators)
 }
+
+impl AllocatorLib {
+    pub fn from_path_static(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+        let kind = find_statically_linked_allocator(path).ok_or("No allocator found")?;
+        Ok(Self {
+            kind,
+            path: path.to_path_buf(),
+        })
+    }
+}
