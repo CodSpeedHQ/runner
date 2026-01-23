@@ -68,6 +68,10 @@ jobs:
         run: sudo -E $(which cargo) test -- --test-threads 1 --nocapture
         working-directory: crates/memtrack
 
+      # Since we ran the tests with sudo, the build artifacts will have root ownership
+      - name: Clean up
+        run: sudo chown -R $USER:$USER .
+
   benchmarks:
     runs-on: ubuntu-latest
     steps:
