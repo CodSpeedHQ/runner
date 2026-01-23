@@ -22,6 +22,7 @@ pub use config::Config;
 pub use execution_context::ExecutionContext;
 pub use helpers::profile_folder::create_profile_folder;
 pub use interfaces::ExecutorName;
+
 use memory::executor::MemoryExecutor;
 use std::path::Path;
 use valgrind::executor::ValgrindExecutor;
@@ -107,16 +108,16 @@ where
     F: AsyncFn(&UploadResult) -> Result<()>,
 {
     if !execution_context.config.skip_setup {
-        start_group!("Preparing the environment");
         executor
             .setup(&execution_context.system_info, setup_cache_dir)
             .await?;
+
         // TODO: refactor and move directly in the Instruments struct as a `setup` method
         if execution_context.config.instruments.is_mongodb_enabled() {
             install_mongodb_tracer().await?;
         }
-        info!("Environment ready");
-        end_group!();
+
+        debug!("Environment ready");
     }
 
     if !execution_context.config.skip_run {
@@ -140,14 +141,12 @@ where
             mongo_tracer.stop().await?;
         }
         end_group!();
-        start_opened_group!("Tearing down environment");
+        debug!("Tearing down the executor");
         executor.teardown(execution_context).await?;
 
         execution_context
             .logger
             .persist_log_to_profile_folder(execution_context)?;
-
-        end_group!();
     } else {
         debug!("Skipping the run of the benchmarks");
     };

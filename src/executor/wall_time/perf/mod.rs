@@ -375,13 +375,13 @@ impl BenchmarkData {
             };
 
         let path_ref = path.as_ref();
-        info!("Saving symbols addresses");
+        debug!("Saving symbols addresses");
         symbols_by_pid.par_iter().for_each(|(_, proc_sym)| {
             proc_sym.save_to(path_ref).unwrap();
         });
 
         // Collect debug info for each process by looking up file/line for symbols
-        info!("Saving debug_info");
+        debug!("Saving debug_info");
         let debug_info_by_pid: HashMap<i32, Vec<ModuleDebugInfo>> = symbols_by_pid
             .par_iter()
             .map(|(pid, proc_sym)| (*pid, ProcessDebugInfo::new(proc_sym).modules()))
@@ -393,7 +393,7 @@ impl BenchmarkData {
             });
         });
 
-        info!("Saving metadata");
+        debug!("Saving metadata");
         #[allow(deprecated)]
         let metadata = PerfMetadata {
             version: PERF_METADATA_CURRENT_VERSION,

@@ -59,7 +59,7 @@ where
     Fut: std::future::Future<Output = Result<Vec<String>>>,
 {
     if is_installed() {
-        info!("Tool already installed, skipping installation");
+        debug!("Tool already installed, skipping installation");
         return Ok(());
     }
 

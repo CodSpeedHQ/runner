@@ -103,7 +103,8 @@ pub fn get_event_flags(perf_executable: &OsString) -> anyhow::Result<Option<Stri
         .collect();
 
     if !missing_events.is_empty() {
-        warn!(
+        // TODO(COD-2011) Move this back to a warning once we handle x86 events
+        debug!(
             "Not all required perf events available. Missing: [{}], disabling detailed event sampling.",
             missing_events.into_iter().join(", ")
         );

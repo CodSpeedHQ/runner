@@ -82,9 +82,7 @@ impl Executor for MemoryExecutor {
             MEMTRACK_CODSPEED_VERSION,
             get_memtrack_installer_url,
         )
-        .await?;
-
-        Ok(())
+        .await
     }
 
     async fn run(

@@ -156,7 +156,7 @@ impl Executor for WallTimeExecutor {
 
     async fn setup(&self, system_info: &SystemInfo, setup_cache_dir: Option<&Path>) -> Result<()> {
         if self.perf.is_some() {
-            PerfRunner::setup_environment(system_info, setup_cache_dir).await?;
+            return PerfRunner::setup_environment(system_info, setup_cache_dir).await;
         }
 
         Ok(())

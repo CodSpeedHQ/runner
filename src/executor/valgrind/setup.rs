@@ -135,9 +135,7 @@ pub async fn install_valgrind(
             Ok(vec!["valgrind".to_string()])
         },
     )
-    .await?;
-
-    Ok(())
+    .await
 }
 
 #[cfg(test)]

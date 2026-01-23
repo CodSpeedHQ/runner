@@ -31,7 +31,5 @@ pub async fn install_perf(system_info: &SystemInfo, setup_cache_dir: Option<&Pat
         // Return package names for caching
         Ok(packages)
     })
-    .await?;
-
-    Ok(())
+    .await
 }
