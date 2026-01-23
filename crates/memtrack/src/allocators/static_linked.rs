@@ -4,23 +4,6 @@ use std::path::{Path, PathBuf};
 
 use crate::allocators::{AllocatorKind, AllocatorLib};
 
-/// Check if a file is an ELF binary by reading its magic bytes.
-fn is_elf(path: &Path) -> bool {
-    let mut file = match fs::File::open(path) {
-        Ok(f) => f,
-        Err(_) => return false,
-    };
-
-    let mut magic = [0u8; 4];
-    use std::io::Read;
-    if file.read_exact(&mut magic).is_err() {
-        return false;
-    }
-
-    // ELF magic: 0x7F 'E' 'L' 'F'
-    magic == [0x7F, b'E', b'L', b'F']
-}
-
 /// Walk upward from current directory to find build directories.
 /// Returns all found build directories in order of preference.
 fn find_build_dirs() -> Vec<PathBuf> {
@@ -61,7 +44,7 @@ fn find_binaries_in_dir(dir: &Path) -> Vec<PathBuf> {
         .into_iter()
         .flatten()
         .filter_map(Result::ok)
-        .filter(|p| p.is_file() && is_elf(p))
+        .filter(|p| p.is_file() && super::is_elf(p))
         .collect::<Vec<_>>()
 }
 
