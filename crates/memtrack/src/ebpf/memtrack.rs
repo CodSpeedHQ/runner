@@ -271,6 +271,7 @@ impl MemtrackBpf {
         self.try_attach_realloc(lib_path, "realloc");
         self.try_attach_free(lib_path, "free");
         self.try_attach_aligned_alloc(lib_path, "aligned_alloc");
+        self.try_attach_memalign(lib_path, "posix_memalign");
         self.try_attach_memalign(lib_path, "memalign");
         Ok(())
     }
