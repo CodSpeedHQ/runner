@@ -5,7 +5,7 @@ use crate::api_client::{
     CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
 };
 use crate::prelude::*;
-use crate::run::helpers::poll_results::{
+use crate::run::helpers::benchmark_display::{
     POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
 };
 use crate::run::uploader::UploadResult;
@@ -100,7 +100,7 @@ pub async fn poll_results(
         }
 
         info!(
-            "\nTo see the full report, visit: {}",
+            "\nFull report: {}",
             style(response.run.url).blue().bold().underlined()
         );
     }

@@ -9,6 +9,7 @@ CodSpeed Runner is a Rust CLI application for gathering performance data and upl
 ## Common Development Commands
 
 ### Building and Testing
+
 ```bash
 # Build the project
 cargo build
@@ -32,6 +33,7 @@ cargo test -- --nocapture      # with cargo test
 **Note**: Always check if `cargo nextest` is available first (with `cargo nextest --version` or `which cargo-nextest`). If available, use it instead of `cargo test` as it provides faster and more reliable test execution.
 
 ### Running the Application
+
 ```bash
 # Build and run
 cargo run -- <subcommand> <args>
@@ -43,6 +45,7 @@ cargo run -- setup
 ```
 
 ### Code Quality
+
 ```bash
 # Check code without building
 cargo check
@@ -59,6 +62,7 @@ cargo clippy
 The application follows a modular structure:
 
 ### Core Modules
+
 - **`main.rs`**: Entry point with error handling and logging setup
 - **`app.rs`**: CLI definition using clap with subcommands (Run, Auth, Setup)
 - **`api_client.rs`**: CodSpeed GraphQL API client
@@ -66,7 +70,9 @@ The application follows a modular structure:
 - **`config.rs`**: Configuration loading and management
 
 ### Run Module (`src/run/`)
+
 The core functionality for running benchmarks:
+
 - **`run_environment/`**: CI provider implementations (GitHub Actions, GitLab CI, Buildkite, local)
 - **`runner/`**: Execution modes:
   - **`valgrind/`**: Instrumentation mode using custom Valgrind
@@ -74,11 +80,13 @@ The core functionality for running benchmarks:
 - **`uploader/`**: Results upload to CodSpeed
 
 ### Key Dependencies
+
 - `clap`: CLI framework with derive macros
 - `tokio`: Async runtime (current_thread flavor)
 - `reqwest`: HTTP client with middleware/retry
 - `serde`/`serde_json`: Serialization
 - `gql_client`: Custom GraphQL client
+- `tabled`: Table formatting for CLI output (https://docs.rs/tabled/latest/tabled/index.html)
 - Platform-specific: `procfs` (Linux), `linux-perf-data`
 
 ## Environment Variables
@@ -90,6 +98,7 @@ The core functionality for running benchmarks:
 ## Testing
 
 The project uses:
+
 - `cargo nextest` (preferred) or standard Rust `cargo test`
 - `insta` for snapshot testing
 - `rstest` for parameterized tests
@@ -98,5 +107,6 @@ The project uses:
 Test files include snapshots in `snapshots/` directories for various run environment providers.
 
 **Important**:
+
 - Always prefer `cargo nextest run` over `cargo test` when running tests, as it provides better performance and reliability.
 - Some walltime executor tests require `sudo` access and will fail in non-interactive environments (e.g., `test_walltime_executor::*`). These failures are expected if sudo is not available.
