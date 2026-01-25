@@ -99,6 +99,7 @@ fn build_shared_library(paths: &PreloadBuildPaths, constants: &PreloadConstants)
             "CODSPEED_INTEGRATION_VERSION",
             integration_version_val.as_str(),
         )
+        .std("gnu11") // need gnu11 instead of just c11 for setenv
         // Suppress warnings from generated Zig code
         .flag("-Wno-format")
         .flag("-Wno-format-security")
@@ -107,7 +108,8 @@ fn build_shared_library(paths: &PreloadBuildPaths, constants: &PreloadConstants)
         .flag("-Wno-type-limits")
         .flag("-Wno-uninitialized")
         .flag("-Wno-overflow")
-        .flag("-Wno-unused-function");
+        .flag("-Wno-unused-function")
+        .flag("-Wno-unterminated-string-initialization");
 
     // Compile source files to object files
     let objects = build.compile_intermediates();
