@@ -68,9 +68,11 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Run a benchmark program that already contains the CodSpeed instrumentation and upload the results to CodSpeed
+    #[command(alias = "r")]
     Run(Box<run::RunArgs>),
     /// Run a command after adding CodSpeed instrumentation to it and upload the results to
     /// CodSpeed
+    #[command(alias = "x")]
     Exec(Box<exec::ExecArgs>),
     /// Manage the CLI authentication state
     Auth(auth::AuthArgs),
