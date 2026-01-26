@@ -43,8 +43,7 @@ if [ "$1" = "test" ]; then
         INSTALLER_VERSION="${CODSPEED_GO_RUNNER_VERSION:-latest}"
         if [ "$INSTALLER_VERSION" = "latest" ]; then
             DOWNLOAD_URL="http://github.com/CodSpeedHQ/codspeed-go/releases/latest/download/codspeed-go-runner-installer.sh"
-            echo "WARNING: Installing the latest version of codspeed-go-runner. This can silently introduce breaking changes." >&2
-            echo "We recommend pinning a specific version via the `go-runner-version` option in the action." >&2
+            echo "::warning::Installing the latest version of codspeed-go-runner. This can silently introduce breaking changes. We recommend pinning a specific version via the \`go-runner-version\` option in the action." >&2
         else
             DOWNLOAD_URL="http://github.com/CodSpeedHQ/codspeed-go/releases/download/v${INSTALLER_VERSION}/codspeed-go-runner-installer.sh"
         fi
