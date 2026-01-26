@@ -9,12 +9,13 @@ use std::time::Duration;
 use tempfile::TempDir;
 
 pub fn track_binary(binary: &Path) -> anyhow::Result<(Vec<Event>, std::thread::JoinHandle<()>)> {
+    let mut tracker = Tracker::new()?;
+
     let child = Command::new(binary)
         .spawn()
         .context("Failed to spawn command")?;
     let root_pid = child.id() as i32;
 
-    let mut tracker = Tracker::new()?;
     tracker.enable()?;
     let rx = tracker.track(root_pid)?;
 
