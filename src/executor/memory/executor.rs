@@ -98,15 +98,16 @@ impl Executor for MemoryExecutor {
         debug!("cmd: {cmd:?}");
 
         let runner_fifo = RunnerFifo::new()?;
-        let on_process_started = async |pid| -> anyhow::Result<()> {
-            let marker_result = Self::handle_fifo(runner_fifo, pid, ipc).await?;
+        let on_process_started = |mut child: std::process::Child| async move {
+            let (marker_result, exit_status) =
+                Self::handle_fifo(runner_fifo, ipc, &mut child).await?;
 
             // Directly write to the profile folder, to avoid having to define another field
             marker_result
                 .save_to(execution_context.profile_folder.join("results"))
                 .unwrap();
 
-            Ok(())
+            Ok(exit_status)
         };
 
         let status = run_command_with_log_pipe_and_callback(cmd, on_process_started).await?;
@@ -152,11 +153,9 @@ impl Executor for MemoryExecutor {
 impl MemoryExecutor {
     async fn handle_fifo(
         mut runner_fifo: RunnerFifo,
-        pid: u32,
         ipc: MemtrackIpcServer,
-    ) -> anyhow::Result<ExecutionTimestamps> {
-        debug!("handle_fifo called with PID {pid}");
-
+        child: &mut std::process::Child,
+    ) -> anyhow::Result<(ExecutionTimestamps, std::process::ExitStatus)> {
         // Accept the IPC connection from memtrack and get the sender it sends us
         // Use a timeout to prevent hanging if the process doesn't start properly
         // https://github.com/servo/ipc-channel/issues/261
@@ -169,15 +168,6 @@ impl MemoryExecutor {
         .await
         .context("Timeout waiting for IPC connection from memtrack process")??;
         let ipc_client = Rc::new(MemtrackIpcClient::from_accepted(memtrack_sender));
-
-        let ipc_client_health = Rc::clone(&ipc_client);
-        let health_check = async move || {
-            // Ping memtrack via IPC to check if it's still responding
-            match ipc_client_health.ping() {
-                Ok(()) => Ok(true),
-                Err(_) => Ok(false),
-            }
-        };
 
         let on_cmd = async move |cmd: &FifoCommand| {
             const INVALID_INTEGRATION_ERROR: &str = "This integration doesn't support memory profiling. Please update your integration to a version that supports memory profiling.";
@@ -234,9 +224,9 @@ impl MemoryExecutor {
             Ok(None)
         };
 
-        let (marker_result, _) = runner_fifo
-            .handle_fifo_messages(health_check, on_cmd)
-            .await?;
-        Ok(marker_result)
+        let (marker_result, _, exit_status) =
+            runner_fifo.handle_fifo_messages(child, on_cmd).await?;
+
+        Ok((marker_result, exit_status))
     }
 }

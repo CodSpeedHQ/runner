@@ -131,17 +131,22 @@ impl RunnerFifo {
         Ok(())
     }
 
-    /// Handles all incoming FIFO messages until it's closed, or until the health check closure
-    /// returns `false` or an error.
+    /// Handles all incoming FIFO messages until it's closed, or until the child process exits.
     ///
     /// The `handle_cmd` callback is invoked first for each command. If it returns `Some(response)`,
     /// that response is sent and the shared implementation is skipped. If it returns `None`,
     /// the command falls through to the shared implementation for standard handling.
+    ///
+    /// Returns execution timestamps, benchmark data, and the exit status of the child process.
     pub async fn handle_fifo_messages(
         &mut self,
-        mut health_check: impl AsyncFnMut() -> anyhow::Result<bool>,
+        child: &mut std::process::Child,
         mut handle_cmd: impl AsyncFnMut(&FifoCommand) -> anyhow::Result<Option<FifoCommand>>,
-    ) -> anyhow::Result<(ExecutionTimestamps, FifoBenchmarkData)> {
+    ) -> anyhow::Result<(
+        ExecutionTimestamps,
+        FifoBenchmarkData,
+        std::process::ExitStatus,
+    )> {
         let mut bench_order_by_timestamp = Vec::<(u64, String)>::new();
         let mut bench_pids = HashSet::<pid_t>::new();
         let mut markers = Vec::<MarkerType>::new();
@@ -241,20 +246,24 @@ impl RunnerFifo {
                 }
             }
 
-            let is_alive = health_check().await?;
-            if !is_alive {
-                debug!("Process terminated, stopping the command handler");
-                break;
+            // Check if the process has exited using try_wait (non-blocking)
+            match child.try_wait() {
+                Ok(None) => {} // Still running, continue loop
+                Ok(Some(exit_status)) => {
+                    debug!(
+                        "Process terminated with status: {exit_status}, stopping the command handler"
+                    );
+                    let marker_result =
+                        ExecutionTimestamps::new(&bench_order_by_timestamp, &markers);
+                    let fifo_data = FifoBenchmarkData {
+                        integration,
+                        bench_pids,
+                    };
+                    return Ok((marker_result, fifo_data, exit_status));
+                }
+                Err(e) => return Err(anyhow::Error::from(e)),
             }
         }
-
-        let marker_result = ExecutionTimestamps::new(&bench_order_by_timestamp, &markers);
-        let fifo_data = FifoBenchmarkData {
-            integration,
-            bench_pids,
-        };
-
-        Ok((marker_result, fifo_data))
     }
 }
 

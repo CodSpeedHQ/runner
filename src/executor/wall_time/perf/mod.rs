@@ -31,10 +31,7 @@ use runner_shared::metadata::PerfMetadata;
 use runner_shared::unwind_data::UnwindData;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
-use tokio::sync::Mutex;
 
 mod jit_dump;
 mod memory_mappings;
@@ -205,14 +202,15 @@ impl PerfRunner {
         let cmd = wrap_with_sudo(wrapped_builder)?.build();
         debug!("cmd: {cmd:?}");
 
-        let on_process_started = async |_| -> anyhow::Result<()> {
+        let on_process_started = |mut child: std::process::Child| async move {
             // If we output pipedata, we do not parse the perf map during teardown yet, so we need to parse memory
             // maps as we receive the `CurrentBenchmark` fifo commands.
-            let data = Self::handle_fifo(runner_fifo, perf_fifo, self.output_pipedata).await?;
+            let (data, exit_status) =
+                Self::handle_fifo(runner_fifo, perf_fifo, self.output_pipedata, &mut child).await?;
             self.benchmark_data.set(data).unwrap_or_else(|_| {
                 error!("Failed to set benchmark data in PerfRunner");
             });
-            Ok(())
+            Ok(exit_status)
         };
         run_command_with_log_pipe_and_callback(cmd, on_process_started).await
     }
@@ -248,37 +246,21 @@ impl PerfRunner {
 
     async fn handle_fifo(
         mut runner_fifo: RunnerFifo,
-        perf_fifo: PerfFifo,
+        mut perf_fifo: PerfFifo,
         parse_memory_maps: bool,
-    ) -> anyhow::Result<BenchmarkData> {
+        child: &mut std::process::Child,
+    ) -> anyhow::Result<(BenchmarkData, std::process::ExitStatus)> {
         let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
         let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
-
-        let perf_fifo = Arc::new(Mutex::new(perf_fifo));
-        let mut perf_ping_timeout = 5;
-        let health_check = async || {
-            let perf_ping = tokio::time::timeout(Duration::from_secs(perf_ping_timeout), async {
-                perf_fifo.lock().await.ping().await
-            })
-            .await;
-            if let Ok(Err(_)) | Err(_) = perf_ping {
-                debug!("Failed to ping perf FIFO, ending perf fifo loop");
-                return Ok(false);
-            }
-            // Perf has started successfully, we can decrease the timeout for future pings
-            perf_ping_timeout = 1;
-
-            Ok(true)
-        };
 
         let on_cmd = async |cmd: &FifoCommand| {
             #[allow(deprecated)]
             match cmd {
                 FifoCommand::StartBenchmark => {
-                    perf_fifo.lock().await.start_events().await?;
+                    perf_fifo.start_events().await?;
                 }
                 FifoCommand::StopBenchmark => {
-                    perf_fifo.lock().await.stop_events().await?;
+                    perf_fifo.stop_events().await?;
                 }
                 FifoCommand::CurrentBenchmark { pid, .. } => {
                     #[cfg(target_os = "linux")]
@@ -294,7 +276,7 @@ impl PerfRunner {
                     }
                 }
                 FifoCommand::PingPerf => {
-                    if perf_fifo.lock().await.ping().await.is_err() {
+                    if perf_fifo.ping().await.is_err() {
                         return Ok(Some(FifoCommand::Err));
                     }
                     return Ok(Some(FifoCommand::Ack));
@@ -310,15 +292,18 @@ impl PerfRunner {
             Ok(None)
         };
 
-        let (marker_result, fifo_data) = runner_fifo
-            .handle_fifo_messages(health_check, on_cmd)
-            .await?;
-        Ok(BenchmarkData {
-            fifo_data,
-            marker_result,
-            symbols_by_pid,
-            unwind_data_by_pid,
-        })
+        let (marker_result, fifo_data, exit_status) =
+            runner_fifo.handle_fifo_messages(child, on_cmd).await?;
+
+        Ok((
+            BenchmarkData {
+                fifo_data,
+                marker_result,
+                symbols_by_pid,
+                unwind_data_by_pid,
+            },
+            exit_status,
+        ))
     }
 
     fn get_perf_file_path<P: AsRef<Path>>(&self, profile_folder: P) -> PathBuf {

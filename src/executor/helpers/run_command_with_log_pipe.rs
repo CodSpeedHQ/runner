@@ -11,7 +11,7 @@ use std::thread;
 ///
 /// # Arguments
 /// - `cmd`: The command to run.
-/// - `cb`: A callback function that takes the process ID and returns a result.
+/// - `cb`: A callback function that takes the process and returns the exit status.
 ///
 /// # Returns
 ///
@@ -22,8 +22,8 @@ pub async fn run_command_with_log_pipe_and_callback<F, Fut>(
     cb: F,
 ) -> Result<ExitStatus>
 where
-    F: FnOnce(u32) -> Fut,
-    Fut: Future<Output = anyhow::Result<()>>,
+    F: FnOnce(std::process::Child) -> Fut,
+    Fut: Future<Output = anyhow::Result<ExitStatus>>,
 {
     fn log_tee(
         mut reader: impl Read,
@@ -93,11 +93,9 @@ where
         log_tee(stderr, std::io::stderr(), Some("[stderr]")).unwrap();
     });
 
-    cb(process.id()).await?;
-
-    process.wait().context("failed to wait for the process")
+    cb(process).await
 }
 
 pub async fn run_command_with_log_pipe(cmd: Command) -> Result<ExitStatus> {
-    run_command_with_log_pipe_and_callback(cmd, async |_| Ok(())).await
+    run_command_with_log_pipe_and_callback(cmd, |mut child| async move { Ok(child.wait()?) }).await
 }
