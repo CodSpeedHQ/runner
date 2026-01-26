@@ -1,10 +1,11 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Project-level configuration from codspeed.yaml file
 ///
 /// This configuration provides default options for the run and exec commands.
 /// CLI arguments always take precedence over config file values.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectConfig {
     /// Default options to apply to all benchmark runs
@@ -14,7 +15,7 @@ pub struct ProjectConfig {
 }
 
 /// A benchmark target to execute
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct Target {
     /// Optional name for this target
@@ -25,7 +26,7 @@ pub struct Target {
     pub options: Option<TargetOptions>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct TargetOptions {
     #[serde(flatten)]
@@ -33,7 +34,7 @@ pub struct TargetOptions {
 }
 
 /// Root-level options that apply to all benchmark runs unless overridden by CLI
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectOptions {
     /// Working directory where commands will be executed (relative to config file)
@@ -44,7 +45,7 @@ pub struct ProjectOptions {
 }
 
 /// Walltime execution options matching WalltimeExecutionArgs structure
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct WalltimeOptions {
     /// Duration of warmup phase (e.g., "1s", "500ms")

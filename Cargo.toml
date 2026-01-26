@@ -4,6 +4,7 @@ version = "4.9.0"
 edition = "2024"
 repository = "https://github.com/CodSpeedHQ/codspeed"
 publish = false
+default-run = "codspeed"
 
 [[bin]]
 name = "codspeed"
@@ -37,6 +38,7 @@ tokio-util = "0.7.16"
 md5 = "0.7.0"
 base64 = "0.21.0"
 async-compression = { version = "0.4.5", features = ["tokio", "gzip"] }
+schemars = "0.8"
 simplelog = { version = "0.12.1", default-features = false, features = [
     "termcolor",
 ] }
@@ -119,3 +121,5 @@ strip = true
 
 [package.metadata.dist]
 targets = ["aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"]
+binaries.aarch64-unknown-linux-musl = ["codspeed"]
+binaries.x86_64-unknown-linux-musl = ["codspeed"]

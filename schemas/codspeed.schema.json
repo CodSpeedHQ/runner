@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProjectConfig",
+  "description": "Project-level configuration from codspeed.yaml file\n\nThis configuration provides default options for the run and exec commands. CLI arguments always take precedence over config file values.",
+  "type": "object",
+  "properties": {
+    "options": {
+      "description": "Default options to apply to all benchmark runs",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProjectOptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "targets": {
+      "description": "List of benchmark targets to execute",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/Target"
+      }
+    }
+  },
+  "definitions": {
+    "ProjectOptions": {
+      "description": "Root-level options that apply to all benchmark runs unless overridden by CLI",
+      "type": "object",
+      "properties": {
+        "max-rounds": {
+          "description": "Maximum number of rounds",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "max-time": {
+          "description": "Maximum total execution time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "min-rounds": {
+          "description": "Minimum number of rounds",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "min-time": {
+          "description": "Minimum total execution time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warmup-time": {
+          "description": "Duration of warmup phase (e.g., \"1s\", \"500ms\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "working-directory": {
+          "description": "Working directory where commands will be executed (relative to config file)",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Target": {
+      "description": "A benchmark target to execute",
+      "type": "object",
+      "required": [
+        "exec"
+      ],
+      "properties": {
+        "exec": {
+          "description": "Command to execute",
+          "type": "string"
+        },
+        "name": {
+          "description": "Optional name for this target",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "options": {
+          "description": "Target-specific options",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TargetOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "TargetOptions": {
+      "description": "Walltime execution options matching WalltimeExecutionArgs structure",
+      "type": "object",
+      "properties": {
+        "max-rounds": {
+          "description": "Maximum number of rounds",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "max-time": {
+          "description": "Maximum total execution time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "min-rounds": {
+          "description": "Minimum number of rounds",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "min-time": {
+          "description": "Minimum total execution time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warmup-time": {
+          "description": "Duration of warmup phase (e.g., \"1s\", \"500ms\")",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}
