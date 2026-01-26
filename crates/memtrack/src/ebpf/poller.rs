@@ -1,11 +1,12 @@
 use anyhow::Result;
 use libbpf_rs::{MapCore, RingBufferBuilder};
+use runner_shared::artifacts::MemtrackEvent as Event;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use super::events::Event;
+use super::events::parse_event;
 
 /// A handler function for processing ring buffer events
 pub type EventHandler = Box<dyn Fn(Event) + Send>;
@@ -31,9 +32,8 @@ impl RingBufferPoller {
     ) -> Result<Self> {
         let mut builder = RingBufferBuilder::new();
         builder.add(rb_map, move |data| {
-            if data.len() >= std::mem::size_of::<Event>() {
-                let event = unsafe { &*(data.as_ptr() as *const Event) };
-                handler(*event);
+            if let Some(event) = parse_event(data) {
+                handler(event);
             }
             0
         })?;

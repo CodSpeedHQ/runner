@@ -1,8 +1,6 @@
 use crate::prelude::*;
-use crate::{
-    AllocatorLib,
-    ebpf::{Event, MemtrackBpf},
-};
+use crate::{AllocatorLib, ebpf::MemtrackBpf};
+use runner_shared::artifacts::MemtrackEvent as Event;
 use std::sync::mpsc::{self, Receiver};
 
 pub struct Tracker {

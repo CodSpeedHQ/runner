@@ -41,61 +41,171 @@ impl From<u8> for EventType {
     }
 }
 
-// TODO: Can't we use the bindgen generated type?
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-pub struct Event {
-    pub event_type: EventType,
-    pub timestamp: u64,
-    pub pid: i32,
-    pub tid: i32,
-    pub addr: u64,
-    pub size: u64,
+/// Extension trait for MemtrackEvent to get the EventType
+pub trait MemtrackEventExt {
+    fn event_type(&self) -> EventType;
 }
 
-impl From<Event> for MemtrackEvent {
-    fn from(val: Event) -> Self {
-        let kind = match val.event_type {
-            EventType::Malloc => MemtrackEventKind::Malloc { size: val.size },
-            EventType::Free => MemtrackEventKind::Free,
-            EventType::Calloc => MemtrackEventKind::Calloc { size: val.size },
-            EventType::Realloc => MemtrackEventKind::Realloc { size: val.size },
-            EventType::AlignedAlloc => MemtrackEventKind::AlignedAlloc { size: val.size },
-            EventType::Mmap => MemtrackEventKind::Mmap { size: val.size },
-            EventType::Munmap => MemtrackEventKind::Munmap { size: val.size },
-            EventType::Brk => MemtrackEventKind::Brk { size: val.size },
-        };
-
-        MemtrackEvent {
-            pid: val.pid,
-            tid: val.tid,
-            timestamp: val.timestamp,
-            addr: val.addr,
-            kind,
+impl MemtrackEventExt for MemtrackEvent {
+    fn event_type(&self) -> EventType {
+        match self.kind {
+            MemtrackEventKind::Malloc { .. } => EventType::Malloc,
+            MemtrackEventKind::Free => EventType::Free,
+            MemtrackEventKind::Calloc { .. } => EventType::Calloc,
+            MemtrackEventKind::Realloc { .. } => EventType::Realloc,
+            MemtrackEventKind::AlignedAlloc { .. } => EventType::AlignedAlloc,
+            MemtrackEventKind::Mmap { .. } => EventType::Mmap,
+            MemtrackEventKind::Munmap { .. } => EventType::Munmap,
+            MemtrackEventKind::Brk { .. } => EventType::Brk,
         }
     }
 }
 
-mod assertions {
+/// Parse an event from raw bytes into MemtrackEvent
+///
+/// SAFETY: The data must be a valid `bindings::event`
+pub fn parse_event(data: &[u8]) -> Option<MemtrackEvent> {
+    if data.len() < std::mem::size_of::<bindings::event>() {
+        return None;
+    }
+
+    let event = unsafe { &*(data.as_ptr() as *const bindings::event) };
+    let event_type = EventType::from(event.header.event_type);
+
+    // Common fields from header
+    let pid = event.header.pid as i32;
+    let tid = event.header.tid as i32;
+    let timestamp = event.header.timestamp;
+
+    // Parse event data based on type
+    // SAFETY: The fields must be properly initialized in eBPF
+    let (addr, kind) = unsafe {
+        match event_type {
+            EventType::Malloc => (
+                event.data.alloc.addr,
+                MemtrackEventKind::Malloc {
+                    size: event.data.alloc.size,
+                },
+            ),
+            EventType::Free => (event.data.free.addr, MemtrackEventKind::Free),
+            EventType::Calloc => (
+                event.data.alloc.addr,
+                MemtrackEventKind::Calloc {
+                    size: event.data.alloc.size,
+                },
+            ),
+            EventType::Realloc => (
+                event.data.realloc.new_addr,
+                MemtrackEventKind::Realloc {
+                    old_addr: Some(event.data.realloc.old_addr),
+                    size: event.data.realloc.size,
+                },
+            ),
+            EventType::AlignedAlloc => (
+                event.data.alloc.addr,
+                MemtrackEventKind::AlignedAlloc {
+                    size: event.data.alloc.size,
+                },
+            ),
+            EventType::Mmap => (
+                event.data.mmap.addr,
+                MemtrackEventKind::Mmap {
+                    size: event.data.mmap.size,
+                },
+            ),
+            EventType::Munmap => (
+                event.data.mmap.addr,
+                MemtrackEventKind::Munmap {
+                    size: event.data.mmap.size,
+                },
+            ),
+            EventType::Brk => (
+                event.data.mmap.addr,
+                MemtrackEventKind::Brk {
+                    size: event.data.mmap.size,
+                },
+            ),
+        }
+    };
+
+    Some(MemtrackEvent {
+        pid,
+        tid,
+        timestamp,
+        addr,
+        kind,
+    })
+}
+
+#[cfg(test)]
+mod tests {
     use super::*;
-    use static_assertions::{assert_eq_align, assert_eq_size, const_assert_eq};
-    use std::mem::offset_of;
 
-    // Verify size and alignment match the bindgen-generated event struct
-    assert_eq_size!(Event, bindings::event);
-    assert_eq_align!(Event, bindings::event);
+    #[test]
+    fn test_parse_realloc_event() {
+        // Create a mock event with realloc data
+        let mut event: bindings::event = unsafe { std::mem::zeroed() };
+        event.header.event_type = bindings::EVENT_TYPE_REALLOC as u8;
+        event.header.timestamp = 12345678;
+        event.header.pid = 1000;
+        event.header.tid = 2000;
+        event.data.realloc.old_addr = 0x1000;
+        event.data.realloc.new_addr = 0x2000;
+        event.data.realloc.size = 256;
 
-    // Verify field offsets match the C struct
-    const_assert_eq!(
-        offset_of!(Event, timestamp),
-        offset_of!(bindings::event, timestamp)
-    );
-    const_assert_eq!(offset_of!(Event, pid), offset_of!(bindings::event, pid));
-    const_assert_eq!(offset_of!(Event, tid), offset_of!(bindings::event, tid));
-    const_assert_eq!(
-        offset_of!(Event, event_type),
-        offset_of!(bindings::event, event_type)
-    );
-    const_assert_eq!(offset_of!(Event, addr), offset_of!(bindings::event, addr));
-    const_assert_eq!(offset_of!(Event, size), offset_of!(bindings::event, size));
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                &event as *const _ as *const u8,
+                std::mem::size_of_val(&event),
+            )
+        };
+
+        // Parse and validate:
+        let parsed = parse_event(bytes).unwrap();
+        assert_eq!(parsed.pid, 1000);
+        assert_eq!(parsed.tid, 2000);
+        assert_eq!(parsed.timestamp, 12345678);
+        assert_eq!(parsed.addr, 0x2000);
+
+        match parsed.kind {
+            MemtrackEventKind::Realloc { old_addr, size } => {
+                assert_eq!(old_addr, Some(0x1000));
+                assert_eq!(size, 256);
+            }
+            _ => panic!("Expected Realloc event kind"),
+        }
+    }
+
+    #[test]
+    fn test_parse_malloc_event() {
+        // Create a mock event with malloc data
+        let mut event: bindings::event = unsafe { std::mem::zeroed() };
+        event.header.event_type = bindings::EVENT_TYPE_MALLOC as u8;
+        event.header.timestamp = 12345678;
+        event.header.pid = 1000;
+        event.header.tid = 2000;
+        event.data.alloc.addr = 0x1000;
+        event.data.alloc.size = 128;
+
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                &event as *const _ as *const u8,
+                std::mem::size_of_val(&event),
+            )
+        };
+
+        // Parse and validate:
+        let parsed = parse_event(bytes).unwrap();
+        assert_eq!(parsed.pid, 1000);
+        assert_eq!(parsed.tid, 2000);
+        assert_eq!(parsed.timestamp, 12345678);
+        assert_eq!(parsed.addr, 0x1000);
+
+        match parsed.kind {
+            MemtrackEventKind::Malloc { size } => {
+                assert_eq!(size, 128);
+            }
+            _ => panic!("Expected Malloc event kind"),
+        }
+    }
 }

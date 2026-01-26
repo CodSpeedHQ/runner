@@ -123,77 +123,187 @@ static __always_inline __u64* take_param(void* map) {
     return value;
 }
 
-/* Helper to submit an event to the ring buffer */
-static __always_inline int submit_event(__u64 addr, __u64 size, __u8 event_type) {
-    __u64 tid = bpf_get_current_pid_tgid();
-    __u32 pid = tid >> 32;
-
-    if (!is_tracked(pid) || !is_enabled()) {
-        return 0;
+/* Macro to handle common event submission boilerplate
+ * Usage: SUBMIT_EVENT(event_type, { e->data.foo = bar; })
+ */
+#define SUBMIT_EVENT(evt_type, fill_data)                              \
+    {                                                                   \
+        __u64 tid = bpf_get_current_pid_tgid();                        \
+        __u32 pid = tid >> 32;                                         \
+                                                                        \
+        if (!is_tracked(pid) || !is_enabled()) {                       \
+            return 0;                                                   \
+        }                                                               \
+                                                                        \
+        struct event* e = bpf_ringbuf_reserve(&events, sizeof(*e), 0); \
+        if (!e) {                                                       \
+            return 0;                                                   \
+        }                                                               \
+                                                                        \
+        e->header.timestamp = bpf_ktime_get_ns();                      \
+        e->header.pid = pid;                                            \
+        e->header.tid = tid & 0xFFFFFFFF;                              \
+        e->header.event_type = evt_type;                               \
+                                                                        \
+        fill_data;                                                      \
+                                                                        \
+        bpf_ringbuf_submit(e, 0);                                       \
+        return 0;                                                       \
     }
 
-    struct event* e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
-    if (!e) {
-        return 0;
-    }
-
-    e->timestamp = bpf_ktime_get_ns();
-    e->pid = pid;
-    e->tid = tid & 0xFFFFFFFF;
-    e->event_type = event_type;
-    e->addr = addr;
-    e->size = size;
-    bpf_ringbuf_submit(e, 0);
-
-    return 0;
+/* Helper to submit an allocation event (malloc, calloc) */
+static __always_inline int submit_alloc_event(__u64 size, __u64 addr) {
+    SUBMIT_EVENT(EVENT_TYPE_MALLOC, {
+        e->data.alloc.addr = addr;
+        e->data.alloc.size = size;
+    });
 }
 
-/* Macro to generate uprobe/uretprobe pairs for allocation functions */
-#define UPROBE_WITH_ARGS(name, size_expr, addr_expr, event_type)                            \
-    BPF_HASH_MAP(name##_size, __u64, __u64, 10000);                                         \
+/* Helper to submit an aligned allocation event (aligned_alloc, memalign) */
+static __always_inline int submit_aligned_alloc_event(__u64 size, __u64 addr) {
+    SUBMIT_EVENT(EVENT_TYPE_ALIGNED_ALLOC, {
+        e->data.alloc.addr = addr;
+        e->data.alloc.size = size;
+    });
+}
+
+/* Helper to submit a calloc event */
+static __always_inline int submit_calloc_event(__u64 size, __u64 addr) {
+    SUBMIT_EVENT(EVENT_TYPE_CALLOC, {
+        e->data.alloc.addr = addr;
+        e->data.alloc.size = size;
+    });
+}
+
+/* Helper to submit a free event */
+static __always_inline int submit_free_event(__u64 addr) {
+    SUBMIT_EVENT(EVENT_TYPE_FREE, {
+        e->data.free.addr = addr;
+    });
+}
+
+/* Helper to submit a realloc event with both old and new addresses */
+static __always_inline int submit_realloc_event(__u64 old_addr, __u64 new_addr, __u64 size) {
+    SUBMIT_EVENT(EVENT_TYPE_REALLOC, {
+        e->data.realloc.old_addr = old_addr;
+        e->data.realloc.new_addr = new_addr;
+        e->data.realloc.size = size;
+    });
+}
+
+/* Helper to submit a memory mapping event (mmap, munmap, brk) */
+static __always_inline int submit_mmap_event(__u64 addr, __u64 size, __u8 event_type) {
+    SUBMIT_EVENT(event_type, {
+        e->data.mmap.addr = addr;
+        e->data.mmap.size = size;
+    });
+}
+
+/* Macro to generate uprobe/uretprobe pairs for allocation functions with 1 argument */
+#define UPROBE_ARG_RET(name, arg_expr, submit_block)                                        \
+    BPF_HASH_MAP(name##_arg, __u64, __u64, 10000);                                          \
     SEC("uprobe")                                                                           \
-    int uprobe_##name(struct pt_regs* ctx) { return store_param(&name##_size, size_expr); } \
+    int uprobe_##name(struct pt_regs* ctx) { return store_param(&name##_arg, arg_expr); }   \
     SEC("uretprobe")                                                                        \
     int uretprobe_##name(struct pt_regs* ctx) {                                             \
-        __u64* size_ptr = take_param(&name##_size);                                         \
-        if (!size_ptr) {                                                                    \
+        __u64* arg_ptr = take_param(&name##_arg);                                           \
+        if (!arg_ptr) {                                                                     \
             return 0;                                                                       \
         }                                                                                   \
-        __u64 addr = addr_expr;                                                             \
-        if (addr == 0) {                                                                    \
+        __u64 ret_val = PT_REGS_RC(ctx);                                                    \
+        if (ret_val == 0) {                                                                 \
             return 0;                                                                       \
         }                                                                                   \
-        return submit_event(addr, *size_ptr, event_type);                                   \
+        __u64 arg0 = *arg_ptr;                                                              \
+        submit_block;                                                                       \
     }
 
-/* Macro for simple address-only functions like free */
-#define UPROBE_ADDR_ONLY(name, addr_expr, event_type) \
-    SEC("uprobe")                                     \
-    int uprobe_##name(struct pt_regs* ctx) {          \
-        __u64 addr = addr_expr;                       \
-        if (addr == 0) {                              \
-            return 0;                                 \
-        }                                             \
-        return submit_event(addr, 0, event_type);     \
+/* Macro for simple return value only functions like free */
+#define UPROBE_RET(name, arg_expr, submit_block) \
+    SEC("uprobe")                                \
+    int uprobe_##name(struct pt_regs* ctx) {     \
+        __u64 arg0 = arg_expr;                   \
+        if (arg0 == 0) {                         \
+            return 0;                            \
+        }                                        \
+        submit_block;                            \
+    }
+
+/* Macro to generate uprobe/uretprobe pairs for functions with 2 arguments */
+#define UPROBE_ARGS_RET(name, arg0_expr, arg1_expr, submit_block)                           \
+    struct name##_args_t {                                                                  \
+        __u64 arg0;                                                                         \
+        __u64 arg1;                                                                         \
+    };                                                                                      \
+    BPF_HASH_MAP(name##_args, __u64, struct name##_args_t, 10000);                         \
+    SEC("uprobe")                                                                          \
+    int uprobe_##name(struct pt_regs* ctx) {                                               \
+        __u64 tid = bpf_get_current_pid_tgid();                                            \
+        __u32 pid = tid >> 32;                                                             \
+                                                                                           \
+        if (!is_tracked(pid)) {                                                            \
+            return 0;                                                                      \
+        }                                                                                  \
+                                                                                           \
+        struct name##_args_t args = {                                                      \
+            .arg0 = arg0_expr,                                                             \
+            .arg1 = arg1_expr                                                              \
+        };                                                                                 \
+                                                                                           \
+        bpf_map_update_elem(&name##_args, &tid, &args, BPF_ANY);                          \
+        return 0;                                                                          \
+    }                                                                                      \
+    SEC("uretprobe")                                                                       \
+    int uretprobe_##name(struct pt_regs* ctx) {                                            \
+        __u64 tid = bpf_get_current_pid_tgid();                                            \
+        struct name##_args_t* args = bpf_map_lookup_elem(&name##_args, &tid);              \
+                                                                                           \
+        if (!args) {                                                                       \
+            return 0;                                                                      \
+        }                                                                                  \
+                                                                                           \
+        struct name##_args_t a = *args;                                                    \
+        bpf_map_delete_elem(&name##_args, &tid);                                           \
+                                                                                           \
+        __u64 ret_val = PT_REGS_RC(ctx);                                                   \
+        if (ret_val == 0) {                                                                \
+            return 0;                                                                      \
+        }                                                                                  \
+                                                                                           \
+        __u64 arg0 = a.arg0;                                                               \
+        __u64 arg1 = a.arg1;                                                               \
+        submit_block;                                                                      \
     }
 
 /* malloc: allocates with size parameter */
-UPROBE_WITH_ARGS(malloc, PT_REGS_PARM1(ctx), PT_REGS_RC(ctx), EVENT_TYPE_MALLOC)
+UPROBE_ARG_RET(malloc, PT_REGS_PARM1(ctx), {
+    return submit_alloc_event(arg0, ret_val);
+})
 
 /* free: deallocates by address */
-UPROBE_ADDR_ONLY(free, PT_REGS_PARM1(ctx), EVENT_TYPE_FREE)
+UPROBE_RET(free, PT_REGS_PARM1(ctx), {
+    return submit_free_event(arg0);
+})
 
 /* calloc: allocates with nmemb * size */
-UPROBE_WITH_ARGS(calloc, PT_REGS_PARM1(ctx) * PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_CALLOC)
+UPROBE_ARG_RET(calloc, PT_REGS_PARM1(ctx) * PT_REGS_PARM2(ctx), {
+    return submit_calloc_event(arg0, ret_val);
+})
 
-/* realloc: reallocates with new size */
-UPROBE_WITH_ARGS(realloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_REALLOC)
+/* realloc: reallocates with old_addr and new size */
+UPROBE_ARGS_RET(realloc, PT_REGS_PARM2(ctx), PT_REGS_PARM1(ctx), {
+    return submit_realloc_event(arg1, ret_val, arg0);
+})
 
 /* aligned_alloc: allocates with alignment and size */
-UPROBE_WITH_ARGS(aligned_alloc, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+UPROBE_ARG_RET(aligned_alloc, PT_REGS_PARM2(ctx), {
+    return submit_aligned_alloc_event(arg0, ret_val);
+})
 
 /* memalign: allocates with alignment and size (legacy interface) */
-UPROBE_WITH_ARGS(memalign, PT_REGS_PARM2(ctx), PT_REGS_RC(ctx), EVENT_TYPE_ALIGNED_ALLOC)
+UPROBE_ARG_RET(memalign, PT_REGS_PARM2(ctx), {
+    return submit_aligned_alloc_event(arg0, ret_val);
+})
 
 /* Map to store mmap parameters between entry and return */
 struct mmap_args {
@@ -234,7 +344,7 @@ int tracepoint_sys_exit_mmap(struct trace_event_raw_sys_exit* ctx) {
         return 0;
     }
 
-    return submit_event((__u64)ret, args->len, EVENT_TYPE_MMAP);
+    return submit_mmap_event((__u64)ret, args->len, EVENT_TYPE_MMAP);
 }
 
 /* munmap tracking */
@@ -247,7 +357,7 @@ int tracepoint_sys_enter_munmap(struct trace_event_raw_sys_enter* ctx) {
         return 0;
     }
 
-    return submit_event(addr, len, EVENT_TYPE_MUNMAP);
+    return submit_mmap_event(addr, len, EVENT_TYPE_MUNMAP);
 }
 
 /* brk tracking - adjusts the program break (heap boundary) */
@@ -281,5 +391,5 @@ int tracepoint_sys_exit_brk(struct trace_event_raw_sys_exit* ctx) {
         return 0;
     }
 
-    return submit_event(new_brk, 0, EVENT_TYPE_BRK);
+    return submit_mmap_event(new_brk, 0, EVENT_TYPE_BRK);
 }

@@ -1,6 +1,7 @@
 use libbpf_rs::ErrorExt;
-use memtrack::{Event, EventType, Tracker};
+use memtrack::{EventType, MemtrackEventExt, Tracker};
 use rstest::rstest;
+use runner_shared::artifacts::{MemtrackEvent as Event, MemtrackEventKind};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -57,7 +58,10 @@ fn compile_c_source(
 
 /// Helper to count events of a specific type
 fn count_events_by_type(events: &[Event], event_type: EventType) -> usize {
-    events.iter().filter(|e| e.event_type == event_type).count()
+    events
+        .iter()
+        .filter(|e| e.event_type() == event_type)
+        .count()
 }
 
 // ============================================================================
@@ -203,8 +207,10 @@ fn test_allocation_sizes() -> Result<(), Box<dyn std::error::Error>> {
     // Filter malloc events and collect their sizes
     let malloc_events: Vec<u64> = events
         .iter()
-        .filter(|e| e.event_type == EventType::Malloc)
-        .map(|e| e.size)
+        .filter_map(|e| match e.kind {
+            MemtrackEventKind::Malloc { size } => Some(size),
+            _ => None,
+        })
         .collect();
 
     // Expected sizes from alloc_size.c: 1024, 2048, 512, 4096
