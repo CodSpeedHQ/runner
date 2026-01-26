@@ -79,7 +79,7 @@ pub trait RunEnvironmentProvider {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,ignore
     /// let provider = MyCIProvider::new();
     /// let config = Config::new();
     /// let instruments = Instruments::new();

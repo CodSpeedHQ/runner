@@ -3,7 +3,7 @@
 //! since they use absolute paths in the `python3` executable.
 //!
 //! However, uv uses relative paths which causes the lookups to fail:
-//! ```no_run
+//! ```text
 //! > ldd .venv/bin/python3
 //! /home/project/.venv/bin/../lib/libpython3.13.so.1.0 => not found
 //! ```

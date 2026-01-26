@@ -9,6 +9,8 @@ pub const ANNOUNCEMENT_TARGET: &str = "codspeed::announcement";
 /// # Example
 ///
 /// ```rust
+/// # use codspeed_runner::{start_group, end_group};
+/// # use log::info;
 /// start_group!("My group");
 /// info!("This will be grouped");
 /// end_group!();
@@ -25,6 +27,8 @@ macro_rules! start_group {
 /// # Example
 ///
 /// ```rust
+/// # use codspeed_runner::{start_opened_group, end_group};
+/// # use log::info;
 /// start_opened_group!("My group");
 /// info!("This will be grouped");
 /// end_group!();
