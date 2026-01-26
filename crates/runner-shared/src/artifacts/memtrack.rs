@@ -48,14 +48,30 @@ pub struct MemtrackEvent {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub enum MemtrackEventKind {
-    Malloc { size: u64 },
+    Malloc {
+        size: u64,
+    },
     Free,
-    Realloc { size: u64 },
-    Calloc { size: u64 },
-    AlignedAlloc { size: u64 },
-    Mmap { size: u64 },
-    Munmap { size: u64 },
-    Brk { size: u64 },
+    Realloc {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        old_addr: Option<u64>,
+        size: u64,
+    },
+    Calloc {
+        size: u64,
+    },
+    AlignedAlloc {
+        size: u64,
+    },
+    Mmap {
+        size: u64,
+    },
+    Munmap {
+        size: u64,
+    },
+    Brk {
+        size: u64,
+    },
 }
 
 pub struct MemtrackEventStream<R: Read> {
@@ -155,6 +171,30 @@ mod tests {
 
         let reader = Cursor::new(buf);
         assert!(MemtrackArtifact::is_empty(reader));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_deserialize_realloc_compat() -> anyhow::Result<()> {
+        // The file contains a single serialized event using the old format without `old_addr`:
+        // MemtrackEventKind::Realloc { size: 42 }
+        let buf = include_bytes!("../../testdata/realloc.MemtrackArtifact.msgpack");
+        assert_eq!(
+            MemtrackArtifact::decode_streamed(Cursor::new(buf))?.count(),
+            1
+        );
+
+        let event = MemtrackArtifact::decode_streamed(Cursor::new(buf))?
+            .next()
+            .unwrap();
+        assert!(matches!(
+            event.kind,
+            MemtrackEventKind::Realloc {
+                old_addr: None,
+                size: 42
+            }
+        ));
 
         Ok(())
     }

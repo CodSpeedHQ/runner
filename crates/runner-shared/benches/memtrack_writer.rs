@@ -16,7 +16,10 @@ fn generate_events(n: usize) -> Vec<MemtrackEvent> {
         let kind = match rng.gen_range(0..8) {
             0 => MemtrackEventKind::Malloc { size },
             1 => MemtrackEventKind::Free,
-            2 => MemtrackEventKind::Realloc { size },
+            2 => MemtrackEventKind::Realloc {
+                old_addr: Some(rng.r#gen()),
+                size,
+            },
             3 => MemtrackEventKind::Calloc { size },
             4 => MemtrackEventKind::AlignedAlloc { size },
             5 => MemtrackEventKind::Mmap { size },
