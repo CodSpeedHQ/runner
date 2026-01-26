@@ -11,7 +11,7 @@ pub struct ProjectConfig {
     /// Default options to apply to all benchmark runs
     pub options: Option<ProjectOptions>,
     /// List of benchmark targets to execute
-    pub targets: Option<Vec<Target>>,
+    pub benchmarks: Option<Vec<Target>>,
 }
 
 /// A benchmark target to execute

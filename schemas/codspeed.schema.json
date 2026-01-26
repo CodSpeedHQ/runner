@@ -4,6 +4,16 @@
   "description": "Project-level configuration from codspeed.yaml file\n\nThis configuration provides default options for the run and exec commands. CLI arguments always take precedence over config file values.",
   "type": "object",
   "properties": {
+    "benchmarks": {
+      "description": "List of benchmark targets to execute",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/Target"
+      }
+    },
     "options": {
       "description": "Default options to apply to all benchmark runs",
       "anyOf": [
@@ -14,16 +24,6 @@
           "type": "null"
         }
       ]
-    },
-    "targets": {
-      "description": "List of benchmark targets to execute",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/definitions/Target"
-      }
     }
   },
   "definitions": {

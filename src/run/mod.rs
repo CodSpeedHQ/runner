@@ -235,7 +235,7 @@ pub async fn run(
     let run_target = if args.command.is_empty() {
         // No command provided - check for targets in project config
         let targets = project_config
-            .and_then(|c| c.targets.as_ref())
+            .and_then(|c| c.benchmarks.as_ref())
             .filter(|t| !t.is_empty())
             .ok_or_else(|| {
                 anyhow!("No command provided and no targets defined in codspeed.yaml")

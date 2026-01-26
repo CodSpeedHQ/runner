@@ -234,7 +234,7 @@ options:
                 }),
                 working_directory: None,
             }),
-            targets: None,
+            benchmarks: None,
         };
 
         let result = config.validate();
@@ -260,7 +260,7 @@ options:
                 }),
                 working_directory: None,
             }),
-            targets: None,
+            benchmarks: None,
         };
 
         let result = config.validate();
@@ -286,7 +286,7 @@ options:
                 }),
                 working_directory: Some("./bench".to_string()),
             }),
-            targets: None,
+            benchmarks: None,
         };
 
         assert!(config.validate().is_ok());
