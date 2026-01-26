@@ -1,10 +1,10 @@
+pub(crate) mod benchmark_display;
 mod download_file;
 mod find_repository_root;
 mod format_duration;
 mod format_memory;
 mod get_env_var;
 mod parse_git_remote;
-pub(crate) mod poll_results;
 
 pub(crate) use download_file::download_file;
 pub(crate) use find_repository_root::find_repository_root;

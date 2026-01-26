@@ -13,10 +13,28 @@ query FetchLocalRunReport($owner: String!, $name: String!, $runId: String!) {
         conclusion
       }
       results {
-        value
         benchmark {
           name
           executor
+        }
+        value
+        valgrind {
+          timeDistribution {
+            ir
+            l1m
+            llm
+            sys
+          }
+        }
+        walltime {
+          iterations
+          stdev
+          totalTime
+        }
+        memory {
+          peakMemory
+          totalAllocated
+          allocCalls
         }
       }
     }

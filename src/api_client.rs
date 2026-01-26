@@ -110,16 +110,6 @@ impl Display for ReportConclusion {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FetchLocalRunReportRun {
-    pub id: String,
-    pub status: RunStatus,
-    pub url: String,
-    pub head_reports: Vec<FetchLocalRunReportHeadReport>,
-    pub results: Vec<FetchLocalRunBenchmarkResult>,
-}
-
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RunStatus {
@@ -129,24 +119,44 @@ pub enum RunStatus {
     Processing,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FetchLocalRunReportHeadReport {
-    pub id: String,
-    pub impact: Option<f64>,
-    pub conclusion: ReportConclusion,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct FetchLocalRunBenchmarkResult {
-    pub value: f64,
-    pub benchmark: FetchLocalRunBenchmark,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct FetchLocalRunBenchmark {
-    pub name: String,
-    pub executor: ExecutorName,
+nest! {
+    #[derive(Debug, Deserialize, Serialize)]*
+    #[serde(rename_all = "camelCase")]*
+    pub struct FetchLocalRunReportRun {
+        pub id: String,
+        pub status: RunStatus,
+        pub url: String,
+        pub head_reports: Vec<pub struct FetchLocalRunReportHeadReport {
+            pub id: String,
+            pub impact: Option<f64>,
+            pub conclusion: ReportConclusion,
+        }>,
+        pub results: Vec<pub struct FetchLocalRunBenchmarkResult {
+            pub value: f64,
+            pub benchmark: pub struct FetchLocalRunBenchmark {
+                pub name: String,
+                pub executor: ExecutorName,
+            },
+            pub valgrind: Option<pub struct ValgrindResult {
+                pub time_distribution: Option<pub struct TimeDistribution {
+                    pub ir: f64,
+                    pub l1m: f64,
+                    pub llm: f64,
+                    pub sys: f64,
+                }>,
+            }>,
+            pub walltime: Option<pub struct WallTimeResult {
+                pub iterations: f64,
+                pub stdev: f64,
+                pub total_time: f64,
+            }>,
+            pub memory: Option<pub struct MemoryResult {
+                pub peak_memory: i64,
+                pub total_allocated: i64,
+                pub alloc_calls: i64,
+            }>,
+        }>,
+    }
 }
 
 nest! {
