@@ -1,6 +1,6 @@
+use super::ExecAndRunSharedArgs;
 use crate::api_client::CodSpeedAPIClient;
 use crate::binary_installer::ensure_binary_installed;
-use crate::cli::run::show_banner;
 use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::prelude::*;
@@ -37,7 +37,7 @@ pub fn wrap_with_exec_harness(
 #[derive(Args, Debug)]
 pub struct ExecArgs {
     #[command(flatten)]
-    pub shared: crate::cli::run::ExecAndRunSharedArgs,
+    pub shared: ExecAndRunSharedArgs,
 
     #[command(flatten)]
     pub walltime_args: exec_harness::walltime::WalltimeExecutionArgs,
@@ -99,7 +99,7 @@ pub async fn execute_with_harness(
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
 
     if execution_context.is_local() {
-        show_banner();
+        super::show_banner();
     }
 
     debug!("config: {:#?}", execution_context.config);

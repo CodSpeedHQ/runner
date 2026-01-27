@@ -2,6 +2,9 @@ mod auth;
 pub(crate) mod exec;
 pub(crate) mod run;
 mod setup;
+mod shared;
+
+pub(crate) use shared::*;
 
 use std::path::PathBuf;
 

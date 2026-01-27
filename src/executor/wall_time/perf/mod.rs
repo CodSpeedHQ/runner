@@ -1,6 +1,6 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
-use crate::cli::run::UnwindingMode;
+use crate::cli::UnwindingMode;
 use crate::executor::Config;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::is_codspeed_debug_enabled;
