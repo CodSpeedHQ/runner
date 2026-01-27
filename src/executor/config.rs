@@ -1,7 +1,7 @@
-use crate::exec::wrap_with_exec_harness;
+use crate::cli::exec::wrap_with_exec_harness;
+use crate::cli::run::{RunArgs, UnwindingMode};
 use crate::instruments::Instruments;
 use crate::prelude::*;
-use crate::run::{RunArgs, UnwindingMode};
 use crate::run_environment::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
 use semver::Version;
@@ -132,7 +132,10 @@ impl TryFrom<RunArgs> for Config {
 
 impl Config {
     /// Create a Config from ExecArgs with a custom command (used for targets mode)
-    pub fn try_from_with_command(args: crate::exec::ExecArgs, command: String) -> Result<Self> {
+    pub fn try_from_with_command(
+        args: crate::cli::exec::ExecArgs,
+        command: String,
+    ) -> Result<Self> {
         let raw_upload_url = args
             .shared
             .upload_url
@@ -164,9 +167,9 @@ impl Config {
     }
 }
 
-impl TryFrom<crate::exec::ExecArgs> for Config {
+impl TryFrom<crate::cli::exec::ExecArgs> for Config {
     type Error = Error;
-    fn try_from(args: crate::exec::ExecArgs) -> Result<Self> {
+    fn try_from(args: crate::cli::exec::ExecArgs) -> Result<Self> {
         let wrapped_command = wrap_with_exec_harness(&args.walltime_args, &args.command);
         Self::try_from_with_command(args, wrapped_command)
     }
@@ -174,15 +177,15 @@ impl TryFrom<crate::exec::ExecArgs> for Config {
 
 #[cfg(test)]
 mod tests {
+    use crate::cli::run::PerfRunArgs;
     use crate::instruments::MongoDBConfig;
-    use crate::run::PerfRunArgs;
 
     use super::*;
 
     #[test]
     fn test_try_from_env_empty() {
         let config = Config::try_from(RunArgs {
-            shared: crate::run::ExecAndRunSharedArgs {
+            shared: crate::cli::run::ExecAndRunSharedArgs {
                 upload_url: None,
                 token: None,
                 repository: None,
@@ -221,7 +224,7 @@ mod tests {
     #[test]
     fn test_try_from_args() {
         let config = Config::try_from(RunArgs {
-            shared: crate::run::ExecAndRunSharedArgs {
+            shared: crate::cli::run::ExecAndRunSharedArgs {
                 upload_url: Some("https://example.com/upload".into()),
                 token: Some("token".into()),
                 repository: Some("owner/repo".into()),
@@ -241,7 +244,7 @@ mod tests {
             },
             instruments: vec!["mongodb".into()],
             mongo_uri_env_name: Some("MONGODB_URI".into()),
-            message_format: Some(crate::run::MessageFormat::Json),
+            message_format: Some(crate::cli::run::MessageFormat::Json),
             command: vec!["cargo".into(), "codspeed".into(), "bench".into()],
         })
         .unwrap();
@@ -303,8 +306,8 @@ mod tests {
 
     #[test]
     fn test_try_from_exec_args_default_url() {
-        let exec_args = crate::exec::ExecArgs {
-            shared: crate::run::ExecAndRunSharedArgs {
+        let exec_args = crate::cli::exec::ExecArgs {
+            shared: crate::cli::run::ExecAndRunSharedArgs {
                 upload_url: None,
                 token: None,
                 repository: None,

@@ -1,14 +1,16 @@
+mod auth;
+pub(crate) mod exec;
+pub(crate) mod run;
+mod setup;
+
 use std::path::PathBuf;
 
 use crate::{
     api_client::CodSpeedAPIClient,
-    auth,
     config::CodSpeedConfig,
-    exec,
     local_logger::{CODSPEED_U8_COLOR_CODE, init_local_logger},
     prelude::*,
     project_config::ProjectConfig,
-    run, setup,
 };
 use clap::{
     Parser, Subcommand,

@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use log::warn;
 use serde::{Deserialize, Serialize};
 
+use crate::cli::run::RunArgs;
 use crate::prelude::*;
-use crate::run::RunArgs;
 
 pub mod mongo_tracer;
 

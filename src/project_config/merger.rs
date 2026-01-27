@@ -1,4 +1,4 @@
-use crate::run::ExecAndRunSharedArgs;
+use crate::cli::run::ExecAndRunSharedArgs;
 use exec_harness::walltime::WalltimeExecutionArgs;
 
 use super::{ProjectOptions, WalltimeOptions};
@@ -69,7 +69,7 @@ impl ConfigMerger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::run::PerfRunArgs;
+    use crate::cli::run::PerfRunArgs;
     use crate::runner_mode::RunnerMode;
 
     #[test]

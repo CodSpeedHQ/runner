@@ -1,5 +1,6 @@
 #![cfg_attr(not(unix), allow(dead_code, unused_mut))]
 
+use crate::cli::run::UnwindingMode;
 use crate::executor::Config;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::is_codspeed_debug_enabled;
@@ -14,7 +15,6 @@ use crate::executor::wall_time::perf::debug_info::ProcessDebugInfo;
 use crate::executor::wall_time::perf::jit_dump::harvest_perf_jit_for_pids;
 use crate::executor::wall_time::perf::perf_executable::get_working_perf_executable;
 use crate::prelude::*;
-use crate::run::UnwindingMode;
 use anyhow::Context;
 use fifo::PerfFifo;
 use libc::pid_t;
@@ -59,7 +59,7 @@ pub struct PerfRunner {
 
 impl PerfRunner {
     pub async fn setup_environment(
-        system_info: &crate::run::check_system::SystemInfo,
+        system_info: &crate::cli::run::check_system::SystemInfo,
         setup_cache_dir: Option<&Path>,
     ) -> anyhow::Result<()> {
         setup::install_perf(system_info, setup_cache_dir).await?;

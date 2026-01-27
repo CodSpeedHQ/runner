@@ -3,15 +3,15 @@ use git2::Repository;
 use simplelog::SharedLogger;
 
 use crate::api_client::CodSpeedAPIClient;
+use crate::cli::run::check_system::SystemInfo;
+use crate::cli::run::helpers::{GitRemote, find_repository_root, parse_git_remote};
+use crate::cli::run::uploader::{
+    LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
+};
 use crate::executor::config::RepositoryOverride;
 use crate::executor::{Config, ExecutorName};
 use crate::local_logger::get_local_logger;
 use crate::prelude::*;
-use crate::run::check_system::SystemInfo;
-use crate::run::helpers::{GitRemote, find_repository_root, parse_git_remote};
-use crate::run::uploader::{
-    LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
-};
 use crate::run_environment::interfaces::{RepositoryProvider, RunEnvironmentMetadata, RunEvent};
 use crate::run_environment::provider::{RunEnvironmentDetector, RunEnvironmentProvider};
 use crate::run_environment::{RunEnvironment, RunPart};
@@ -69,7 +69,7 @@ impl TryFrom<&Config> for LocalProvider {
                     // No git repo and no override - we'll fetch from API using default project name
                     return Ok(Self {
                         source: RepositorySource::ApiProject {
-                            project_name: crate::exec::DEFAULT_REPOSITORY_NAME.to_string(),
+                            project_name: crate::cli::exec::DEFAULT_REPOSITORY_NAME.to_string(),
                         },
                         repository_root_path: current_dir.to_string_lossy().to_string(),
                         event: RunEvent::Local,

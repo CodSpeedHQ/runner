@@ -1,6 +1,6 @@
 use crate::executor::helpers::apt;
 use crate::executor::wall_time::perf::perf_executable::get_working_perf_executable;
-use crate::{prelude::*, run::check_system::SystemInfo};
+use crate::{cli::run::check_system::SystemInfo, prelude::*};
 
 use std::{path::Path, process::Command};
 

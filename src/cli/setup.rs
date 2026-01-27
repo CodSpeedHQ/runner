@@ -1,6 +1,6 @@
+use crate::cli::run::check_system::SystemInfo;
 use crate::executor::get_all_executors;
 use crate::prelude::*;
-use crate::run::check_system::SystemInfo;
 use std::path::Path;
 
 pub async fn setup(setup_cache_dir: Option<&Path>) -> Result<()> {

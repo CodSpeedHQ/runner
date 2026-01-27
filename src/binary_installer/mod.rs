@@ -1,5 +1,5 @@
+use crate::cli::run::helpers::download_file;
 use crate::prelude::*;
-use crate::run::helpers::download_file;
 use semver::Version;
 use std::process::Command;
 use tempfile::NamedTempFile;

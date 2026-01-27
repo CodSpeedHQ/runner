@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::executor::ExecutorName;
 use crate::prelude::*;
 use crate::run_environment::RepositoryProvider;
-use crate::{app::Cli, config::CodSpeedConfig};
+use crate::{cli::Cli, config::CodSpeedConfig};
 use console::style;
 use gql_client::{Client as GQLClient, ClientConfig};
 use nestify::nest;

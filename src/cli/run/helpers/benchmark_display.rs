@@ -1,6 +1,6 @@
 use crate::api_client::FetchLocalRunBenchmarkResult;
+use crate::cli::run::helpers;
 use crate::executor::ExecutorName;
-use crate::run::helpers;
 use std::collections::HashMap;
 use std::time::Duration;
 use tabled::settings::object::{Columns, Rows};

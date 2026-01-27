@@ -11,8 +11,8 @@ use reqwest::Client;
 use tokio::fs;
 use url::Url;
 
-use crate::{MONGODB_TRACER_VERSION, run::helpers::get_env_variable};
-use crate::{prelude::*, run::helpers::download_file};
+use crate::{MONGODB_TRACER_VERSION, cli::run::helpers::get_env_variable};
+use crate::{cli::run::helpers::download_file, prelude::*};
 
 use super::MongoDBConfig;
 

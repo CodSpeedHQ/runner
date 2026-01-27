@@ -1,10 +1,10 @@
-use codspeed_runner::{app, clean_logger};
+use codspeed_runner::{clean_logger, cli};
 use console::style;
 use log::log_enabled;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let res = app::run().await;
+    let res = cli::run().await;
     if let Err(err) = res {
         for cause in err.chain() {
             if log_enabled!(log::Level::Error) {

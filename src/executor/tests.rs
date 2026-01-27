@@ -1,10 +1,10 @@
 use super::Config;
+use crate::cli::run::check_system::SystemInfo;
 use crate::executor::ExecutionContext;
 use crate::executor::Executor;
 use crate::executor::memory::executor::MemoryExecutor;
 use crate::executor::valgrind::executor::ValgrindExecutor;
 use crate::executor::wall_time::executor::WallTimeExecutor;
-use crate::run::check_system::SystemInfo;
 use crate::runner_mode::RunnerMode;
 use rstest_reuse::{self, *};
 use shell_quote::{Bash, QuoteRefExt};
@@ -362,7 +362,7 @@ fi
     #[rstest::rstest]
     #[test_log::test(tokio::test)]
     async fn test_exec_harness(#[case] cmd: &str) {
-        use crate::exec::wrap_with_exec_harness;
+        use crate::cli::exec::wrap_with_exec_harness;
         use exec_harness::walltime::WalltimeExecutionArgs;
 
         let (_permit, executor) = get_walltime_executor().await;

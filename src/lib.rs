@@ -1,11 +1,9 @@
 //! CodSpeed Runner library
 
 mod api_client;
-pub mod app;
-mod auth;
 mod binary_installer;
+pub mod cli;
 mod config;
-mod exec;
 mod executor;
 mod instruments;
 mod local_logger;
@@ -13,10 +11,8 @@ pub mod logger;
 mod prelude;
 mod project_config;
 mod request_client;
-mod run;
 mod run_environment;
 mod runner_mode;
-mod setup;
 
 pub use local_logger::clean_logger;
 pub use project_config::{ProjectConfig, ProjectOptions, Target, TargetOptions, WalltimeOptions};

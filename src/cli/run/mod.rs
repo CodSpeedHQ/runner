@@ -6,12 +6,12 @@ use crate::executor::Config;
 use crate::prelude::*;
 use crate::project_config::ProjectConfig;
 use crate::project_config::merger::ConfigMerger;
-use crate::run::uploader::UploadResult;
 use crate::run_environment::interfaces::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
 use clap::{Args, ValueEnum};
 use std::path::Path;
 use std::path::PathBuf;
+use uploader::UploadResult;
 
 pub mod check_system;
 pub mod helpers;
@@ -292,10 +292,10 @@ pub async fn run(
             default_walltime,
         } => {
             args.command =
-                crate::exec::multi_targets::build_pipe_command(targets, default_walltime)?;
+                super::exec::multi_targets::build_pipe_command(targets, default_walltime)?;
             let config = Config::try_from(args)?;
 
-            crate::exec::execute_with_harness(config, api_client, codspeed_config, setup_cache_dir)
+            super::exec::execute_with_harness(config, api_client, codspeed_config, setup_cache_dir)
                 .await?;
         }
     }

@@ -80,7 +80,7 @@ impl ProjectConfig {
         let mut dirs = vec![current_dir.to_path_buf()];
 
         // Try to find git repository root
-        if let Some(git_root) = crate::run::helpers::find_repository_root(current_dir) {
+        if let Some(git_root) = crate::cli::run::helpers::find_repository_root(current_dir) {
             // Add parent directories up to git root
             let mut dir = current_dir.to_path_buf();
             while let Some(parent) = dir.parent() {

@@ -1,12 +1,12 @@
 use crate::api_client::CodSpeedAPIClient;
 use crate::binary_installer::ensure_binary_installed;
+use crate::cli::run::show_banner;
+use crate::cli::run::uploader::UploadResult;
 use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::prelude::*;
 use crate::project_config::ProjectConfig;
 use crate::project_config::merger::ConfigMerger;
-use crate::run::show_banner;
-use crate::run::uploader::UploadResult;
 use clap::Args;
 use std::path::Path;
 
@@ -37,7 +37,7 @@ pub fn wrap_with_exec_harness(
 #[derive(Args, Debug)]
 pub struct ExecArgs {
     #[command(flatten)]
-    pub shared: crate::run::ExecAndRunSharedArgs,
+    pub shared: crate::cli::run::ExecAndRunSharedArgs,
 
     #[command(flatten)]
     pub walltime_args: exec_harness::walltime::WalltimeExecutionArgs,

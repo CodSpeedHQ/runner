@@ -3,9 +3,9 @@ use simplelog::SharedLogger;
 use std::collections::BTreeMap;
 use std::env;
 
+use crate::cli::run::helpers::get_env_variable;
 use crate::executor::Config;
 use crate::prelude::*;
-use crate::run::helpers::get_env_variable;
 use crate::run_environment::interfaces::{
     GlData, RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunEvent, Sender,
 };

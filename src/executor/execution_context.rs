@@ -1,8 +1,8 @@
 use super::Config;
+use crate::cli::run::check_system::{self, SystemInfo};
+use crate::cli::run::logger::Logger;
 use crate::config::CodSpeedConfig;
 use crate::prelude::*;
-use crate::run::check_system::{self, SystemInfo};
-use crate::run::logger::Logger;
 use crate::run_environment::{self, RunEnvironment};
 use crate::runner_mode::RunnerMode;
 use std::path::PathBuf;

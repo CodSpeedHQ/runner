@@ -4,11 +4,11 @@ use tokio::time::{Instant, sleep};
 use crate::api_client::{
     CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
 };
-use crate::prelude::*;
-use crate::run::helpers::benchmark_display::{
+use crate::cli::run::helpers::benchmark_display::{
     POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table, build_detailed_summary,
 };
-use crate::run::uploader::UploadResult;
+use crate::cli::run::uploader::UploadResult;
+use crate::prelude::*;
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
@@ -62,7 +62,7 @@ pub async fn poll_results(
         }
 
         info!(
-            "\nFull report: {}",
+            "\nTo see the full report, visit: {}",
             style(response.run.url).blue().bold().underlined()
         );
     }
