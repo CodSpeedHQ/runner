@@ -2,7 +2,7 @@
 //!
 //! Run with:
 //! ```
-//! cargo run --bin generate-config-schema
+//! cargo run --no-default-features --bin generate-config-schema
 //! ```
 
 use std::fs;

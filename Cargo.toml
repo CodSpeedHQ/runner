@@ -10,6 +10,14 @@ default-run = "codspeed"
 name = "codspeed"
 path = "src/main.rs"
 
+[[bin]]
+name = "generate-config-schema"
+path = "src/bin/generate_config_schema.rs"
+required-features = []
+
+[features]
+default = ["full"]
+full = []
 
 [dependencies]
 anyhow = { workspace = true }
