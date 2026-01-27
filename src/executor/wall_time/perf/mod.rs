@@ -341,7 +341,7 @@ impl BenchmarkData {
                 debug!("Reading perf data from file for mmap extraction");
                 Some(
                     parse_perf_file::parse_for_memmap2(perf_file_path).map_err(|e| {
-                        error!("Failed to parse perf file: {e}");
+                        debug!("Failed to parse perf file: {e}");
                         BenchmarkDataSaveError::FailedToParsePerfFile
                     })?,
                 )
