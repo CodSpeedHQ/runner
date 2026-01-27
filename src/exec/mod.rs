@@ -5,6 +5,7 @@ use crate::executor;
 use crate::prelude::*;
 use crate::project_config::ProjectConfig;
 use crate::project_config::merger::ConfigMerger;
+use crate::run::show_banner;
 use crate::run::uploader::UploadResult;
 use clap::Args;
 use std::path::Path;
@@ -96,6 +97,11 @@ pub async fn execute_with_harness(
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
     let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
+
+    if execution_context.is_local() {
+        show_banner();
+    }
+
     debug!("config: {:#?}", execution_context.config);
     let executor = executor::get_executor_from_mode(
         &execution_context.config.mode,
