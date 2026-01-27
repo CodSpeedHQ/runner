@@ -1,14 +1,9 @@
 use console::style;
-use tokio::time::{Instant, sleep};
 
-use crate::api_client::{
-    CodSpeedAPIClient, FetchLocalRunReportResponse, FetchLocalRunReportVars, RunStatus,
-};
-use crate::cli::run::helpers::benchmark_display::{
-    POLLING_INTERVAL, RUN_PROCESSING_MAX_DURATION, build_benchmark_table,
-};
-use crate::cli::run::uploader::UploadResult;
+use crate::api_client::CodSpeedAPIClient;
+use crate::cli::run::helpers::benchmark_display::build_benchmark_table;
 use crate::prelude::*;
+use crate::upload::{UploadResult, poll_run_report};
 
 #[allow(clippy::borrowed_box)]
 pub async fn poll_results(
@@ -16,39 +11,7 @@ pub async fn poll_results(
     upload_result: &UploadResult,
     output_json: bool,
 ) -> Result<()> {
-    let start = Instant::now();
-    let fetch_local_run_report_vars = FetchLocalRunReportVars {
-        owner: upload_result.owner.clone(),
-        name: upload_result.repository.clone(),
-        run_id: upload_result.run_id.clone(),
-    };
-
-    let response;
-    loop {
-        if start.elapsed() > RUN_PROCESSING_MAX_DURATION {
-            bail!("Polling results timed out");
-        }
-
-        let fetch_result = api_client
-            .fetch_local_run_report(fetch_local_run_report_vars.clone())
-            .await?;
-
-        match fetch_result {
-            FetchLocalRunReportResponse { run, .. }
-                if run.status == RunStatus::Pending || run.status == RunStatus::Processing =>
-            {
-                sleep(POLLING_INTERVAL).await;
-            }
-            response_from_api => {
-                response = response_from_api;
-                break;
-            }
-        }
-    }
-
-    if response.run.status == RunStatus::Failure {
-        bail!("Run failed to be processed, try again in a few minutes");
-    }
+    let response = poll_run_report(api_client, upload_result).await?;
 
     let report = response
         .run

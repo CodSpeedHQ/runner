@@ -12,11 +12,11 @@ mod valgrind;
 mod wall_time;
 
 use crate::api_client::CodSpeedAPIClient;
-use crate::cli::run::check_system::SystemInfo;
-use crate::cli::run::uploader::UploadResult;
 use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
 use crate::runner_mode::RunnerMode;
+use crate::system::SystemInfo;
+use crate::upload::UploadResult;
 use async_trait::async_trait;
 pub use config::Config;
 pub use execution_context::ExecutionContext;
@@ -164,8 +164,7 @@ where
 
         start_group!("Uploading results");
         let upload_result =
-            crate::cli::run::uploader::upload(execution_context, executor.name(), api_client)
-                .await?;
+            crate::upload::upload(execution_context, executor.name(), api_client).await?;
 
         if execution_context.is_local() {
             poll_results(&upload_result).await?;

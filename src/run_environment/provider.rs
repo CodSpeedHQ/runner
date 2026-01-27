@@ -3,13 +3,12 @@ use git2::Repository;
 use simplelog::SharedLogger;
 
 use crate::api_client::CodSpeedAPIClient;
-use crate::cli::run::check_system::SystemInfo;
-use crate::cli::run::run_index_state::RunIndexState;
-use crate::cli::run::uploader::{
-    LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, UploadMetadata,
-};
 use crate::executor::{Config, ExecutorName};
 use crate::prelude::*;
+use crate::system::SystemInfo;
+use crate::upload::{
+    LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, RunIndexState, Runner, UploadMetadata,
+};
 
 use super::interfaces::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart};
 

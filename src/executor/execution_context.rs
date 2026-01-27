@@ -1,10 +1,10 @@
 use super::Config;
-use crate::cli::run::check_system::{self, SystemInfo};
 use crate::cli::run::logger::Logger;
 use crate::config::CodSpeedConfig;
 use crate::prelude::*;
 use crate::run_environment::{self, RunEnvironment};
 use crate::runner_mode::RunnerMode;
+use crate::system::{self, SystemInfo};
 use std::path::PathBuf;
 
 use super::create_profile_folder;
@@ -39,7 +39,7 @@ impl TryFrom<(Config, &CodSpeedConfig)> for ExecutionContext {
     ) -> Result<Self, Self::Error> {
         let provider = run_environment::get_provider(&config)?;
         let system_info = SystemInfo::new()?;
-        check_system::check_system(&system_info)?;
+        system::check_system(&system_info)?;
         let logger = Logger::new(provider.as_ref())?;
 
         let profile_folder = if let Some(profile_folder) = &config.profile_folder {

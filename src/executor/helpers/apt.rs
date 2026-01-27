@@ -1,6 +1,6 @@
 use super::run_with_sudo::run_with_sudo;
-use crate::cli::run::check_system::SystemInfo;
 use crate::prelude::*;
+use crate::system::SystemInfo;
 use std::path::Path;
 use std::process::Command;
 

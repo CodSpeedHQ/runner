@@ -13,6 +13,8 @@ mod project_config;
 mod request_client;
 mod run_environment;
 mod runner_mode;
+mod system;
+mod upload;
 
 pub use local_logger::clean_logger;
 pub use project_config::{ProjectConfig, ProjectOptions, Target, TargetOptions, WalltimeOptions};

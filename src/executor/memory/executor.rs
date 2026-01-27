@@ -1,5 +1,4 @@
 use crate::binary_installer::ensure_binary_installed;
-use crate::cli::run::check_system::SystemInfo;
 use crate::executor::ExecutorName;
 use crate::executor::helpers::command::CommandBuilder;
 use crate::executor::helpers::env::get_base_injected_env;
@@ -12,6 +11,7 @@ use crate::executor::{ExecutionContext, Executor};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::runner_mode::RunnerMode;
+use crate::system::SystemInfo;
 use async_trait::async_trait;
 use ipc_channel::ipc;
 use memtrack::MemtrackIpcClient;

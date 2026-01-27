@@ -1,11 +1,11 @@
 use super::Config;
-use crate::cli::run::check_system::SystemInfo;
 use crate::executor::ExecutionContext;
 use crate::executor::Executor;
 use crate::executor::memory::executor::MemoryExecutor;
 use crate::executor::valgrind::executor::ValgrindExecutor;
 use crate::executor::wall_time::executor::WallTimeExecutor;
 use crate::runner_mode::RunnerMode;
+use crate::system::SystemInfo;
 use rstest_reuse::{self, *};
 use shell_quote::{Bash, QuoteRefExt};
 use tempfile::TempDir;

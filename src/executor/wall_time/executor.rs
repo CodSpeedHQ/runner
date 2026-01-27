@@ -1,6 +1,5 @@
 use super::helpers::validate_walltime_results;
 use super::perf::PerfRunner;
-use crate::cli::run::check_system::SystemInfo;
 use crate::executor::Config;
 use crate::executor::Executor;
 use crate::executor::helpers::command::CommandBuilder;
@@ -15,6 +14,7 @@ use crate::executor::{ExecutionContext, ExecutorName};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
 use crate::runner_mode::RunnerMode;
+use crate::system::SystemInfo;
 use async_trait::async_trait;
 use std::fs::canonicalize;
 use std::io::Write;

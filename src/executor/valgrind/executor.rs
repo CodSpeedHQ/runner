@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use std::path::Path;
 
-use crate::cli::run::check_system::SystemInfo;
 use crate::executor::Executor;
 use crate::executor::{ExecutionContext, ExecutorName};
 use crate::instruments::mongo_tracer::MongoTracer;
 use crate::prelude::*;
+use crate::system::SystemInfo;
 
 use super::setup::install_valgrind;
 use super::{helpers::perf_maps::harvest_perf_maps, helpers::venv_compat, measure};

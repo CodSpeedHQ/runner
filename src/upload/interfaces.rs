@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::cli::run::check_system::SystemInfo;
 use crate::executor::ExecutorName;
 use crate::instruments::InstrumentName;
 use crate::run_environment::{RepositoryProvider, RunEnvironment, RunEnvironmentMetadata, RunPart};
+use crate::system::SystemInfo;
 
 pub const LATEST_UPLOAD_METADATA_VERSION: u32 = 8;
 

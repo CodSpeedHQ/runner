@@ -1,8 +1,9 @@
+use crate::cli::run::helpers::download_file;
 use crate::executor::helpers::apt;
-use crate::{VALGRIND_CODSPEED_DEB_VERSION, cli::run::check_system::SystemInfo};
+use crate::prelude::*;
+use crate::system::SystemInfo;
 use crate::{
-    VALGRIND_CODSPEED_VERSION, VALGRIND_CODSPEED_VERSION_STRING, cli::run::helpers::download_file,
-    prelude::*,
+    VALGRIND_CODSPEED_DEB_VERSION, VALGRIND_CODSPEED_VERSION, VALGRIND_CODSPEED_VERSION_STRING,
 };
 use semver::Version;
 use std::{env, path::Path, process::Command};

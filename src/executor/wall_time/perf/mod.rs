@@ -59,7 +59,7 @@ pub struct PerfRunner {
 
 impl PerfRunner {
     pub async fn setup_environment(
-        system_info: &crate::cli::run::check_system::SystemInfo,
+        system_info: &crate::system::SystemInfo,
         setup_cache_dir: Option<&Path>,
     ) -> anyhow::Result<()> {
         setup::install_perf(system_info, setup_cache_dir).await?;

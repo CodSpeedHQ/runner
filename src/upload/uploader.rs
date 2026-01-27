@@ -1,9 +1,9 @@
 use crate::api_client::CodSpeedAPIClient;
-use crate::cli::run::uploader::{UploadError, profile_archive::ProfileArchiveContent};
 use crate::executor::Config;
 use crate::executor::ExecutionContext;
 use crate::executor::ExecutorName;
 use crate::run_environment::RunEnvironment;
+use crate::upload::{UploadError, profile_archive::ProfileArchiveContent};
 use crate::{
     prelude::*,
     request_client::{REQUEST_CLIENT, STREAMING_CLIENT},

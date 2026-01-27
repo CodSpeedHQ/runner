@@ -8,18 +8,14 @@ use crate::project_config::ProjectConfig;
 use crate::project_config::merger::ConfigMerger;
 use crate::run_environment::interfaces::RepositoryProvider;
 use crate::runner_mode::RunnerMode;
+use crate::upload::UploadResult;
 use clap::{Args, ValueEnum};
 use std::path::Path;
 use std::path::PathBuf;
-use uploader::UploadResult;
 
-pub mod check_system;
 pub mod helpers;
-pub(crate) mod poll_results;
-pub mod run_index_state;
-pub(crate) mod uploader;
-
 pub mod logger;
+mod poll_results;
 
 pub(crate) fn show_banner() {
     let banner = format!(

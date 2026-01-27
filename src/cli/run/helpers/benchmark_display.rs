@@ -2,15 +2,11 @@ use crate::api_client::FetchLocalRunBenchmarkResult;
 use crate::cli::run::helpers;
 use crate::executor::ExecutorName;
 use std::collections::HashMap;
-use std::time::Duration;
 use tabled::settings::object::{Columns, Rows};
 use tabled::settings::panel::Panel;
 use tabled::settings::style::HorizontalLine;
 use tabled::settings::{Alignment, Color, Modify, Style};
 use tabled::{Table, Tabled};
-
-pub const RUN_PROCESSING_MAX_DURATION: Duration = Duration::from_secs(60 * 5); // 5 minutes
-pub const POLLING_INTERVAL: Duration = Duration::from_secs(1);
 
 fn format_with_thousands_sep(n: u64) -> String {
     let s = n.to_string();

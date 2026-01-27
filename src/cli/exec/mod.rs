@@ -1,12 +1,12 @@
 use crate::api_client::CodSpeedAPIClient;
 use crate::binary_installer::ensure_binary_installed;
 use crate::cli::run::show_banner;
-use crate::cli::run::uploader::UploadResult;
 use crate::config::CodSpeedConfig;
 use crate::executor;
 use crate::prelude::*;
 use crate::project_config::ProjectConfig;
 use crate::project_config::merger::ConfigMerger;
+use crate::upload::UploadResult;
 use clap::Args;
 use std::path::Path;
 
