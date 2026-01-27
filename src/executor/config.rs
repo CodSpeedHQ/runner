@@ -100,6 +100,7 @@ impl TryFrom<RunArgs> for Config {
     type Error = Error;
     fn try_from(args: RunArgs) -> Result<Self> {
         let instruments = Instruments::try_from(&args)?;
+        let mode = args.shared.resolve_mode()?;
         let raw_upload_url = args
             .shared
             .upload_url
@@ -116,7 +117,7 @@ impl TryFrom<RunArgs> for Config {
                 .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
                 .transpose()?,
             working_directory: args.shared.working_directory,
-            mode: args.shared.mode,
+            mode,
             instruments,
             perf_unwinding_mode: args.shared.perf_run_args.perf_unwinding_mode,
             enable_perf: args.shared.perf_run_args.enable_perf,
@@ -137,6 +138,7 @@ impl Config {
         args: crate::cli::exec::ExecArgs,
         command: String,
     ) -> Result<Self> {
+        let mode = args.shared.resolve_mode()?;
         let raw_upload_url = args
             .shared
             .upload_url
@@ -153,7 +155,7 @@ impl Config {
                 .map(|repo| RepositoryOverride::from_arg(repo, args.shared.provider))
                 .transpose()?,
             working_directory: args.shared.working_directory,
-            mode: args.shared.mode,
+            mode,
             instruments: Instruments { mongodb: None }, // exec doesn't support MongoDB
             perf_unwinding_mode: args.shared.perf_run_args.perf_unwinding_mode,
             enable_perf: args.shared.perf_run_args.enable_perf,
@@ -192,7 +194,7 @@ mod tests {
                 repository: None,
                 provider: None,
                 working_directory: None,
-                mode: RunnerMode::Simulation,
+                mode: Some(RunnerMode::Simulation),
                 profile_folder: None,
                 skip_upload: false,
                 skip_run: false,
@@ -231,7 +233,7 @@ mod tests {
                 repository: Some("owner/repo".into()),
                 provider: Some(RepositoryProvider::GitLab),
                 working_directory: Some("/tmp".into()),
-                mode: RunnerMode::Simulation,
+                mode: Some(RunnerMode::Simulation),
                 profile_folder: Some("./codspeed.out".into()),
                 skip_upload: true,
                 skip_run: true,
@@ -314,7 +316,7 @@ mod tests {
                 repository: None,
                 provider: None,
                 working_directory: None,
-                mode: RunnerMode::Simulation,
+                mode: Some(RunnerMode::Simulation),
                 profile_folder: None,
                 skip_upload: false,
                 skip_run: false,

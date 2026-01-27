@@ -70,7 +70,7 @@ impl RunArgs {
                 repository: None,
                 provider: None,
                 working_directory: None,
-                mode: RunnerMode::Simulation,
+                mode: Some(RunnerMode::Simulation),
                 profile_folder: None,
                 skip_upload: false,
                 skip_run: false,

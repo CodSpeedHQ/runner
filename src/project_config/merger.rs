@@ -52,11 +52,6 @@ impl ConfigMerger {
             }
         }
 
-        // Note: mode field has a required default value from clap, so we can't
-        // distinguish between "user set it" vs "default value". For now, we
-        // always use the CLI value. This will be addressed in a future PR
-        // when we make mode optional in CLI args.
-
         merged
     }
 
@@ -157,7 +152,7 @@ mod tests {
             repository: None,
             provider: None,
             working_directory: Some("./cli-dir".to_string()),
-            mode: RunnerMode::Walltime,
+            mode: Some(RunnerMode::Walltime),
             profile_folder: None,
             skip_upload: false,
             skip_run: false,
@@ -189,7 +184,7 @@ mod tests {
             repository: None,
             provider: None,
             working_directory: None,
-            mode: RunnerMode::Walltime,
+            mode: Some(RunnerMode::Walltime),
             profile_folder: None,
             skip_upload: false,
             skip_run: false,
@@ -211,8 +206,8 @@ mod tests {
 
         // Config working_directory should be used
         assert_eq!(merged.working_directory, Some("./config-dir".to_string()));
-        // Mode stays as CLI default (can't override due to clap default)
-        assert_eq!(merged.mode, RunnerMode::Walltime);
+        // Mode stays as CLI value
+        assert_eq!(merged.mode, Some(RunnerMode::Walltime));
     }
 
     #[test]
@@ -223,7 +218,7 @@ mod tests {
             repository: None,
             provider: None,
             working_directory: Some("./dir".to_string()),
-            mode: RunnerMode::Simulation,
+            mode: Some(RunnerMode::Simulation),
             profile_folder: None,
             skip_upload: false,
             skip_run: false,
@@ -240,7 +235,7 @@ mod tests {
 
         // Should be identical to CLI
         assert_eq!(merged.working_directory, Some("./dir".to_string()));
-        assert_eq!(merged.mode, RunnerMode::Simulation);
+        assert_eq!(merged.mode, Some(RunnerMode::Simulation));
     }
 
     #[test]

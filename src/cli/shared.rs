@@ -1,7 +1,7 @@
 use crate::VERSION;
 use crate::prelude::*;
 use crate::run_environment::interfaces::RepositoryProvider;
-use crate::runner_mode::RunnerMode;
+use crate::runner_mode::{RunnerMode, load_shell_session_mode};
 use clap::Args;
 use clap::ValueEnum;
 use std::path::PathBuf;
@@ -53,8 +53,9 @@ pub struct ExecAndRunSharedArgs {
     pub working_directory: Option<String>,
 
     /// The mode to run the benchmarks in.
+    /// If not provided, the mode will be loaded from the shell session (set via `codspeed use <mode>`).
     #[arg(short, long, value_enum, env = "CODSPEED_RUNNER_MODE")]
-    pub mode: RunnerMode,
+    pub mode: Option<RunnerMode>,
 
     /// Profile folder to use for the run.
     #[arg(long)]
@@ -89,6 +90,29 @@ pub struct ExecAndRunSharedArgs {
 
     #[command(flatten)]
     pub perf_run_args: PerfRunArgs,
+}
+
+impl ExecAndRunSharedArgs {
+    /// Resolves the runner mode from CLI argument, shell session, or returns an error.
+    ///
+    /// Priority:
+    /// 1. CLI argument (--mode or -m)
+    /// 2. Shell session mode (set via `codspeed use <mode>`)
+    /// 3. Error if neither is available
+    pub fn resolve_mode(&self) -> Result<RunnerMode> {
+        if let Some(mode) = &self.mode {
+            return Ok(mode.clone());
+        }
+
+        if let Some(mode) = load_shell_session_mode()? {
+            debug!("Loaded mode from shell session: {mode:?}");
+            return Ok(mode);
+        }
+
+        Err(anyhow!(
+            "No runner mode specified. Use --mode <mode> or set the mode for this shell session with `codspeed use <mode>`."
+        ))
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, ValueEnum, Default)]
