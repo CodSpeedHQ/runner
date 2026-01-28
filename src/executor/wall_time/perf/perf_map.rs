@@ -84,7 +84,6 @@ impl ModuleSymbols {
         //  - symbols that have en empty name
         symbols.retain(|symbol| {
             if symbol.name.is_empty() {
-                trace!("Filtering out symbol with empty name: {symbol:?}");
                 return false;
             }
 
@@ -92,7 +91,6 @@ impl ModuleSymbols {
             let name = symbol.name.as_str();
             if let [b'$', b'a' | b'd' | b't' | b'x', rest @ ..] = name.as_bytes() {
                 if rest.is_empty() || rest.starts_with(b".") {
-                    trace!("Filtering out ARM ELF mapping symbol: {symbol:?}");
                     return false;
                 }
             }
