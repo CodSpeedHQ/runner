@@ -30,6 +30,7 @@ fn compile_rust_crate(
     Ok(binary_path)
 }
 
+#[test_with::env(GITHUB_ACTIONS)]
 #[rstest]
 #[case("system", &[])]
 #[case("jemalloc", &["with-jemalloc"])]

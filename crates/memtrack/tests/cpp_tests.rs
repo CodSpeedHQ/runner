@@ -43,6 +43,7 @@ fn compile_cpp_project(project_dir: &Path, target: &str) -> anyhow::Result<std::
     Ok(binary_path)
 }
 
+#[test_with::env(GITHUB_ACTIONS)]
 #[rstest]
 #[case("alloc_cpp_system")]
 #[case("alloc_cpp_jemalloc_static")]
