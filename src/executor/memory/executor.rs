@@ -26,7 +26,7 @@ use tempfile::NamedTempFile;
 use tokio::time::{Duration, timeout};
 
 const MEMTRACK_COMMAND: &str = "codspeed-memtrack";
-const MEMTRACK_CODSPEED_VERSION: &str = "1.2.0";
+const MEMTRACK_CODSPEED_VERSION: &str = "1.2.1";
 
 pub struct MemoryExecutor;
 
