@@ -87,6 +87,7 @@ const ALLOCATION_TEST_CASES: &[AllocationTestCase] = &[
     },
 ];
 
+#[test_with::env(GITHUB_ACTIONS)]
 #[rstest]
 #[case(&ALLOCATION_TEST_CASES[0])]
 #[case(&ALLOCATION_TEST_CASES[1])]
@@ -130,6 +131,7 @@ fn test_allocation_tracking(
 }
 
 #[test]
+#[test_with::env(GITHUB_ACTIONS)]
 fn test_fork_tracking() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let source = include_str!("../testdata/fork_test.c");
@@ -165,6 +167,7 @@ fn test_fork_tracking() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[test_with::env(GITHUB_ACTIONS)]
 fn test_allocation_sizes() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let source = include_str!("../testdata/alloc_size.c");
