@@ -2,7 +2,6 @@ use super::perf_map::ProcessSymbols;
 use super::unwind_data::UnwindDataExt;
 use crate::prelude::*;
 use libc::pid_t;
-use procfs::process::MMPermissions;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashMap;
 
@@ -12,6 +11,7 @@ pub(super) fn process_memory_mappings(
     symbols_by_pid: &mut HashMap<pid_t, ProcessSymbols>,
     unwind_data_by_pid: &mut HashMap<pid_t, Vec<UnwindData>>,
 ) -> anyhow::Result<()> {
+    use procfs::process::MMPermissions;
     let bench_proc =
         procfs::process::Process::new(pid as _).expect("Failed to find benchmark process");
     let exe_maps = bench_proc.maps().expect("Failed to read /proc/{pid}/maps");
