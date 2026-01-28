@@ -5,6 +5,31 @@
 
 
 
+## [4.10.1] - 2026-01-28
+
+### <!-- 0 -->🚀 Features
+- Implement `codspeed use` to set mode for shell session by @GuillaumeLagrange in [#221](https://github.com/CodSpeedHQ/runner/pull/221)
+- Show codspeed banner in CI when exec_harness is used by @GuillaumeLagrange
+- Improve the result table display (#217) by @art049 in [#217](https://github.com/CodSpeedHQ/runner/pull/217)
+
+### <!-- 1 -->🐛 Bug Fixes
+- Initialize tracker before spawning sub-process by @not-matthias
+
+### <!-- 2 -->🏗️ Refactor
+- Restructure event handling with a common header and improve event parsing by @not-matthias
+- Create a module for shared structs between `exec` and `run` by @GuillaumeLagrange
+- Remove logic from the run module by @GuillaumeLagrange
+- Move the cli related module inside a cli module by @GuillaumeLagrange
+
+### <!-- 7 -->⚙️ Internals
+- Bump memtrack version
+- Turn warning about overwritten unwind_data into debug logs by @GuillaumeLagrange in [#223](https://github.com/CodSpeedHQ/runner/pull/223)
+- Fix cargo check on macOs by @adriencaccia
+- Remove `codspeed use` without argument in favor of `codspeed show` by @GuillaumeLagrange in [#222](https://github.com/CodSpeedHQ/runner/pull/222)
+- Add clang-format pre-commit hook by @not-matthias in [#219](https://github.com/CodSpeedHQ/runner/pull/219)
+- Save both old and new addr for `realloc` event by @not-matthias
+
+
 ## [4.10.0] - 2026-01-26
 
 ### <!-- 0 -->🚀 Features
@@ -837,6 +862,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.10.1]: https://github.com/CodSpeedHQ/runner/compare/v4.10.0..v4.10.1
 [4.10.0]: https://github.com/CodSpeedHQ/runner/compare/v4.9.0..v4.10.0
 [4.9.0]: https://github.com/CodSpeedHQ/runner/compare/v4.8.2..v4.9.0
 [4.8.2]: https://github.com/CodSpeedHQ/runner/compare/v4.8.1..v4.8.2
