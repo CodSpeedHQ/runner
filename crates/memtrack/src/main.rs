@@ -138,20 +138,20 @@ fn track_command(
             let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) else {
                 continue;
             };
-            let _ = write_tx_clone.send(event.into());
+            let _ = write_tx_clone.send(event);
         }
 
         // Final aggressive drain - keep trying until truly empty
         loop {
             match event_rx.try_recv() {
                 Ok(event) => {
-                    let _ = write_tx_clone.send(event.into());
+                    let _ = write_tx_clone.send(event);
                 }
                 Err(_) => {
                     // Sleep briefly and try once more to catch late arrivals
                     thread::sleep(Duration::from_millis(50));
                     if let Ok(event) = event_rx.try_recv() {
-                        let _ = write_tx_clone.send(event.into());
+                        let _ = write_tx_clone.send(event);
                     } else {
                         break;
                     }
