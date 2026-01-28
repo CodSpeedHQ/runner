@@ -17,10 +17,9 @@ use crate::executor::wall_time::perf::perf_executable::get_working_perf_executab
 use crate::prelude::*;
 use anyhow::Context;
 use fifo::PerfFifo;
-use libc::pid_t;
+use parse_perf_file::MemmapRecordsOutput;
 use perf_executable::get_compression_flags;
 use perf_executable::get_event_flags;
-use perf_map::ProcessSymbols;
 use rayon::prelude::*;
 use runner_shared::artifacts::ArtifactExt;
 use runner_shared::artifacts::ExecutionTimestamps;
@@ -28,13 +27,11 @@ use runner_shared::debug_info::ModuleDebugInfo;
 use runner_shared::fifo::Command as FifoCommand;
 use runner_shared::fifo::IntegrationMode;
 use runner_shared::metadata::PerfMetadata;
-use runner_shared::unwind_data::UnwindData;
 use std::path::Path;
 use std::path::PathBuf;
 use std::{cell::OnceCell, collections::HashMap, process::ExitStatus};
 
 mod jit_dump;
-mod memory_mappings;
 mod parse_perf_file;
 mod setup;
 
@@ -46,15 +43,10 @@ pub mod perf_map;
 pub mod unwind_data;
 
 const PERF_METADATA_CURRENT_VERSION: u64 = 1;
-const PERF_DATA_FILE_NAME: &str = "perf.data";
 const PERF_PIPEDATA_FILE_NAME: &str = "perf.pipedata";
 
 pub struct PerfRunner {
     benchmark_data: OnceCell<BenchmarkData>,
-    /// Whether to output the perf data to a streamable .pipedata file
-    /// This can be removed once we have upstreamed the the linux-perf-data crate changes to parse
-    /// from pipedata directly, to only support pipedata.
-    output_pipedata: bool,
 }
 
 impl PerfRunner {
@@ -89,9 +81,8 @@ impl PerfRunner {
         Ok(())
     }
 
-    pub fn new(output_pipedata: bool) -> Self {
+    pub fn new() -> Self {
         Self {
-            output_pipedata,
             benchmark_data: OnceCell::new(),
         }
     }
@@ -160,36 +151,18 @@ impl PerfRunner {
                 perf_fifo.ctl_path().to_string_lossy(),
                 perf_fifo.ack_path().to_string_lossy()
             ),
+            "-o",
+            "-", // Output to stdout for piping
+            "--",
         ]);
 
-        if self.output_pipedata {
-            perf_wrapper_builder.args([
-                "-o", "-", // forces pipe mode
-            ]);
-        } else {
-            perf_wrapper_builder.args([
-                "-o",
-                self.get_perf_file_path(profile_folder)
-                    .to_string_lossy()
-                    .as_ref(),
-            ]);
-        }
-
-        perf_wrapper_builder.arg("--");
         cmd_builder.wrap_with(perf_wrapper_builder);
 
-        // Output the perf data to the profile folder
-        let perf_data_file_path = self.get_perf_file_path(profile_folder);
-
-        let raw_command = if self.output_pipedata {
-            format!(
-                "set -o pipefail && {} | cat > {}",
-                &cmd_builder.as_command_line(),
-                perf_data_file_path.to_string_lossy()
-            )
-        } else {
-            cmd_builder.as_command_line()
-        };
+        let raw_command = format!(
+            "set -o pipefail && {} | cat > {}",
+            &cmd_builder.as_command_line(),
+            self.get_perf_file_path(profile_folder).to_string_lossy()
+        );
 
         let mut wrapped_builder = CommandBuilder::new("bash");
         wrapped_builder.args(["-c", &raw_command]);
@@ -205,8 +178,7 @@ impl PerfRunner {
         let on_process_started = |mut child: std::process::Child| async move {
             // If we output pipedata, we do not parse the perf map during teardown yet, so we need to parse memory
             // maps as we receive the `CurrentBenchmark` fifo commands.
-            let (data, exit_status) =
-                Self::handle_fifo(runner_fifo, perf_fifo, self.output_pipedata, &mut child).await?;
+            let (data, exit_status) = Self::handle_fifo(runner_fifo, perf_fifo, &mut child).await?;
             self.benchmark_data.set(data).unwrap_or_else(|_| {
                 error!("Failed to set benchmark data in PerfRunner");
             });
@@ -247,12 +219,8 @@ impl PerfRunner {
     async fn handle_fifo(
         mut runner_fifo: RunnerFifo,
         mut perf_fifo: PerfFifo,
-        parse_memory_maps: bool,
         child: &mut std::process::Child,
     ) -> anyhow::Result<(BenchmarkData, std::process::ExitStatus)> {
-        let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
-        let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
-
         let on_cmd = async |cmd: &FifoCommand| {
             #[allow(deprecated)]
             match cmd {
@@ -261,19 +229,6 @@ impl PerfRunner {
                 }
                 FifoCommand::StopBenchmark => {
                     perf_fifo.stop_events().await?;
-                }
-                FifoCommand::CurrentBenchmark { pid, .. } => {
-                    #[cfg(target_os = "linux")]
-                    if parse_memory_maps
-                        && !symbols_by_pid.contains_key(pid)
-                        && !unwind_data_by_pid.contains_key(pid)
-                    {
-                        memory_mappings::process_memory_mappings(
-                            *pid,
-                            &mut symbols_by_pid,
-                            &mut unwind_data_by_pid,
-                        )?;
-                    }
                 }
                 FifoCommand::PingPerf => {
                     if perf_fifo.ping().await.is_err() {
@@ -299,27 +254,19 @@ impl PerfRunner {
             BenchmarkData {
                 fifo_data,
                 marker_result,
-                symbols_by_pid,
-                unwind_data_by_pid,
             },
             exit_status,
         ))
     }
 
     fn get_perf_file_path<P: AsRef<Path>>(&self, profile_folder: P) -> PathBuf {
-        if self.output_pipedata {
-            profile_folder.as_ref().join(PERF_PIPEDATA_FILE_NAME)
-        } else {
-            profile_folder.as_ref().join(PERF_DATA_FILE_NAME)
-        }
+        profile_folder.as_ref().join(PERF_PIPEDATA_FILE_NAME)
     }
 }
 
 pub struct BenchmarkData {
     fifo_data: FifoBenchmarkData,
     marker_result: ExecutionTimestamps,
-    pub symbols_by_pid: HashMap<pid_t, ProcessSymbols>,
-    pub unwind_data_by_pid: HashMap<pid_t, Vec<UnwindData>>,
 }
 
 #[derive(Debug)]
@@ -336,28 +283,16 @@ impl BenchmarkData {
     ) -> Result<(), BenchmarkDataSaveError> {
         self.marker_result.save_to(&path).unwrap();
 
-        let parsed_perf_map_output =
-            if self.symbols_by_pid.is_empty() && self.unwind_data_by_pid.is_empty() {
-                debug!("Reading perf data from file for mmap extraction");
-                Some(
-                    parse_perf_file::parse_for_memmap2(perf_file_path).map_err(|e| {
-                        error!("Failed to parse perf file: {e}");
-                        BenchmarkDataSaveError::FailedToParsePerfFile
-                    })?,
-                )
-            } else {
-                None
-            };
-
-        let (symbols_by_pid, unwind_data_by_pid) =
-            if let Some(parsed_perf_map_output) = parsed_perf_map_output.as_ref() {
-                (
-                    &parsed_perf_map_output.symbols_by_pid,
-                    &parsed_perf_map_output.unwind_data_by_pid,
-                )
-            } else {
-                (&self.symbols_by_pid, &self.unwind_data_by_pid)
-            };
+        debug!("Reading perf data from file for mmap extraction");
+        let MemmapRecordsOutput {
+            symbols_by_pid,
+            unwind_data_by_pid,
+        } = {
+            parse_perf_file::parse_for_memmap2(perf_file_path).map_err(|e| {
+                error!("Failed to parse perf file: {e}");
+                BenchmarkDataSaveError::FailedToParsePerfFile
+            })?
+        };
 
         let path_ref = path.as_ref();
         debug!("Saving symbols addresses");

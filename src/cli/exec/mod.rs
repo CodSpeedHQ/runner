@@ -103,10 +103,7 @@ pub async fn execute_with_harness(
     }
 
     debug!("config: {:#?}", execution_context.config);
-    let executor = executor::get_executor_from_mode(
-        &execution_context.config.mode,
-        executor::ExecutorCommand::Exec,
-    );
+    let executor = executor::get_executor_from_mode(&execution_context.config.mode);
 
     let get_exec_harness_installer_url = || {
         format!(

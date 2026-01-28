@@ -1,6 +1,5 @@
 use super::perf_map::ProcessSymbols;
 use super::unwind_data::UnwindDataExt;
-use crate::executor::helpers::run_with_sudo::run_with_sudo;
 use crate::prelude::*;
 use libc::pid_t;
 use linux_perf_data::PerfFileReader;
@@ -19,30 +18,12 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
     let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
     let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
 
-    //FIXME: Remove this once again when we parse directly from pipedata
-    {
-        let tmp_perf_file_path = perf_file_path.as_ref().to_string_lossy();
-
-        // We ran perf with sudo, so we have to change the ownership of the perf.data
-        run_with_sudo(
-            "chown",
-            [
-                "-R",
-                &format!(
-                    "{}:{}",
-                    nix::unistd::Uid::current(),
-                    nix::unistd::Gid::current()
-                ),
-                &tmp_perf_file_path,
-            ],
-        )?;
-    }
     let reader = std::fs::File::open(perf_file_path.as_ref()).unwrap();
 
     let PerfFileReader {
         mut perf_file,
         mut record_iter,
-    } = PerfFileReader::parse_file(reader)?;
+    } = PerfFileReader::parse_pipe(reader)?;
 
     while let Some(record) = record_iter.next_record(&mut perf_file).unwrap() {
         let PerfFileRecord::EventRecord { record, .. } = record else {

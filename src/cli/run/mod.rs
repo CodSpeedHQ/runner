@@ -152,10 +152,7 @@ pub async fn run(
             debug!("config: {:#?}", execution_context.config);
 
             // Execute benchmarks
-            let executor = executor::get_executor_from_mode(
-                &execution_context.config.mode,
-                executor::ExecutorCommand::Run,
-            );
+            let executor = executor::get_executor_from_mode(&execution_context.config.mode);
 
             let poll_results_fn = async |upload_result: &UploadResult| {
                 poll_results::poll_results(api_client, upload_result, output_json).await
