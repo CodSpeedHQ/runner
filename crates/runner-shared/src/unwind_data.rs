@@ -35,11 +35,17 @@ impl UnwindData {
 
     pub fn to_file<P: AsRef<std::path::Path>>(&self, path: P) -> anyhow::Result<()> {
         if let Ok(true) = std::fs::exists(path.as_ref()) {
-            log::warn!(
+            // This happens in CI for the root `systemd-run` process which execs into bash which
+            // also execs into bash, each process reloading common libraries like `ld-linux.so`.
+            // We detect this when we harvest unwind_data by parsing the perf data (exec-harness).
+            // Until we properly handle the process tree and deduplicate unwind data, just debug
+            // log here
+            // Any relevant occurence should have other symptoms reported by users.
+            log::debug!(
                 "{} already exists, file will be truncated",
                 path.as_ref().display()
             );
-            log::warn!("{} {:x?}", self.path, self.avma_range);
+            log::debug!("{} {:x?}", self.path, self.avma_range);
         }
 
         let compat = UnwindDataCompat::V2(self.clone());
