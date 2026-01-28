@@ -254,3 +254,5 @@ codspeed:
 
 > [!TIP]
 > For more CI integration examples and advanced configurations, check out the [CI Integration Documentation](https://codspeed.io/docs/integrations/ci/).
+
+Hello world
