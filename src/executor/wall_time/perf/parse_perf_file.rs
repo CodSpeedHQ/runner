@@ -5,6 +5,7 @@ use libc::pid_t;
 use linux_perf_data::PerfFileReader;
 use linux_perf_data::PerfFileRecord;
 use linux_perf_data::linux_perf_event_reader::EventRecord;
+use linux_perf_data::linux_perf_event_reader::RecordType;
 use runner_shared::unwind_data::UnwindData;
 use std::collections::HashMap;
 use std::path::Path;
@@ -18,7 +19,11 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
     let mut symbols_by_pid = HashMap::<pid_t, ProcessSymbols>::new();
     let mut unwind_data_by_pid = HashMap::<pid_t, Vec<UnwindData>>::new();
 
-    let reader = std::fs::File::open(perf_file_path.as_ref()).unwrap();
+    // 1MiB buffer
+    let reader = std::io::BufReader::with_capacity(
+        1024 * 1024,
+        std::fs::File::open(perf_file_path.as_ref())?,
+    );
 
     let PerfFileReader {
         mut perf_file,
@@ -30,41 +35,44 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
             continue;
         };
 
+        // Check the type from the raw record to avoid parsing overhead since we do not care about
+        // most records.
+        if record.record_type != RecordType::MMAP2 {
+            continue;
+        }
+
         let Ok(parsed_record) = record.parse() else {
             continue;
         };
 
+        // Should never fail since we already checked the type in the raw record
         let EventRecord::Mmap2(record) = parsed_record else {
             continue;
         };
 
-        let record_path_string = {
-            let path_slice = record.path.as_slice();
-            String::from_utf8_lossy(&path_slice).into_owned()
-        };
+        // Check PROT_EXEC early to avoid string allocation for non-executable mappings
+        if record.protection as i32 & libc::PROT_EXEC == 0 {
+            continue;
+        }
 
+        // Filter on raw bytes before allocating a String
+        let path_slice: &[u8] = &record.path.as_slice();
+
+        // Skip anonymous mappings
+        if path_slice == b"//anon" {
+            continue;
+        }
+
+        // Skip special mappings like [vdso], [heap], etc.
+        if path_slice.first() == Some(&b'[') && path_slice.last() == Some(&b']') {
+            continue;
+        }
+
+        let record_path_string = String::from_utf8_lossy(path_slice).into_owned();
         let end_addr = record.address + record.length;
 
-        if record_path_string == "//anon" {
-            // Skip anonymous mappings
-            trace!(
-                "Skipping anonymous mapping: {:x}-{:x}",
-                record.address, end_addr
-            );
-            continue;
-        }
-
-        if record_path_string.starts_with("[") && record_path_string.ends_with("]") {
-            // Skip special mappings
-            trace!(
-                "Skipping special mapping: {} - {:x}-{:x}",
-                record_path_string, record.address, end_addr
-            );
-            continue;
-        }
-
         trace!(
-            "Pid {}: {:016x}-{:016x} {:08x} {:?} (Prot {:?})",
+            "Mapping: Pid {}: {:016x}-{:016x} {:08x} {:?} (Prot {:?})",
             record.pid,
             record.address,
             end_addr,
@@ -72,11 +80,6 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
             record_path_string,
             record.protection,
         );
-
-        if record.protection as i32 & libc::PROT_EXEC == 0 {
-            continue;
-        }
-
         symbols_by_pid
             .entry(record.pid)
             .or_insert(ProcessSymbols::new(record.pid))
@@ -87,7 +90,6 @@ pub(super) fn parse_for_memmap2<P: AsRef<Path>>(perf_file_path: P) -> Result<Mem
                 end_addr,
                 record.page_offset,
             );
-        trace!("Added symbols mapping for module {record_path_string:?}");
 
         match UnwindData::new(
             record_path_string.as_bytes(),
