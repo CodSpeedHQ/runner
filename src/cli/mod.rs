@@ -3,6 +3,7 @@ pub(crate) mod exec;
 pub(crate) mod run;
 mod setup;
 mod shared;
+mod show;
 mod use_mode;
 
 pub(crate) use shared::*;
@@ -86,6 +87,8 @@ enum Commands {
     Setup,
     /// Set the codspeed mode for the rest of the shell session
     Use(use_mode::UseArgs),
+    /// Show the codspeed mode previously set in this shell session with `codspeed use`
+    Show,
 }
 
 pub async fn run() -> Result<()> {
@@ -136,6 +139,7 @@ pub async fn run() -> Result<()> {
         Commands::Auth(args) => auth::run(args, &api_client, cli.config_name.as_deref()).await?,
         Commands::Setup => setup::setup(setup_cache_dir).await?,
         Commands::Use(args) => use_mode::run(args)?,
+        Commands::Show => show::run()?,
     }
     Ok(())
 }
