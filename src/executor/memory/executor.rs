@@ -177,6 +177,7 @@ impl MemoryExecutor {
                     let min_version = match name.as_str() {
                         "codspeed-rust" => Version::new(4, 2, 0),
                         "codspeed-cpp" => Version::new(2, 1, 0),
+                        "codspeed-node" => Version::new(5, 0, 1), // FIXME: Change to 5.1.0
                         _ => {
                             panic!("{INVALID_INTEGRATION_ERROR}")
                         }
