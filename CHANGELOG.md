@@ -5,6 +5,19 @@
 
 
 
+## [4.10.2] - 2026-01-29
+
+### <!-- 0 -->🚀 Features
+- Improve efficiency of parse_perf_file by @GuillaumeLagrange
+- Parse the perf file memory mappings by @GuillaumeLagrange
+
+### <!-- 1 -->🐛 Bug Fixes
+- Remove very spammy trace logs by @GuillaumeLagrange in [#224](https://github.com/CodSpeedHQ/runner/pull/224)
+
+### <!-- 7 -->⚙️ Internals
+- Remove useless conversions. by @GuillaumeLagrange
+
+
 ## [4.10.1] - 2026-01-28
 
 ### <!-- 0 -->🚀 Features
@@ -22,7 +35,7 @@
 - Move the cli related module inside a cli module by @GuillaumeLagrange
 
 ### <!-- 7 -->⚙️ Internals
-- Bump memtrack version
+- Bump memtrack version by @adriencaccia
 - Turn warning about overwritten unwind_data into debug logs by @GuillaumeLagrange in [#223](https://github.com/CodSpeedHQ/runner/pull/223)
 - Fix cargo check on macOs by @adriencaccia
 - Remove `codspeed use` without argument in favor of `codspeed show` by @GuillaumeLagrange in [#222](https://github.com/CodSpeedHQ/runner/pull/222)
@@ -862,6 +875,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.10.2]: https://github.com/CodSpeedHQ/runner/compare/v4.10.1..v4.10.2
 [4.10.1]: https://github.com/CodSpeedHQ/runner/compare/v4.10.0..v4.10.1
 [4.10.0]: https://github.com/CodSpeedHQ/runner/compare/v4.9.0..v4.10.0
 [4.9.0]: https://github.com/CodSpeedHQ/runner/compare/v4.8.2..v4.9.0
