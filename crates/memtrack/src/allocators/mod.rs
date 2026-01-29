@@ -13,6 +13,8 @@ mod static_linked;
 pub enum AllocatorKind {
     /// Standard C library (glibc, musl, etc.)
     Libc,
+    /// C++ standard library (libstdc++, libc++) - provides operator new/delete
+    LibCpp,
     /// jemalloc - used by FreeBSD, Firefox, many Rust projects
     Jemalloc,
     /// mimalloc - Microsoft's allocator
@@ -26,10 +28,13 @@ pub enum AllocatorKind {
 impl AllocatorKind {
     /// Returns all supported allocator kinds.
     pub fn all() -> &'static [AllocatorKind] {
+        // IMPORTANT: Check non-default allocators first, because they will contain compatibility
+        // layers for the default allocators.
         &[
-            AllocatorKind::Libc,
             AllocatorKind::Jemalloc,
             AllocatorKind::Mimalloc,
+            AllocatorKind::LibCpp,
+            AllocatorKind::Libc,
         ]
     }
 
@@ -37,6 +42,7 @@ impl AllocatorKind {
     pub fn name(&self) -> &'static str {
         match self {
             AllocatorKind::Libc => "libc",
+            AllocatorKind::LibCpp => "libc++",
             AllocatorKind::Jemalloc => "jemalloc",
             AllocatorKind::Mimalloc => "mimalloc",
         }
@@ -51,7 +57,8 @@ impl AllocatorKind {
     pub fn symbols(&self) -> &'static [&'static str] {
         match self {
             AllocatorKind::Libc => &["malloc", "free"],
-            AllocatorKind::Jemalloc => &["_rjem_malloc", "_rjem_free"],
+            AllocatorKind::LibCpp => &["_Znwm", "_Znam", "_ZdlPv", "_ZdaPv"],
+            AllocatorKind::Jemalloc => &["_rjem_malloc", "je_malloc", "je_malloc_default"],
             AllocatorKind::Mimalloc => &["mi_malloc_aligned", "mi_malloc", "mi_free"],
         }
     }
@@ -70,4 +77,23 @@ impl AllocatorLib {
         allocators.extend(dynamic::find_all()?);
         Ok(allocators)
     }
+}
+
+/// Check if a file is an ELF binary by reading its magic bytes.
+fn is_elf(path: &std::path::Path) -> bool {
+    use std::fs;
+    use std::io::Read;
+
+    let mut file = match fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+
+    let mut magic = [0u8; 4];
+    if file.read_exact(&mut magic).is_err() {
+        return false;
+    }
+
+    // ELF magic: 0x7F 'E' 'L' 'F'
+    magic == [0x7F, b'E', b'L', b'F']
 }

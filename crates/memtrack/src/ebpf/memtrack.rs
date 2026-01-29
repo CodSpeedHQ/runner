@@ -271,7 +271,28 @@ impl MemtrackBpf {
         self.try_attach_realloc(lib_path, "realloc");
         self.try_attach_free(lib_path, "free");
         self.try_attach_aligned_alloc(lib_path, "aligned_alloc");
+        self.try_attach_memalign(lib_path, "posix_memalign");
         self.try_attach_memalign(lib_path, "memalign");
+        Ok(())
+    }
+
+    /// Attach C++ operator new/delete probes.
+    /// These are mangled C++ symbols that wrap the underlying allocator.
+    /// C++ operators have identical signatures to malloc/free, so we reuse those handlers.
+    pub fn attach_libcpp_probes(&mut self, lib_path: &Path) -> Result<()> {
+        self.try_attach_malloc(lib_path, "_Znwm"); // operator new(size_t)
+        self.try_attach_malloc(lib_path, "_Znam"); // operator new[](size_t)
+        self.try_attach_malloc(lib_path, "_ZnwmSt11align_val_t"); // operator new(size_t, std::align_val_t)
+        self.try_attach_malloc(lib_path, "_ZnamSt11align_val_t"); // operator new[](size_t, std::align_val_t)
+        self.try_attach_free(lib_path, "_ZdlPv"); // operator delete(void*)
+        self.try_attach_free(lib_path, "_ZdaPv"); // operator delete[](void*)
+        self.try_attach_free(lib_path, "_ZdlPvm"); // operator delete(void*, size_t) - C++14 sized delete
+        self.try_attach_free(lib_path, "_ZdaPvm"); // operator delete[](void*, size_t) - C++14 sized delete
+        self.try_attach_free(lib_path, "_ZdlPvSt11align_val_t"); // operator delete(void*, std::align_val_t)
+        self.try_attach_free(lib_path, "_ZdaPvSt11align_val_t"); // operator delete[](void*, std::align_val_t)
+        self.try_attach_free(lib_path, "_ZdlPvmSt11align_val_t"); // operator delete(void*, size_t, std::align_val_t)
+        self.try_attach_free(lib_path, "_ZdaPvmSt11align_val_t"); // operator delete[](void*, size_t, std::align_val_t)
+
         Ok(())
     }
 
@@ -290,14 +311,22 @@ impl MemtrackBpf {
                 // Libc only has standard probes, and they must succeed
                 self.attach_libc_probes(lib_path)
             }
+            AllocatorKind::LibCpp => {
+                // libc++ exports C++ operator new/delete symbols
+                self.attach_libcpp_probes(lib_path)
+            }
             AllocatorKind::Jemalloc => {
                 // Try standard names (jemalloc may export these as drop-in replacements)
                 let _ = self.attach_libc_probes(lib_path);
+                // Try C++ operators (jemalloc exports these for C++ programs)
+                let _ = self.attach_libcpp_probes(lib_path);
                 self.attach_jemalloc_probes(lib_path)
             }
             AllocatorKind::Mimalloc => {
                 // Try standard names (mimalloc may export these as drop-in replacements)
                 let _ = self.attach_libc_probes(lib_path);
+                // Try C++ operators (mimalloc exports these for C++ programs)
+                let _ = self.attach_libcpp_probes(lib_path);
                 self.attach_mimalloc_probes(lib_path)
             }
         }
@@ -311,7 +340,27 @@ impl MemtrackBpf {
         // - rust_dealloc: _rjem_sdallocx
         // - rust_realloc: _rjem_realloc / _rjem_rallocx
 
-        // Prefixed standard API
+        // je_*_default API (C++ with static linking)
+        self.try_attach_malloc(lib_path, "je_malloc_default");
+        self.try_attach_malloc(lib_path, "je_mallocx_default");
+        self.try_attach_free(lib_path, "je_free_default");
+        self.try_attach_free(lib_path, "je_sdallocx_default");
+        self.try_attach_realloc(lib_path, "je_realloc_default");
+        self.try_attach_realloc(lib_path, "je_rallocx_default");
+        self.try_attach_calloc(lib_path, "je_calloc_default");
+
+        // je_* API (internal jemalloc functions, static linking)
+        self.try_attach_malloc(lib_path, "je_malloc");
+        self.try_attach_malloc(lib_path, "je_mallocx");
+        self.try_attach_calloc(lib_path, "je_calloc");
+        self.try_attach_realloc(lib_path, "je_realloc");
+        self.try_attach_realloc(lib_path, "je_rallocx");
+        self.try_attach_aligned_alloc(lib_path, "je_aligned_alloc");
+        self.try_attach_memalign(lib_path, "je_memalign");
+        self.try_attach_free(lib_path, "je_free");
+        self.try_attach_free(lib_path, "je_sdallocx");
+
+        // _rjem_* API (Rust jemalloc crate, dynamic linking)
         self.try_attach_malloc(lib_path, "_rjem_malloc");
         self.try_attach_malloc(lib_path, "_rjem_mallocx"); // Also used for `calloc`
         self.try_attach_calloc(lib_path, "_rjem_calloc");

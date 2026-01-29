@@ -44,6 +44,8 @@ bindgen = "0.71"
 tempfile = { workspace = true }
 rstest = "0.21"
 test-log = "0.2"
+insta = { version = "1.46.1", default-features = false }
+test-with = "0.14"
 
 [package.metadata.dist]
 dist = true
