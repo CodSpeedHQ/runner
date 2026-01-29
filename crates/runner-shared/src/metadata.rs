@@ -1,5 +1,6 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
+use std::io::BufWriter;
 use std::path::Path;
 
 use crate::debug_info::ModuleDebugInfo;
@@ -36,7 +37,10 @@ impl PerfMetadata {
 
     pub fn save_to<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let file = std::fs::File::create(path.as_ref().join("perf.metadata"))?;
-        serde_json::to_writer(file, self)?;
+        const BUFFER_SIZE: usize = 256 * 1024 /* 256 KB */;
+
+        let writer = BufWriter::with_capacity(BUFFER_SIZE, file);
+        serde_json::to_writer(writer, self)?;
         Ok(())
     }
 }
