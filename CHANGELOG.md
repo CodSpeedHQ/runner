@@ -5,6 +5,13 @@
 
 
 
+## [4.10.3] - 2026-01-29
+
+### <!-- 1 -->🐛 Bug Fixes
+- Deserialize memory results as integer by @not-matthias in [#227](https://github.com/CodSpeedHQ/runner/pull/227)
+- Use a BufWriter to write perf.metadata by @GuillaumeLagrange in [#226](https://github.com/CodSpeedHQ/runner/pull/226)
+
+
 ## [4.10.2] - 2026-01-29
 
 ### <!-- 0 -->🚀 Features
@@ -875,6 +882,7 @@
 - Add linting components to the toolchain by @art049
 
 
+[4.10.3]: https://github.com/CodSpeedHQ/runner/compare/v4.10.2..v4.10.3
 [4.10.2]: https://github.com/CodSpeedHQ/runner/compare/v4.10.1..v4.10.2
 [4.10.1]: https://github.com/CodSpeedHQ/runner/compare/v4.10.0..v4.10.1
 [4.10.0]: https://github.com/CodSpeedHQ/runner/compare/v4.9.0..v4.10.0

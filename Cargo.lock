@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "codspeed-runner"
-version = "4.10.2"
+version = "4.10.3"
 dependencies = [
  "addr2line",
  "anyhow",
