@@ -151,12 +151,25 @@ nest! {
                 pub total_time: f64,
             }>,
             pub memory: Option<pub struct MemoryResult {
+                #[serde(deserialize_with = "deserialize_i64_from_string")]
                 pub peak_memory: i64,
+                #[serde(deserialize_with = "deserialize_i64_from_string")]
                 pub total_allocated: i64,
+                #[serde(deserialize_with = "deserialize_i64_from_string")]
                 pub alloc_calls: i64,
             }>,
         }>,
     }
+}
+
+// Custom deserializer to convert string values to i64
+fn deserialize_i64_from_string<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+    let s = String::deserialize(deserializer)?;
+    s.parse().map_err(de::Error::custom)
 }
 
 nest! {
