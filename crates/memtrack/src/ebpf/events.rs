@@ -1,5 +1,4 @@
 use runner_shared::artifacts::{MemtrackEvent, MemtrackEventKind};
-use serde::{Deserialize, Serialize};
 
 // Include the bindings for event.h
 pub mod bindings {
@@ -12,55 +11,6 @@ pub mod bindings {
 }
 use bindings::*;
 
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
-pub enum EventType {
-    Malloc = EVENT_TYPE_MALLOC as u8,
-    Free = EVENT_TYPE_FREE as u8,
-    Calloc = EVENT_TYPE_CALLOC as u8,
-    Realloc = EVENT_TYPE_REALLOC as u8,
-    AlignedAlloc = EVENT_TYPE_ALIGNED_ALLOC as u8,
-    Mmap = EVENT_TYPE_MMAP as u8,
-    Munmap = EVENT_TYPE_MUNMAP as u8,
-    Brk = EVENT_TYPE_BRK as u8,
-}
-
-impl From<u8> for EventType {
-    fn from(val: u8) -> Self {
-        match val as u32 {
-            bindings::EVENT_TYPE_MALLOC => EventType::Malloc,
-            bindings::EVENT_TYPE_FREE => EventType::Free,
-            bindings::EVENT_TYPE_CALLOC => EventType::Calloc,
-            bindings::EVENT_TYPE_REALLOC => EventType::Realloc,
-            bindings::EVENT_TYPE_ALIGNED_ALLOC => EventType::AlignedAlloc,
-            bindings::EVENT_TYPE_MMAP => EventType::Mmap,
-            bindings::EVENT_TYPE_MUNMAP => EventType::Munmap,
-            bindings::EVENT_TYPE_BRK => EventType::Brk,
-            _ => panic!("Unknown event type: {val}"),
-        }
-    }
-}
-
-/// Extension trait for MemtrackEvent to get the EventType
-pub trait MemtrackEventExt {
-    fn event_type(&self) -> EventType;
-}
-
-impl MemtrackEventExt for MemtrackEvent {
-    fn event_type(&self) -> EventType {
-        match self.kind {
-            MemtrackEventKind::Malloc { .. } => EventType::Malloc,
-            MemtrackEventKind::Free => EventType::Free,
-            MemtrackEventKind::Calloc { .. } => EventType::Calloc,
-            MemtrackEventKind::Realloc { .. } => EventType::Realloc,
-            MemtrackEventKind::AlignedAlloc { .. } => EventType::AlignedAlloc,
-            MemtrackEventKind::Mmap { .. } => EventType::Mmap,
-            MemtrackEventKind::Munmap { .. } => EventType::Munmap,
-            MemtrackEventKind::Brk { .. } => EventType::Brk,
-        }
-    }
-}
-
 /// Parse an event from raw bytes into MemtrackEvent
 ///
 /// SAFETY: The data must be a valid `bindings::event`
@@ -70,7 +20,6 @@ pub fn parse_event(data: &[u8]) -> Option<MemtrackEvent> {
     }
 
     let event = unsafe { &*(data.as_ptr() as *const bindings::event) };
-    let event_type = EventType::from(event.header.event_type);
 
     // Common fields from header
     let pid = event.header.pid as i32;
@@ -80,51 +29,54 @@ pub fn parse_event(data: &[u8]) -> Option<MemtrackEvent> {
     // Parse event data based on type
     // SAFETY: The fields must be properly initialized in eBPF
     let (addr, kind) = unsafe {
-        match event_type {
-            EventType::Malloc => (
+        match event.header.event_type as u32 {
+            EVENT_TYPE_MALLOC => (
                 event.data.alloc.addr,
                 MemtrackEventKind::Malloc {
                     size: event.data.alloc.size,
                 },
             ),
-            EventType::Free => (event.data.free.addr, MemtrackEventKind::Free),
-            EventType::Calloc => (
+            EVENT_TYPE_FREE => (event.data.free.addr, MemtrackEventKind::Free),
+            EVENT_TYPE_CALLOC => (
                 event.data.alloc.addr,
                 MemtrackEventKind::Calloc {
                     size: event.data.alloc.size,
                 },
             ),
-            EventType::Realloc => (
+            EVENT_TYPE_REALLOC => (
                 event.data.realloc.new_addr,
                 MemtrackEventKind::Realloc {
                     old_addr: Some(event.data.realloc.old_addr),
                     size: event.data.realloc.size,
                 },
             ),
-            EventType::AlignedAlloc => (
+            EVENT_TYPE_ALIGNED_ALLOC => (
                 event.data.alloc.addr,
                 MemtrackEventKind::AlignedAlloc {
                     size: event.data.alloc.size,
                 },
             ),
-            EventType::Mmap => (
+            EVENT_TYPE_MMAP => (
                 event.data.mmap.addr,
                 MemtrackEventKind::Mmap {
                     size: event.data.mmap.size,
                 },
             ),
-            EventType::Munmap => (
+            EVENT_TYPE_MUNMAP => (
                 event.data.mmap.addr,
                 MemtrackEventKind::Munmap {
                     size: event.data.mmap.size,
                 },
             ),
-            EventType::Brk => (
+            EVENT_TYPE_BRK => (
                 event.data.mmap.addr,
                 MemtrackEventKind::Brk {
                     size: event.data.mmap.size,
                 },
             ),
+            unknown => {
+                panic!("Unknown event type: {unknown}");
+            }
         }
     };
 
