@@ -132,14 +132,15 @@ fn exec_harness_test_cases() -> Vec<&'static str> {
 fn env_test_cases(#[case] env_case: (&str, &str)) {}
 
 async fn create_test_setup(config: Config) -> (ExecutionContext, TempDir) {
+    use crate::api_client::CodSpeedAPIClient;
     use crate::config::CodSpeedConfig;
     use crate::executor::config::RepositoryOverride;
     use crate::run_environment::interfaces::RepositoryProvider;
 
     let temp_dir = TempDir::new().unwrap();
 
-    // Use try_from to create a proper ExecutionContext with all fields
     let codspeed_config = CodSpeedConfig::default();
+    let api_client = CodSpeedAPIClient::create_test_client();
     let mut config_with_folder = config;
     config_with_folder.profile_folder = Some(temp_dir.path().to_path_buf());
 
@@ -159,7 +160,8 @@ async fn create_test_setup(config: Config) -> (ExecutionContext, TempDir) {
     }
 
     let execution_context =
-        ExecutionContext::try_from((config_with_folder, &codspeed_config_with_token))
+        ExecutionContext::new(config_with_folder, &codspeed_config_with_token, &api_client)
+            .await
             .expect("Failed to create ExecutionContext for test");
 
     (execution_context, temp_dir)

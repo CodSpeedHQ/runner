@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use git2::Repository;
 use simplelog::SharedLogger;
 
-use crate::api_client::CodSpeedAPIClient;
+use crate::api_client::{CodSpeedAPIClient, GetOrCreateProjectRepositoryVars, GetRepositoryVars};
 use crate::cli::run::helpers::{GitRemote, find_repository_root, parse_git_remote};
 use crate::executor::config::RepositoryOverride;
 use crate::executor::{Config, ExecutorName};
@@ -17,85 +17,178 @@ use crate::upload::{LATEST_UPLOAD_METADATA_VERSION, ProfileArchive, Runner, Uplo
 static FAKE_COMMIT_REF: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 #[derive(Debug)]
-enum RepositorySource {
-    /// We have repository information (from git or from override)
-    Git {
-        repository_provider: RepositoryProvider,
-        owner: String,
-        repository: String,
-        ref_: String,
-        head_ref: Option<String>,
-    },
-    /// Not in a git repo, no override - fetch repository info from API using project name
-    ApiProject { project_name: String },
-}
-
-#[derive(Debug)]
 pub struct LocalProvider {
-    source: RepositorySource,
+    repository_provider: RepositoryProvider,
+    owner: String,
+    repository: String,
+    ref_: String,
+    head_ref: Option<String>,
     pub event: RunEvent,
     pub repository_root_path: String,
 }
 
-impl TryFrom<&Config> for LocalProvider {
-    type Error = Error;
-    fn try_from(config: &Config) -> Result<Self> {
+/// Information about the git repository root path
+struct GitContext {
+    /// Path to the repository root (with trailing slash)
+    root_path: String,
+}
+
+/// Repository information resolved from git or API
+struct ResolvedRepository {
+    provider: RepositoryProvider,
+    owner: String,
+    name: String,
+    ref_: String,
+    head_ref: Option<String>,
+}
+
+impl LocalProvider {
+    pub async fn new(config: &Config, api_client: &CodSpeedAPIClient) -> Result<Self> {
         let current_dir = std::env::current_dir()?;
+        let git_context = Self::find_git_context(&current_dir);
 
-        let repository_root_path = {
-            let Some(mut path) = find_repository_root(&current_dir) else {
-                // We are not in a git repository
-                if let Some(RepositoryOverride {
-                    owner,
-                    repository,
-                    repository_provider,
-                }) = config.repository_override.clone()
-                {
-                    // Use the repository_override with very minimal information
-                    return Ok(Self {
-                        source: RepositorySource::Git {
-                            repository_provider,
-                            ref_: FAKE_COMMIT_REF.to_string(),
-                            head_ref: None,
-                            owner,
-                            repository,
-                        },
-                        repository_root_path: current_dir.to_string_lossy().to_string(),
-                        event: RunEvent::Local,
-                    });
-                } else {
-                    // No git repo and no override - we'll fetch from API using default project name
-                    return Ok(Self {
-                        source: RepositorySource::ApiProject {
-                            project_name: crate::cli::exec::DEFAULT_REPOSITORY_NAME.to_string(),
-                        },
-                        repository_root_path: current_dir.to_string_lossy().to_string(),
-                        event: RunEvent::Local,
-                    });
-                }
-            };
+        let repository_root_path = git_context
+            .as_ref()
+            .map(|ctx| ctx.root_path.clone())
+            .unwrap_or_else(|| current_dir.to_string_lossy().to_string());
 
-            // Add a trailing slash to the path
-            path.push("");
-            path.to_string_lossy().to_string()
-        };
+        let resolved = Self::resolve_repository(config, api_client, git_context.as_ref()).await?;
 
-        let git_repository = Repository::open(repository_root_path.clone()).context(format!(
-            "Failed to open repository at path: {repository_root_path}"
+        Ok(Self {
+            repository_provider: resolved.provider,
+            owner: resolved.owner,
+            repository: resolved.name,
+            ref_: resolved.ref_,
+            head_ref: resolved.head_ref,
+            repository_root_path,
+            event: RunEvent::Local,
+        })
+    }
+
+    /// Find the git repository context if we're inside a git repo
+    fn find_git_context(current_dir: &std::path::Path) -> Option<GitContext> {
+        find_repository_root(current_dir).map(|mut path| {
+            path.push(""); // Add trailing slash
+            GitContext {
+                root_path: path.to_string_lossy().to_string(),
+            }
+        })
+    }
+
+    /// Resolve repository information from override, git remote, or API fallback
+    async fn resolve_repository(
+        config: &Config,
+        api_client: &CodSpeedAPIClient,
+        git_context: Option<&GitContext>,
+    ) -> Result<ResolvedRepository> {
+        // Priority 1: Use explicit repository override
+        if let Some(repo_override) = &config.repository_override {
+            return Self::resolve_from_override(repo_override, git_context);
+        }
+
+        // Priority 2: Try to use git remote if repository exists in CodSpeed
+        if let Some(ctx) = git_context {
+            if let Some(resolved) =
+                Self::try_resolve_from_codspeed_repository(api_client, ctx).await?
+            {
+                return Ok(resolved);
+            }
+        }
+
+        // Priority 3: Fallback to project repository
+        Self::resolve_as_project_repository(api_client).await
+    }
+
+    /// Resolve repository from explicit override configuration
+    fn resolve_from_override(
+        repo_override: &RepositoryOverride,
+        git_context: Option<&GitContext>,
+    ) -> Result<ResolvedRepository> {
+        let (ref_, head_ref) = git_context
+            .map(|ctx| Self::get_git_ref_info(&ctx.root_path))
+            .transpose()?
+            .unwrap_or_else(|| (FAKE_COMMIT_REF.to_string(), None));
+
+        Ok(ResolvedRepository {
+            provider: repo_override.repository_provider.clone(),
+            owner: repo_override.owner.clone(),
+            name: repo_override.repository.clone(),
+            ref_,
+            head_ref,
+        })
+    }
+
+    /// Try to resolve repository from git remote, validating it exists in CodSpeed
+    async fn try_resolve_from_codspeed_repository(
+        api_client: &CodSpeedAPIClient,
+        git_context: &GitContext,
+    ) -> Result<Option<ResolvedRepository>> {
+        let git_repository = Repository::open(&git_context.root_path).context(format!(
+            "Failed to open repository at path: {}",
+            git_context.root_path
         ))?;
 
         let remote = git_repository.find_remote("origin")?;
+        let (provider, owner, name) =
+            extract_provider_owner_and_repository_from_remote_url(remote.url().unwrap())?;
 
-        let (repository_provider, owner, repository) =
-            if let Some(repo_override) = config.repository_override.clone() {
-                (
-                    repo_override.repository_provider,
-                    repo_override.owner,
-                    repo_override.repository,
-                )
-            } else {
-                extract_provider_owner_and_repository_from_remote_url(remote.url().unwrap())?
-            };
+        // Check if repository exists in CodSpeed
+        // Note: we only check existence here, we don't check that
+        // - the provider is properly setup
+        // - the provider has access to the repository
+        //
+        // If the repo exists, but these two conditions are not satisfied, the upload will fail
+        // later on, but by checking repository existence here we catch most of the cases where the
+        // user would run their benchmarks, but fail to upload afterwards.
+        let exists = api_client
+            .get_repository(GetRepositoryVars {
+                owner: owner.clone(),
+                name: name.clone(),
+                provider: provider.clone(),
+            })
+            .await?
+            .is_some();
+
+        if !exists {
+            return Ok(None);
+        }
+
+        let (ref_, head_ref) = Self::get_git_ref_info(&git_context.root_path)?;
+
+        Ok(Some(ResolvedRepository {
+            provider,
+            owner,
+            name,
+            ref_,
+            head_ref,
+        }))
+    }
+
+    /// Resolve repository by creating/getting a project repository
+    async fn resolve_as_project_repository(
+        api_client: &CodSpeedAPIClient,
+    ) -> Result<ResolvedRepository> {
+        let project_name = crate::cli::exec::DEFAULT_REPOSITORY_NAME;
+
+        let repo_info = api_client
+            .get_or_create_project_repository(GetOrCreateProjectRepositoryVars {
+                name: project_name.to_string(),
+            })
+            .await?;
+
+        Ok(ResolvedRepository {
+            provider: repo_info.provider,
+            owner: repo_info.owner,
+            name: repo_info.name,
+            ref_: FAKE_COMMIT_REF.to_string(),
+            head_ref: None,
+        })
+    }
+
+    /// Extract commit hash and branch name from a git repository
+    fn get_git_ref_info(repo_path: &str) -> Result<(String, Option<String>)> {
+        let git_repository = Repository::open(repo_path)
+            .context(format!("Failed to open repository at path: {repo_path}"))?;
 
         let head = git_repository.head().context("Failed to get HEAD")?;
         let ref_ = head
@@ -103,24 +196,17 @@ impl TryFrom<&Config> for LocalProvider {
             .context("Failed to get HEAD commit")?
             .id()
             .to_string();
+
         let head_ref = if head.is_branch() {
-            let branch = head.shorthand().context("Failed to get HEAD branch name")?;
-            Some(branch.to_string())
+            head.shorthand()
+                .context("Failed to get HEAD branch name")
+                .map(|s| s.to_string())
+                .ok()
         } else {
             None
         };
 
-        Ok(Self {
-            source: RepositorySource::Git {
-                repository_provider,
-                ref_,
-                head_ref,
-                owner,
-                repository,
-            },
-            event: RunEvent::Local,
-            repository_root_path,
-        })
+        Ok((ref_, head_ref))
     }
 }
 
@@ -133,16 +219,7 @@ impl RunEnvironmentDetector for LocalProvider {
 #[async_trait(?Send)]
 impl RunEnvironmentProvider for LocalProvider {
     fn get_repository_provider(&self) -> RepositoryProvider {
-        match &self.source {
-            RepositorySource::Git {
-                repository_provider,
-                ..
-            } => repository_provider.clone(),
-            RepositorySource::ApiProject { .. } => {
-                // Placeholder, will be updated from API
-                RepositoryProvider::GitHub
-            }
-        }
+        self.repository_provider.clone()
     }
 
     fn get_logger(&self) -> Box<dyn SharedLogger> {
@@ -154,38 +231,18 @@ impl RunEnvironmentProvider for LocalProvider {
     }
 
     fn get_run_environment_metadata(&self) -> Result<RunEnvironmentMetadata> {
-        match &self.source {
-            RepositorySource::Git {
-                owner,
-                repository,
-                ref_,
-                head_ref,
-                ..
-            } => Ok(RunEnvironmentMetadata {
-                base_ref: None,
-                head_ref: head_ref.clone(),
-                event: self.event.clone(),
-                gh_data: None,
-                gl_data: None,
-                sender: None,
-                owner: owner.clone(),
-                repository: repository.clone(),
-                ref_: ref_.clone(),
-                repository_root_path: self.repository_root_path.clone(),
-            }),
-            RepositorySource::ApiProject { .. } => Ok(RunEnvironmentMetadata {
-                base_ref: None,
-                head_ref: None,
-                event: self.event.clone(),
-                gh_data: None,
-                gl_data: None,
-                sender: None,
-                owner: String::new(),
-                repository: String::new(),
-                ref_: FAKE_COMMIT_REF.to_string(),
-                repository_root_path: self.repository_root_path.clone(),
-            }),
-        }
+        Ok(RunEnvironmentMetadata {
+            base_ref: None,
+            head_ref: self.head_ref.clone(),
+            event: self.event.clone(),
+            gh_data: None,
+            gl_data: None,
+            sender: None,
+            owner: self.owner.clone(),
+            repository: self.repository.clone(),
+            ref_: self.ref_.clone(),
+            repository_root_path: self.repository_root_path.clone(),
+        })
     }
 
     async fn get_upload_metadata(
@@ -194,35 +251,13 @@ impl RunEnvironmentProvider for LocalProvider {
         system_info: &SystemInfo,
         profile_archive: &ProfileArchive,
         executor_name: ExecutorName,
-        api_client: &CodSpeedAPIClient,
     ) -> Result<UploadMetadata> {
-        let mut run_environment_metadata = self.get_run_environment_metadata()?;
-        let mut repository_provider = self.get_repository_provider();
-
-        // If we need to fetch repository info from the API
-        if let RepositorySource::ApiProject { project_name } = &self.source {
-            debug!("Fetching repository info from API for project: {project_name}");
-            let repo_info = api_client
-                .get_or_create_project_repository(
-                    crate::api_client::GetOrCreateProjectRepositoryVars {
-                        name: project_name.clone(),
-                    },
-                )
-                .await?;
-
-            debug!("Received repository info: {repo_info:?}");
-
-            // Update the metadata with the fetched values
-            run_environment_metadata.owner = repo_info.owner;
-            run_environment_metadata.repository = repo_info.name;
-
-            repository_provider = repo_info.provider;
-        }
+        let run_environment_metadata = self.get_run_environment_metadata()?;
 
         Ok(UploadMetadata {
             version: Some(LATEST_UPLOAD_METADATA_VERSION),
             tokenless: config.token.is_none(),
-            repository_provider,
+            repository_provider: self.repository_provider.clone(),
             commit_hash: run_environment_metadata.ref_.clone(),
             allow_empty: config.allow_empty,
             run_environment_metadata,

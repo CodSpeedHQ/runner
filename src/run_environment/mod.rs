@@ -8,6 +8,7 @@ use gitlab_ci::GitLabCIProvider;
 use local::LocalProvider;
 use provider::RunEnvironmentDetector;
 
+use crate::api_client::CodSpeedAPIClient;
 use crate::executor::Config;
 use crate::prelude::*;
 
@@ -20,7 +21,10 @@ mod github_actions;
 mod gitlab_ci;
 mod local;
 
-pub fn get_provider(config: &Config) -> Result<Box<dyn RunEnvironmentProvider>> {
+pub async fn get_provider(
+    config: &Config,
+    api_client: &CodSpeedAPIClient,
+) -> Result<Box<dyn RunEnvironmentProvider>> {
     let mut provider: Box<dyn RunEnvironmentProvider> = {
         if BuildkiteProvider::detect() {
             let provider = BuildkiteProvider::try_from(config)?;
@@ -32,7 +36,7 @@ pub fn get_provider(config: &Config) -> Result<Box<dyn RunEnvironmentProvider>> 
             let provider = GitLabCIProvider::try_from(config)?;
             Box::new(provider)
         } else if LocalProvider::detect() {
-            let provider = LocalProvider::try_from(config)?;
+            let provider = LocalProvider::new(config, api_client).await?;
             Box::new(provider)
         } else {
             // By design, this should not happen as the `LocalProvider` is a fallback

@@ -218,6 +218,24 @@ nest! {
     }
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GetRepositoryVars {
+    pub owner: String,
+    pub name: String,
+    pub provider: RepositoryProvider,
+}
+
+nest! {
+    #[derive(Debug, Deserialize, Serialize)]*
+    #[serde(rename_all = "camelCase")]*
+    struct GetRepositoryData {
+        repository: Option<pub struct GetRepositoryPayload {
+            pub id: String,
+        }>
+    }
+}
+
 impl CodSpeedAPIClient {
     pub async fn create_login_session(&self) -> Result<CreateLoginSessionPayload> {
         let response = self
@@ -292,6 +310,31 @@ impl CodSpeedAPIClient {
                 bail!("Your session has expired, please login again using `codspeed auth login`")
             }
             Err(err) => bail!("Failed to get or create project repository: {err}"),
+        }
+    }
+
+    /// Check if a repository exists in CodSpeed.
+    /// Returns Some(payload) if the repository exists, None otherwise.
+    pub async fn get_repository(
+        &self,
+        vars: GetRepositoryVars,
+    ) -> Result<Option<GetRepositoryPayload>> {
+        let response = self
+            .gql_client
+            .query_with_vars_unwrap::<GetRepositoryData, GetRepositoryVars>(
+                include_str!("queries/GetRepository.gql"),
+                vars.clone(),
+            )
+            .await;
+        match response {
+            Ok(response) => Ok(response.repository),
+            Err(err) if err.contains_error_code("REPOSITORY_NOT_FOUND") => Ok(None),
+            Err(err) if err.contains_error_code("UNAUTHENTICATED") => {
+                bail!("Your session has expired, please login again using `codspeed auth login`")
+            }
+            Err(err) => {
+                bail!("Failed to get repository: {err}")
+            }
         }
     }
 }

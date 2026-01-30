@@ -11,7 +11,6 @@ mod tests;
 mod valgrind;
 mod wall_time;
 
-use crate::api_client::CodSpeedAPIClient;
 use crate::instruments::mongo_tracer::{MongoTracer, install_mongodb_tracer};
 use crate::prelude::*;
 use crate::runner_mode::RunnerMode;
@@ -89,7 +88,6 @@ pub async fn execute_benchmarks<F>(
     execution_context: &mut ExecutionContext,
     setup_cache_dir: Option<&Path>,
     poll_results: F,
-    api_client: &CodSpeedAPIClient,
 ) -> Result<()>
 where
     F: AsyncFn(&UploadResult) -> Result<()>,
@@ -150,8 +148,7 @@ where
         }
 
         start_group!("Uploading results");
-        let upload_result =
-            crate::upload::upload(execution_context, executor.name(), api_client).await?;
+        let upload_result = crate::upload::upload(execution_context, executor.name()).await?;
 
         if execution_context.is_local() {
             poll_results(&upload_result).await?;

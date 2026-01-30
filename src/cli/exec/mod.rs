@@ -96,9 +96,10 @@ pub async fn execute_with_harness(
     codspeed_config: &CodSpeedConfig,
     setup_cache_dir: Option<&Path>,
 ) -> Result<()> {
-    let mut execution_context = executor::ExecutionContext::try_from((config, codspeed_config))?;
+    let mut execution_context =
+        executor::ExecutionContext::new(config, codspeed_config, api_client).await?;
 
-    if execution_context.is_local() {
+    if !execution_context.is_local() {
         super::show_banner();
     }
 
@@ -128,7 +129,6 @@ pub async fn execute_with_harness(
         &mut execution_context,
         setup_cache_dir,
         poll_results_fn,
-        api_client,
     )
     .await?;
 

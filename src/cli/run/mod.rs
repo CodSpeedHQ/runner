@@ -144,7 +144,7 @@ pub async fn run(
 
             // Create execution context
             let mut execution_context =
-                executor::ExecutionContext::try_from((config, codspeed_config))?;
+                executor::ExecutionContext::new(config, codspeed_config, api_client).await?;
 
             if !execution_context.is_local() {
                 super::show_banner();
@@ -162,7 +162,6 @@ pub async fn run(
                 &mut execution_context,
                 setup_cache_dir,
                 poll_results_fn,
-                api_client,
             )
             .await?;
         }

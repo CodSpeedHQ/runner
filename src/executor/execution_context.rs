@@ -1,4 +1,5 @@
 use super::Config;
+use crate::api_client::CodSpeedAPIClient;
 use crate::cli::run::logger::Logger;
 use crate::config::CodSpeedConfig;
 use crate::prelude::*;
@@ -29,15 +30,13 @@ impl ExecutionContext {
     pub fn is_local(&self) -> bool {
         self.provider.get_run_environment() == RunEnvironment::Local
     }
-}
 
-impl TryFrom<(Config, &CodSpeedConfig)> for ExecutionContext {
-    type Error = anyhow::Error;
-
-    fn try_from(
-        (mut config, codspeed_config): (Config, &CodSpeedConfig),
-    ) -> Result<Self, Self::Error> {
-        let provider = run_environment::get_provider(&config)?;
+    pub async fn new(
+        mut config: Config,
+        codspeed_config: &CodSpeedConfig,
+        api_client: &CodSpeedAPIClient,
+    ) -> Result<Self> {
+        let provider = run_environment::get_provider(&config, api_client).await?;
         let system_info = SystemInfo::new()?;
         system::check_system(&system_info)?;
         let logger = Logger::new(provider.as_ref())?;

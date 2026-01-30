@@ -1,0 +1,9 @@
+query Repository(
+  $owner: String!
+  $name: String!
+  $provider: RepositoryProvider
+) {
+  repository(owner: $owner, name: $name, provider: $provider) {
+    id
+  }
+}
